@@ -18,6 +18,9 @@ Handler _ZSt13set_terminatePFvvE_nid_postfix(Handler);
 extern char _ZTISt13bad_exception_nid_postfix[];
 void _ZNSt13bad_exceptionC1Ev_nid_postfix(void*);
 const char* _ZNKSt13bad_exception4whatEv_nid_postfix(const void*);
+void* __cxa_current_primary_exception_nid_postfix();
+void __cxa_rethrow_primary_exception_nid_postfix(void*);
+void __cxa_decrement_exception_refcount_nid_postfix(void*);
 }
 
 namespace {
@@ -232,6 +235,29 @@ void CheckCallUnexpected() {
     }, 65));
 }
 
+void CheckRethrownPrimary() {
+    static std::vector<Byte> lsda;
+    lsda = Specification {&typeid(int)}.lsda;
+    _ZSt14set_unexpectedPFvvE_nid_postfix(ThrowInt);
+    void* primary = nullptr;
+    try { throw 1.5; } catch (...) { primary = __cxa_current_primary_exception_nid_postfix(); }
+    Require(primary != nullptr);
+    long caught = 0;
+    try {
+        try { __cxa_rethrow_primary_exception_nid_postfix(primary); }
+        catch (...) {
+            auto* header = LibcException::globals.caught;
+            Require(header->unexpected == ThrowInt);
+            header->selector = -1;
+            header->lsda = lsda.data();
+            header->dataBase = 0;
+            __cxa_call_unexpected_nid_postfix(&header->unwind);
+        }
+    } catch (int value) { caught = value; }
+    Require(caught == 7);
+    __cxa_decrement_exception_refcount_nid_postfix(primary);
+}
+
 }
 
 int main() {
@@ -239,6 +265,7 @@ int main() {
     CheckHandlers();
     CheckBadException();
     CheckCallUnexpected();
+    CheckRethrownPrimary();
     std::puts("exception specification tests passed");
     return 0;
 }
