@@ -4,6 +4,7 @@
 #include "../include/Cancel.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libkernel/KernelErrors.hpp"
+#include "prx/libkernel/System/include/SignalMask.hpp"
 #include "prx/libc/include/CpuTopology.hpp"
 #include <algorithm>
 #include <cstdio>
@@ -45,6 +46,7 @@ struct ThreadArgs {
     PthreadEntry entry;
     void* arg;
     PthreadPrivate* self;
+    GuestSignalSet guestSignalMask;
 #ifndef _WIN32
     sigset_t signalMask;
 #endif
@@ -390,6 +392,7 @@ static void RunThread(std::unique_ptr<ThreadArgs> args) {
     TimedWait::BindThreadWaitState(&self->waitCount);
     CurrentGuestState().current = self;
     RegisterStack(self);
+    SetCurrentGuestSignalMask(args->guestSignalMask);
 #ifndef _WIN32
     const sigset_t signalMask = args->signalMask;
 #endif
@@ -550,7 +553,7 @@ int APS5_VABI scePthreadCreate(Pthread* thread, const PthreadAttr* attr, Pthread
     }
     if (name) p->name = name;
     std::promise<bool> start;
-    auto args = std::make_unique<ThreadArgs>(ThreadArgs{entry, arg, p.get()});
+    auto args = std::make_unique<ThreadArgs>(ThreadArgs{entry, arg, p.get(), CurrentGuestSignalMask()});
 #ifdef _WIN32
     SYSTEM_INFO system{};
     GetSystemInfo(&system);
@@ -624,13 +627,18 @@ int APS5_VABI scePthreadCreate(Pthread* thread, const PthreadAttr* attr, Pthread
 }
 
 int APS5_VABI scePthreadJoin(Pthread thread, void** retval) {
-    if (!thread) throw std::runtime_error("scePthreadJoin: null thread");
+    if (!thread) return SCE_KERNEL_ERROR_EINVAL;
     if (thread->_detached) return SCE_KERNEL_ERROR_EINVAL;
     if (thread == CurrentGuestState().current) return SCE_KERNEL_ERROR_EDEADLK;
+    return PthreadJoinUntil_nid_no_patch(thread, retval, std::nullopt);
+}
+
+int PthreadJoinUntil_nid_no_patch(Pthread thread, void** retval, std::optional<std::uint64_t> deadlineNanos) {
     ThreadCancel::Check();
     {
         std::unique_lock lock(thread->_join_mtx);
-        ThreadCancel::WaitUntil(thread->_join_cv, lock, std::nullopt, [&] { return thread->_finished.load(); });
+        if (!ThreadCancel::WaitUntil(thread->_join_cv, lock, deadlineNanos, [&] { return thread->_finished.load(); }))
+            return SCE_KERNEL_ERROR_ETIMEDOUT;
     }
 #ifdef _WIN32
     if (WaitForSingleObject(thread->nativeHandle, INFINITE) != WAIT_OBJECT_0)
@@ -647,7 +655,7 @@ int APS5_VABI scePthreadJoin(Pthread thread, void** retval) {
 }
 
 int APS5_VABI scePthreadDetach(Pthread thread) {
-    if (!thread) throw std::runtime_error("scePthreadDetach: null thread");
+    if (!thread) return SCE_KERNEL_ERROR_EINVAL;
     if (thread->_detached) return SCE_KERNEL_ERROR_EINVAL;
     thread->_detached = true;
 #ifdef _WIN32
