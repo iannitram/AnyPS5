@@ -10,15 +10,23 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/AllocatingStrings.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/WideConversion.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Multibyte.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/WideExtras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/RuneLocale.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StringExtensions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatingEnvironment.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Time.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/TimeParsing.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/FileAndHeap.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdioExtras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StandardStreams.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/LineInput.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/GuestAllocations.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/GuestArena.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/GuestStacks.cpp
@@ -48,6 +56,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Threads.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/exception/Exports.cpp
 )
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp TARGET_DIRECTORY libc PROPERTIES COMPILE_OPTIONS -frounding-math)
 
 target_include_directories(libc PRIVATE
         ${LIBS_INCLUDE_DIR}
@@ -421,6 +430,78 @@ if(BUILD_TESTING)
     add_test(NAME guest_wcsrtombs COMMAND guest_wcsrtombs_tests)
     if(WIN32)
         set_tests_properties(guest_wcsrtombs PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_floating_environment_tests ${LIBS_INCLUDE_DIR}/tests/GuestFloatingEnvironment.cpp)
+    target_include_directories(guest_floating_environment_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_floating_environment_tests PRIVATE libc)
+    configure_windows_unwind(guest_floating_environment_tests)
+    add_test(NAME guest_floating_environment COMMAND guest_floating_environment_tests)
+    if(WIN32)
+        set_tests_properties(guest_floating_environment PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_math_ieee_tests ${LIBS_INCLUDE_DIR}/tests/GuestMathIeee.cpp)
+    target_include_directories(guest_math_ieee_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_math_ieee_tests PRIVATE libc)
+    configure_windows_unwind(guest_math_ieee_tests)
+    add_test(NAME guest_math_ieee COMMAND guest_math_ieee_tests)
+    if(WIN32)
+        set_tests_properties(guest_math_ieee PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_search_tables_tests ${LIBS_INCLUDE_DIR}/tests/GuestSearchTables.cpp)
+    target_include_directories(guest_search_tables_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_search_tables_tests PRIVATE libc)
+    configure_windows_unwind(guest_search_tables_tests)
+    add_test(NAME guest_search_tables COMMAND guest_search_tables_tests)
+    if(WIN32)
+        set_tests_properties(guest_search_tables PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_sorting_tests ${LIBS_INCLUDE_DIR}/tests/GuestSorting.cpp)
+    target_include_directories(guest_sorting_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_sorting_tests PRIVATE libc)
+    configure_windows_unwind(guest_sorting_tests)
+    add_test(NAME guest_sorting COMMAND guest_sorting_tests)
+    if(WIN32)
+        set_tests_properties(guest_sorting PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_getline_tests ${LIBS_INCLUDE_DIR}/tests/GuestGetline.cpp)
+    target_include_directories(guest_getline_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_getline_tests PRIVATE libc)
+    configure_windows_unwind(guest_getline_tests)
+    add_test(NAME guest_getline COMMAND guest_getline_tests)
+    if(WIN32)
+        set_tests_properties(guest_getline PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_time_parsing_tests ${LIBS_INCLUDE_DIR}/tests/GuestTimeParsing.cpp)
+    target_include_directories(guest_time_parsing_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_time_parsing_tests PRIVATE libc)
+    configure_windows_unwind(guest_time_parsing_tests)
+    add_test(NAME guest_time_parsing COMMAND guest_time_parsing_tests)
+    if(WIN32)
+        set_tests_properties(guest_time_parsing PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_stdlib_extras_tests ${LIBS_INCLUDE_DIR}/tests/GuestStdlibExtras.cpp)
+    target_include_directories(guest_stdlib_extras_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_stdlib_extras_tests PRIVATE libc)
+    configure_windows_unwind(guest_stdlib_extras_tests)
+    add_test(NAME guest_stdlib_extras COMMAND guest_stdlib_extras_tests)
+    if(WIN32)
+        set_tests_properties(guest_stdlib_extras PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_wide_extras_tests ${LIBS_INCLUDE_DIR}/tests/GuestWideExtras.cpp)
+    target_include_directories(guest_wide_extras_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_wide_extras_tests PRIVATE libc)
+    configure_windows_unwind(guest_wide_extras_tests)
+    add_test(NAME guest_wide_extras COMMAND guest_wide_extras_tests)
+    if(WIN32)
+        set_tests_properties(guest_wide_extras PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)

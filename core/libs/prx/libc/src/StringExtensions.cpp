@@ -1,4 +1,5 @@
 #include "prx/libc/include/general/VabiMacros.hpp"
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -195,6 +196,63 @@ int APS5_VABI __inet_aton_nid_postfix(const char* text, void* address) {
 std::uint32_t APS5_VABI __inet_addr_nid_postfix(const char* text) {
     std::uint32_t address;
     return __inet_aton_nid_postfix(text, &address) ? address : 0xffffffff;
+}
+
+void* APS5_VABI memmem_nid_postfix(const void* haystack, std::size_t haystackLength, const void* needle, std::size_t needleLength) {
+    const auto* big = static_cast<const char*>(haystack);
+    const auto* little = static_cast<const char*>(needle);
+    if (needleLength == 0) return const_cast<char*>(big);
+    if (haystackLength < needleLength) return nullptr;
+    if (needleLength == 1) return const_cast<void*>(std::memchr(haystack, *little, haystackLength));
+    const char* last = big + haystackLength - needleLength;
+    for (const char* current = big; current <= last; current++)
+        if (current[0] == little[0] && std::memcmp(current, little, needleLength) == 0) return const_cast<char*>(current);
+    return nullptr;
+}
+
+void* APS5_VABI memccpy_nid_postfix(void* destination, const void* source, int character, std::size_t count) {
+    auto* to = static_cast<unsigned char*>(destination);
+    const auto* from = static_cast<const unsigned char*>(source);
+    const auto stop = static_cast<unsigned char>(character);
+    for (; count != 0; --count)
+        if ((*to++ = *from++) == stop) return to;
+    return nullptr;
+}
+
+char* APS5_VABI index_nid_postfix(const char* string, int character) {
+    return const_cast<char*>(std::strchr(string, character));
+}
+
+char* APS5_VABI rindex_nid_postfix(const char* string, int character) {
+    return const_cast<char*>(std::strrchr(string, character));
+}
+
+void APS5_VABI bcopy_nid_postfix(const void* source, void* destination, std::size_t length) {
+    std::memmove(destination, source, length);
+}
+
+int APS5_VABI ffs_nid_postfix(int mask) {
+    return mask == 0 ? 0 : std::countr_zero(static_cast<unsigned>(mask)) + 1;
+}
+
+int APS5_VABI ffsl_nid_postfix(std::int64_t mask) {
+    return mask == 0 ? 0 : std::countr_zero(static_cast<std::uint64_t>(mask)) + 1;
+}
+
+int APS5_VABI ffsll_nid_postfix(long long mask) {
+    return mask == 0 ? 0 : std::countr_zero(static_cast<unsigned long long>(mask)) + 1;
+}
+
+int APS5_VABI fls_nid_postfix(int mask) {
+    return mask == 0 ? 0 : std::bit_width(static_cast<unsigned>(mask));
+}
+
+int APS5_VABI flsl_nid_postfix(std::int64_t mask) {
+    return mask == 0 ? 0 : static_cast<int>(std::bit_width(static_cast<std::uint64_t>(mask)));
+}
+
+int APS5_VABI flsll_nid_postfix(long long mask) {
+    return mask == 0 ? 0 : static_cast<int>(std::bit_width(static_cast<unsigned long long>(mask)));
 }
 
 }
