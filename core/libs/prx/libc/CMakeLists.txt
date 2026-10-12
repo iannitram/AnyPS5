@@ -21,6 +21,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkAddress.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathClassification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
@@ -523,6 +524,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_complex_math COMMAND guest_complex_math_tests)
     if(WIN32)
         set_tests_properties(guest_complex_math PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_network_address_tests ${LIBS_INCLUDE_DIR}/tests/GuestNetworkAddress.cpp)
+    target_include_directories(guest_network_address_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_network_address_tests PRIVATE libc)
+    configure_windows_unwind(guest_network_address_tests)
+    add_test(NAME guest_network_address COMMAND guest_network_address_tests)
+    if(WIN32)
+        set_tests_properties(guest_network_address PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
