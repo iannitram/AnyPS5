@@ -36,6 +36,7 @@ add_library(libkernel SHARED EXCLUDE_FROM_ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Once.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Tsd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Sem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/MessageQueue.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Spinlock.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Socket/src/Socket.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Socket/src/Udp.cpp
@@ -117,6 +118,16 @@ if(BUILD_TESTING)
     add_test(NAME guest_posix_sem_post COMMAND guest_posix_sem_tests post)
     if(WIN32)
         set_tests_properties(guest_posix_sem_init guest_posix_sem_post PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
+    add_test_executable(guest_message_queue_tests ${LIBS_INCLUDE_DIR}/tests/GuestMessageQueue.cpp)
+    target_include_directories(guest_message_queue_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_message_queue_tests PRIVATE libkernel libc)
+    configure_windows_unwind(guest_message_queue_tests)
+    add_test(NAME guest_message_queue COMMAND guest_message_queue_tests)
+    set_tests_properties(guest_message_queue PROPERTIES TIMEOUT 20)
+    if(WIN32)
+        set_tests_properties(guest_message_queue PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
     endif()
     add_test_executable(guest_process_time_tests ${LIBS_INCLUDE_DIR}/tests/GuestProcessTime.cpp)
