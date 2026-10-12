@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
 
 namespace {
 struct SignalSet {
@@ -21,6 +22,11 @@ using Handler = void (APS5_VABI *)(int);
 }
 
 extern "C" {
+int APS5_VABI sigqueue_nid_postfix(int, int, void*);
+int APS5_VABI killpg_nid_postfix(int, int);
+int APS5_VABI sigsuspend_nid_postfix(const void*);
+int APS5_VABI sigpause_nid_postfix(int);
+int APS5_VABI getpid_nid_postfix(void);
 int* APS5_VABI __error_nid_postfix();
 int APS5_VABI sigaction_nid_postfix(int, const SignalAction*, SignalAction*);
 int APS5_VABI _sigprocmask_nid_postfix(int, const SignalSet*, SignalSet*);
@@ -140,6 +146,19 @@ int main() {
     Require(Pending().bits[0] == 0, "ignoring a signal discards it");
     Require(_sigprocmask_nid_postfix(2, &terminate, nullptr) == 0 && caught == 0, "a discarded signal is not delivered");
     signal_nid_postfix(Terminate, nullptr);
+
+    const int self = getpid_nid_postfix();
+    Require(sigqueue_nid_postfix(self, 0, nullptr) == 0, "sigqueue checks the process");
+    *__error_nid_postfix() = 0;
+    Require(sigqueue_nid_postfix(self + 1, 0, nullptr) == -1 && *__error_nid_postfix() == 3, "sigqueue to another process");
+    Require(sigqueue_nid_postfix(0, 0, nullptr) == -1 && *__error_nid_postfix() == 22, "sigqueue needs a positive pid");
+    Require(sigqueue_nid_postfix(self, 129, nullptr) == -1 && *__error_nid_postfix() == 22, "sigqueue of an invalid signal");
+    Require(killpg_nid_postfix(self, 0) == 0 && killpg_nid_postfix(0, 0) == 0, "killpg of the own group");
+    Require(killpg_nid_postfix(1, 0) == -1 && *__error_nid_postfix() == 3, "killpg of group 1");
+    int thrown = 0;
+    try { sigsuspend_nid_postfix(&pending); } catch (const std::exception&) { ++thrown; }
+    try { sigpause_nid_postfix(0); } catch (const std::exception&) { ++thrown; }
+    Require(thrown == 2, "sigsuspend and sigpause throw");
 
     sigsetmask_nid_postfix(original);
     std::puts("guest signal compatibility tests passed");

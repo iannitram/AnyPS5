@@ -1,4 +1,8 @@
+#include "SceTypes.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
+#include <atomic>
+#include <chrono>
+#include <thread>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -48,6 +52,11 @@ int APS5_VABI pthread_attr_setaffinity_np_nid_postfix(void**, std::size_t, const
 int APS5_VABI pthread_setaffinity_np_nid_postfix(void*, std::size_t, const void*);
 int APS5_VABI pthread_getaffinity_np_nid_postfix(void*, std::size_t, void*);
 int* APS5_VABI __error_nid_postfix();
+int APS5_VABI pthread_create_nid_postfix(void**, void* const*, void* (APS5_VABI *)(void*), void*);
+int APS5_VABI pthread_join_nid_postfix(void*, void**);
+int APS5_VABI pthread_detach_nid_postfix(void*);
+int APS5_VABI pthread_timedjoin_np_nid_postfix(void*, void**, const KernelTimespec*);
+int APS5_VABI clock_gettime_nid_postfix(int, KernelTimespec*);
 }
 
 namespace {
@@ -60,6 +69,43 @@ void Require(bool condition, const char* message) {
 }
 
 void APS5_VABI Handler() {}
+
+std::atomic<bool> release{false};
+
+void* APS5_VABI Sleeper(void* argument) {
+    while (!release) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    return argument;
+}
+
+KernelTimespec In(long milliseconds) {
+    KernelTimespec now{};
+    clock_gettime_nid_postfix(0, &now);
+    now.tv_nsec += milliseconds * 1000000;
+    now.tv_sec += now.tv_nsec / 1000000000;
+    now.tv_nsec %= 1000000000;
+    return now;
+}
+
+void CheckTimedJoin() {
+    void* thread = nullptr;
+    int token = 7;
+    Require(pthread_create_nid_postfix(&thread, nullptr, Sleeper, &token) == 0, "create");
+    KernelTimespec soon = In(30);
+    void* value = nullptr;
+    Require(pthread_timedjoin_np_nid_postfix(thread, &value, &soon) == 60 && value == nullptr, "timed join times out");
+    KernelTimespec invalid{0, 1000000000};
+    Require(pthread_timedjoin_np_nid_postfix(thread, &value, &invalid) == 22 && pthread_timedjoin_np_nid_postfix(thread, &value, nullptr) == 22, "invalid timeout");
+    Require(pthread_timedjoin_np_nid_postfix(pthread_self_nid_postfix(), &value, &soon) == 11, "self join deadlocks");
+    release = true;
+    KernelTimespec later = In(5000);
+    Require(pthread_timedjoin_np_nid_postfix(thread, &value, &later) == 0 && value == &token, "timed join returns the value");
+
+    release = false;
+    Require(pthread_create_nid_postfix(&thread, nullptr, Sleeper, nullptr) == 0 && pthread_detach_nid_postfix(thread) == 0, "detached thread");
+    Require(pthread_timedjoin_np_nid_postfix(thread, &value, &later) == 22, "detached thread cannot be joined");
+    release = true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+}
 
 void CheckMutexAttributes() {
     void* attr = nullptr;
@@ -155,6 +201,7 @@ int main() {
     CheckMutexAttributes();
     CheckOtherAttributes();
     CheckThreads();
+    CheckTimedJoin();
     std::puts("guest pthread extras tests passed");
     return 0;
 }
