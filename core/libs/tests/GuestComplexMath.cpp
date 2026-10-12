@@ -1,5 +1,6 @@
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
+#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -101,6 +102,14 @@ void CheckComplex() {
     Require(NearComplex(clog10_nid_postfix(Make<ComplexDouble>(0.0, 10.0)), 1.0, pi / 2 / std::log(10.0), 1e-15), "clog10 imaginary");
     Require(NearComplex(cpow_nid_postfix(Make<ComplexDouble>(0.0, 1.0), Make<ComplexDouble>(2.0, 0.0)), -1.0, 0.0, 1e-15), "cpow");
     Require(NearComplex(cpowl_nid_postfix(Make<ComplexLongDouble>(2.0L, 0.0L), Make<ComplexLongDouble>(10.0L, 0.0L)), 1024.0L, 0.0L, 1e-17L), "cpowl");
+    Require(NearComplex(cpow_nid_postfix(Make<ComplexDouble>(0.0, 0.0), Make<ComplexDouble>(-1.0, 0.0)), 0.0, 0.0, 0.0), "cpow of zero is zero, as s_cpow.c gives");
+    Require(NearComplex(cpow_nid_postfix(Make<ComplexDouble>(0.0, 0.0), Make<ComplexDouble>(0.0, 0.0)), 0.0, 0.0, 0.0), "cpow of zero to zero is zero, as s_cpow.c gives");
+    Require(NearComplex(cpow_nid_postfix(Make<ComplexDouble>(10.0, 0.0), Make<ComplexDouble>(3.0, 0.0)), 1000.0, 0.0, 0.0), "cpow of a real power is exact, as s_cpow.c computes it");
+    Require(NearComplex(clog10_nid_postfix(Make<ComplexDouble>(1000.0, 0.0)), 3.0, 0.0, 0.0), "clog10 of a power of ten is exact, as glibc gives");
+    errno = 0;
+    tgamma_nid_postfix(-1.0);
+    catanh_nid_postfix(Make<ComplexDouble>(1.0, 0.0));
+    Require(errno == 0, "math errors leave errno alone (math_errhandling is MATH_ERREXCEPT)");
     Require(NearComplex(cacos_nid_postfix(Make<ComplexDouble>(2.0, 0.0)), 0.0, -1.3169578969248166, 1e-15), "cacos");
     Require(NearComplex(catanh_nid_postfix(Make<ComplexDouble>(0.0, 1.0)), 0.0, pi / 4, 1e-15), "catanh");
     Require(NearComplex(csinhf_nid_postfix(Make<ComplexFloat>(0.0f, 1.0f)), 0.0f, 0.84147096f, 1e-6f), "csinhf");
