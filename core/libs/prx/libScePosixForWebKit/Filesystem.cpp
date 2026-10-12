@@ -38,8 +38,9 @@ namespace {
 int Temporary(char* pattern, int suffixLength, bool directory) {
     if (!pattern) return Failure(14);
     const auto length = std::strlen(pattern);
-    if (length == 0 || suffixLength < 0 || static_cast<std::size_t>(suffixLength) > length) return Failure(22);
+    if (suffixLength < 0) return Failure(22);
     if (length >= 1024) return Failure(63);
+    if (static_cast<std::size_t>(suffixLength) >= length || std::strchr(pattern + length - suffixLength, '/') != nullptr) return Failure(22);
     const auto end = length - static_cast<std::size_t>(suffixLength);
     auto start = end;
     while (start > 0 && pattern[start - 1] == 'X') --start;
