@@ -21,6 +21,12 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/FormattedMessage.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/LanguageInformation.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkDatabase.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/UserDatabase.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/UserShells.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/PosixMisc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkAddress.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Spawn.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathClassification.cpp
@@ -72,6 +78,16 @@ if(WIN32)
 endif()
 
 if(BUILD_TESTING)
+    add_test_executable(guest_array_callbacks_tests ${LIBS_INCLUDE_DIR}/tests/GuestArrayCallbacks.cpp)
+    target_include_directories(guest_array_callbacks_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_array_callbacks_tests PRIVATE libc)
+    configure_windows_unwind(guest_array_callbacks_tests)
+    add_test(NAME guest_array_callbacks COMMAND guest_array_callbacks_tests)
+    set_tests_properties(guest_array_callbacks PROPERTIES TIMEOUT 10)
+    if(WIN32)
+        set_tests_properties(guest_array_callbacks PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
     add_test_executable(guest_time_conversion_tests ${LIBS_INCLUDE_DIR}/tests/GuestTimeConversion.cpp)
     target_include_directories(guest_time_conversion_tests PRIVATE ${LIBS_INCLUDE_DIR})
     target_link_libraries(guest_time_conversion_tests PRIVATE libc)
@@ -80,6 +96,16 @@ if(BUILD_TESTING)
     set_tests_properties(guest_time_conversion PROPERTIES TIMEOUT 20)
     if(WIN32)
         set_tests_properties(guest_time_conversion PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_mktime_tests ${LIBS_INCLUDE_DIR}/tests/GuestMktime.cpp)
+    target_include_directories(guest_mktime_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_mktime_tests PRIVATE libc)
+    configure_windows_unwind(guest_mktime_tests)
+    add_test(NAME guest_mktime COMMAND guest_mktime_tests)
+    set_tests_properties(guest_mktime PROPERTIES TIMEOUT 10)
+    if(WIN32)
+        set_tests_properties(guest_mktime PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(precise_wait_tests ${LIBS_INCLUDE_DIR}/tests/PreciseWait.cpp)
@@ -203,6 +229,16 @@ if(BUILD_TESTING)
     set_tests_properties(guest_libc_threads PROPERTIES TIMEOUT 20)
     if(WIN32)
         set_tests_properties(guest_libc_threads PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_libc_static_imports_tests ${LIBS_INCLUDE_DIR}/tests/GuestLibcStaticImports.cpp)
+    target_include_directories(guest_libc_static_imports_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_libc_static_imports_tests PRIVATE libc)
+    configure_windows_unwind(guest_libc_static_imports_tests)
+    add_test(NAME guest_libc_static_imports COMMAND guest_libc_static_imports_tests)
+    set_tests_properties(guest_libc_static_imports PROPERTIES TIMEOUT 20)
+    if(WIN32)
+        set_tests_properties(guest_libc_static_imports PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_fiopen_tests ${LIBS_INCLUDE_DIR}/tests/GuestFiopen.cpp)
@@ -561,6 +597,69 @@ if(BUILD_TESTING)
     add_test(NAME guest_wide_streams COMMAND guest_wide_streams_tests)
     if(WIN32)
         set_tests_properties(guest_wide_streams PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_user_shells_tests ${LIBS_INCLUDE_DIR}/tests/GuestUserShells.cpp)
+    target_include_directories(guest_user_shells_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_user_shells_tests PRIVATE libc)
+    configure_windows_unwind(guest_user_shells_tests)
+    add_test(NAME guest_user_shells COMMAND guest_user_shells_tests)
+    if(WIN32)
+        set_tests_properties(guest_user_shells PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_user_database_tests ${LIBS_INCLUDE_DIR}/tests/GuestUserDatabase.cpp)
+    target_include_directories(guest_user_database_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_user_database_tests PRIVATE libc)
+    configure_windows_unwind(guest_user_database_tests)
+    add_test(NAME guest_user_database COMMAND guest_user_database_tests)
+    if(WIN32)
+        set_tests_properties(guest_user_database PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_network_database_tests ${LIBS_INCLUDE_DIR}/tests/GuestNetworkDatabase.cpp)
+    target_include_directories(guest_network_database_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_network_database_tests PRIVATE libc)
+    configure_windows_unwind(guest_network_database_tests)
+    add_test(NAME guest_network_database COMMAND guest_network_database_tests)
+    if(WIN32)
+        set_tests_properties(guest_network_database PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_language_information_tests ${LIBS_INCLUDE_DIR}/tests/GuestLanguageInformation.cpp)
+    target_include_directories(guest_language_information_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_language_information_tests PRIVATE libc)
+    configure_windows_unwind(guest_language_information_tests)
+    add_test(NAME guest_language_information COMMAND guest_language_information_tests)
+    if(WIN32)
+        set_tests_properties(guest_language_information PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_unicode_characters_tests ${LIBS_INCLUDE_DIR}/tests/GuestUnicodeCharacters.cpp)
+    target_include_directories(guest_unicode_characters_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_unicode_characters_tests PRIVATE libc)
+    configure_windows_unwind(guest_unicode_characters_tests)
+    add_test(NAME guest_unicode_characters COMMAND guest_unicode_characters_tests)
+    if(WIN32)
+        set_tests_properties(guest_unicode_characters PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_error_lists_tests ${LIBS_INCLUDE_DIR}/tests/GuestErrorLists.cpp)
+    target_include_directories(guest_error_lists_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_error_lists_tests PRIVATE libc)
+    configure_windows_unwind(guest_error_lists_tests)
+    add_test(NAME guest_error_lists COMMAND guest_error_lists_tests)
+    if(WIN32)
+        set_tests_properties(guest_error_lists PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_formatted_message_tests ${LIBS_INCLUDE_DIR}/tests/GuestFormattedMessage.cpp)
+    target_include_directories(guest_formatted_message_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_formatted_message_tests PRIVATE libc)
+    configure_windows_unwind(guest_formatted_message_tests)
+    add_test(NAME guest_formatted_message COMMAND guest_formatted_message_tests)
+    if(WIN32)
+        set_tests_properties(guest_formatted_message PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)

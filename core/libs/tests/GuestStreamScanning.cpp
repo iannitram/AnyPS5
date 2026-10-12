@@ -2,11 +2,13 @@
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 
 extern "C" {
@@ -68,6 +70,15 @@ int main() {
     Require(fscanf_nid_postfix(&stream, "%lf", &real) == 1 && real == 3.5, "fscanf continues the stream");
     Require(CallVfscanf(&stream, "%d", &number) == 1 && number == 7, "vfscanf last field");
     Require(CallVfscanf(&stream, "%d", &number) == EOF && feof_nid_postfix(&stream), "vfscanf end of file");
+#ifndef _WIN32
+    std::uint16_t wide[8] = {};
+    bool threw = false;
+    try { CallVfscanf(&stream, "%ls", wide); } catch (const std::exception&) { threw = true; }
+    Require(threw, "vfscanf rejects a 16-bit wide conversion on Linux");
+    threw = false;
+    try { scanf_nid_postfix("%7ls", wide); } catch (const std::exception&) { threw = true; }
+    Require(threw, "scanf rejects a 16-bit wide conversion on Linux");
+#endif
 
     const auto path = std::filesystem::path("anyps5-scanf-test-" + std::to_string(std::rand()) + ".txt");
     std::ofstream(path) << "5 six 0x10";
