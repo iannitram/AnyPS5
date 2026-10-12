@@ -162,6 +162,8 @@ void CheckMessages() {
     void* writer = mq_open_nid_postfix("/anyps5-messages", WriteOnly);
     Require(Fails(mq_send_nid_postfix(reader, "x", 1, 0), 9) && Fails(mq_receive_nid_postfix(writer, buffer, sizeof(buffer), nullptr), 9), "access modes");
 
+    Attributes state{};
+    while (mq_getattr_nid_postfix(queue, &state) == 0 && state.currentMessages > 0) mq_receive_nid_postfix(queue, buffer, sizeof(buffer), nullptr);
     SignalEvent none{0, 0, 0, 0, 0};
     Require(mq_notify_nid_postfix(queue, &none) == 0 && Fails(mq_notify_nid_postfix(reader, &none), 16), "one notification registration");
     Require(mq_notify_nid_postfix(queue, nullptr) == 0 && mq_notify_nid_postfix(reader, &none) == 0, "unregister and register again");
@@ -174,10 +176,34 @@ void CheckMessages() {
         threw = true;
     }
     Require(threw, "signal notification throws");
+    SignalEvent unknown{7, 0, 0, 0, 0};
+    Require(Fails(mq_notify_nid_postfix(queue, &unknown), 22), "unknown notification is EINVAL");
+    Require(mq_send_nid_postfix(queue, "n", 1, 0) == 0, "queue a message");
+    Require(mq_notify_nid_postfix(queue, &none) == 0 && mq_notify_nid_postfix(reader, &none) == 0, "registering on a non-empty queue with no receiver is consumed at once, as kern_kmq_notify does");
+    Require(mq_notify_nid_postfix(reader, nullptr) == 0 && mq_receive_nid_postfix(queue, buffer, sizeof(buffer), nullptr) == 1, "drain");
+    Require(mq_notify_nid_postfix(queue, &none) == 0 && mq_send_nid_postfix(queue, "m", 1, 0) == 0 && mq_notify_nid_postfix(reader, &none) == 0, "a send with no receiver consumes the registration");
+    Require(mq_notify_nid_postfix(reader, nullptr) == 0 && mq_receive_nid_postfix(queue, buffer, sizeof(buffer), nullptr) == 1, "drain again");
+    Require(Fails(mq_send_nid_postfix(queue, buffer, sizeof(buffer) + 1, 64), 22), "priority is checked before size, as mqueue_send does");
 
     Require(mq_close_nid_postfix(reader) == 0 && mq_close_nid_postfix(writer) == 0 && mq_close_nid_postfix(queue) == 0, "close all");
     Require(mq_unlink_nid_postfix("/anyps5-messages") == 0, "unlink after close");
     Require(Fails(mq_send_nid_postfix(queue, "x", 1, 0), 9), "closed descriptor");
+
+    void* doomed = mq_open_nid_postfix("/anyps5-doomed", ReadWrite | Create, 0600, nullptr);
+    Require(doomed != Failed, "open doomed queue");
+    std::atomic<bool> timedOut{false};
+    std::thread waiter([&] {
+        char message[1024];
+        KernelTimespec later = In(300);
+        timedOut = Fails(mq_timedreceive_nid_postfix(doomed, message, sizeof(message), nullptr, &later), 60);
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    Require(mq_unlink_nid_postfix("/anyps5-doomed") == 0 && mq_close_nid_postfix(doomed) == 0, "unlink and close under a blocked receiver");
+    void* other = mq_open_nid_postfix("/anyps5-other", ReadWrite | Create, 0600, nullptr);
+    Require(other != Failed, "the queue registry stays usable");
+    waiter.join();
+    Require(timedOut, "the blocked receiver keeps waiting on its queue until its timeout");
+    Require(mq_close_nid_postfix(other) == 0 && mq_unlink_nid_postfix("/anyps5-other") == 0, "cleanup");
 }
 
 }
