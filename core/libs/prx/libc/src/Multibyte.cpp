@@ -52,8 +52,6 @@ std::size_t APS5_VABI c32rtomb_nid_postfix(char* destination, std::uint32_t valu
     return 1;
 }
 
-// FreeBSD 11 keeps the pending surrogate in the first bytes of the caller's mbstate_t, or in
-// a private state when it is null.
 std::size_t APS5_VABI mbrtoc16_nid_postfix(std::uint16_t* destination, const char* source, std::size_t count, void* state) {
     static std::uint16_t privateState[2];
     auto* trail = state != nullptr ? static_cast<std::uint16_t*>(state) : privateState;

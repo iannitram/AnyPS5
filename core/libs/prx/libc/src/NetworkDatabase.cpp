@@ -12,8 +12,6 @@ struct GuestProtocolEntry;
 
 constexpr int GuestNoEntry = 2;
 
-// The console has no /etc/services or /etc/protocols: every lookup fails as FreeBSD 11's
-// files backend does when fopen reports ENOENT.
 template<typename TEntry>
 int Unavailable(TEntry** result) {
     if (result == nullptr) throw std::invalid_argument("network database: null result");
@@ -73,7 +71,6 @@ const char* APS5_VABI hstrerror_nid_postfix(int error) {
     return "Unknown resolver error";
 }
 
-// No guest resolver function sets h_errno, so herror always reports error 0.
 void APS5_VABI herror_nid_postfix(const char* prefix) {
     if (prefix != nullptr && *prefix != '\0') {
         std::fputs(prefix, stderr);

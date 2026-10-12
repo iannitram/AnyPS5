@@ -5,7 +5,6 @@
 
 namespace {
 
-// FreeBSD 11 falls back to these when /etc/shells cannot be read; the console has no /etc.
 constexpr const char* DefaultShells[] = {"/bin/sh", "/bin/csh", nullptr};
 
 std::mutex shellsLock;

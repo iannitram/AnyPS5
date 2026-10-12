@@ -8,7 +8,6 @@
 
 namespace {
 
-// FreeBSD 11 struct passwd and struct group.
 struct GuestPasswd {
     char* name;
     char* password;
@@ -30,8 +29,6 @@ constexpr int GuestNoEntry = 2;
 
 char empty[] = "";
 
-// The console has no /etc/pwd.db or /etc/group, so every lookup ends as FreeBSD 11's does
-// when the database cannot be opened: ENOENT and no entry.
 void InitializePasswd(GuestPasswd* entry) {
     if (entry == nullptr) throw std::invalid_argument("getpw_r: null passwd");
     std::memset(entry, 0, sizeof(*entry));

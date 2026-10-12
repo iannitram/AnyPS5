@@ -47,8 +47,6 @@ GuestTm* APS5_VABI gmtime_r_nid_postfix(const std::int64_t* timer, GuestTm* resu
     return nullptr;
 }
 
-// tzcode's asctime_r as FreeBSD 11 ships it: years wider than four digits use the longer
-// format and fail with EOVERFLOW, which no longer fits the 26-byte buffer.
 char* APS5_VABI asctime_r_nid_postfix(const GuestTm* time, char* buffer) {
     static constexpr const char* Days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
     static constexpr const char* Months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
@@ -96,7 +94,6 @@ int APS5_VABI timespec_get_nid_postfix(KernelTimespec* time, int base) {
     return base;
 }
 
-// FreeBSD 11's confstr for amd64: the LP64 environment is the only supported one.
 std::size_t APS5_VABI confstr_nid_postfix(int name, char* buffer, std::size_t length) {
     static constexpr const char* Unsupported = "unsupported programming environment";
     const char* value;

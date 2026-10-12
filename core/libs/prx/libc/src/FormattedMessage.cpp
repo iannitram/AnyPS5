@@ -50,8 +50,6 @@ bool ValidVerbs(const std::string& verbs) {
     return true;
 }
 
-// FreeBSD 11's printfmt, which separates the components that are present by ": ", puts the
-// action on its own line after "TO FIX: " and the tag after a space.
 std::string Format(const std::string& verbs, const char* label, int severity, const char* text, const char* action, const char* tag) {
     std::string output;
     const char* name = Severity(severity);
