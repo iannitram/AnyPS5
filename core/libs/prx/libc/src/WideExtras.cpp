@@ -92,7 +92,11 @@ std::size_t APS5_VABI wcsftime_nid_postfix(Wide* destination, std::size_t capaci
     const Wide* cursor = format;
     const std::size_t formatLength = wcsrtombs_nid_postfix(nullptr, &cursor, 0, nullptr);
     if (formatLength == static_cast<std::size_t>(-1)) return 0;
-    std::unique_ptr<char[]> narrowFormat(new char[formatLength + 1]);
+    std::unique_ptr<char[]> narrowFormat(new (std::nothrow) char[formatLength + 1]);
+    if (!narrowFormat) {
+        errno = GuestOutOfMemory;
+        return 0;
+    }
     cursor = format;
     wcsrtombs_nid_postfix(narrowFormat.get(), &cursor, formatLength + 1, nullptr);
     if (capacity >= SIZE_MAX) {

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <ctime>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <string>
 #include <thread>
@@ -163,5 +164,6 @@ int GuestThreadCpuClockId(const PthreadPrivate* thread);
 bool GuestThreadCpuNanos(int cpuClockThread, std::uint64_t* nanos);
 void SetLiveGuestThreadsAffinity(KernelCpumask mask);
 KernelCpumask LiveGuestThreadsAffinity();
+extern "C" int PthreadJoinUntil_nid_no_patch(Pthread thread, void** retval, std::optional<std::uint64_t> deadlineNanos);
 
 #endif

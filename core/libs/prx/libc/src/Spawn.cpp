@@ -1,4 +1,3 @@
-#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -22,8 +21,6 @@ struct GuestSchedulingParameter {
     int priority;
 };
 
-// FreeBSD 11 keeps both objects behind the opaque pointer that posix_spawnattr_t and
-// posix_spawn_file_actions_t hold, allocated from the guest heap.
 struct SpawnAttributes {
     short flags;
     int processGroup;
@@ -61,7 +58,6 @@ int Append(FileActions* actions, FileActionEntry* entry) {
 
 FileActionEntry* NewEntry(FileAction action, int descriptor) {
     auto* entry = static_cast<FileActionEntry*>(malloc_nid_postfix(sizeof(FileActionEntry)));
-    if (entry == nullptr) return nullptr;
     entry->action = action;
     entry->descriptor = descriptor;
     entry->path = nullptr;
@@ -82,11 +78,9 @@ SpawnAttributes* Attributes(SpawnAttributes* const* attributes) {
 
 extern "C" {
 
-// FreeBSD 11 returns -1, not an error number, when the list head cannot be allocated.
 int APS5_VABI posix_spawn_file_actions_init_nid_postfix(FileActions** result) {
     if (result == nullptr) throw std::invalid_argument("posix_spawn_file_actions_init: null object");
     auto* actions = static_cast<FileActions*>(malloc_nid_postfix(sizeof(FileActions)));
-    if (actions == nullptr) return -1;
     actions->first = nullptr;
     actions->last = &actions->first;
     *result = actions;
@@ -108,16 +102,17 @@ int APS5_VABI posix_spawn_file_actions_addopen_nid_postfix(FileActions** actions
     FileActions* list = Actions(actions);
     if (descriptor < 0) return GuestBadDescriptor;
     if (path == nullptr) throw std::invalid_argument("posix_spawn_file_actions_addopen: null path");
-    FileActionEntry* entry = NewEntry(FileAction::Open, descriptor);
-    if (entry == nullptr) return errno;
     const std::size_t length = std::strlen(path) + 1;
-    entry->path = static_cast<char*>(malloc_nid_postfix(length));
-    if (entry->path == nullptr) {
-        const int error = errno;
-        free_nid_postfix(entry);
-        return error;
+    auto* copy = static_cast<char*>(malloc_nid_postfix(length));
+    std::memcpy(copy, path, length);
+    FileActionEntry* entry;
+    try {
+        entry = NewEntry(FileAction::Open, descriptor);
+    } catch (...) {
+        free_nid_postfix(copy);
+        throw;
     }
-    std::memcpy(entry->path, path, length);
+    entry->path = copy;
     entry->openFlags = flags;
     entry->mode = mode;
     return Append(list, entry);
@@ -127,7 +122,6 @@ int APS5_VABI posix_spawn_file_actions_adddup2_nid_postfix(FileActions** actions
     FileActions* list = Actions(actions);
     if (descriptor < 0 || newDescriptor < 0) return GuestBadDescriptor;
     FileActionEntry* entry = NewEntry(FileAction::Duplicate, descriptor);
-    if (entry == nullptr) return errno;
     entry->newDescriptor = newDescriptor;
     return Append(list, entry);
 }
@@ -136,14 +130,12 @@ int APS5_VABI posix_spawn_file_actions_addclose_nid_postfix(FileActions** action
     FileActions* list = Actions(actions);
     if (descriptor < 0) return GuestBadDescriptor;
     FileActionEntry* entry = NewEntry(FileAction::Close, descriptor);
-    if (entry == nullptr) return errno;
     return Append(list, entry);
 }
 
 int APS5_VABI posix_spawnattr_init_nid_postfix(SpawnAttributes** result) {
     if (result == nullptr) throw std::invalid_argument("posix_spawnattr_init: null object");
     auto* attributes = static_cast<SpawnAttributes*>(calloc_nid_postfix(1, sizeof(SpawnAttributes)));
-    if (attributes == nullptr) return errno;
     *result = attributes;
     return 0;
 }
@@ -214,11 +206,13 @@ int APS5_VABI posix_spawnattr_setsigmask_nid_postfix(SpawnAttributes** attribute
 }
 
 int APS5_VABI posix_spawn_nid_postfix(int*, const char*, FileActions* const*, SpawnAttributes* const*, char* const*, char* const*) {
-    throw std::runtime_error("posix_spawn: child processes are not supported");
+    NotImplemented_nid_no_patch(__func__);
+    return -1;
 }
 
 int APS5_VABI posix_spawnp_nid_postfix(int*, const char*, FileActions* const*, SpawnAttributes* const*, char* const*, char* const*) {
-    throw std::runtime_error("posix_spawnp: child processes are not supported");
+    NotImplemented_nid_no_patch(__func__);
+    return -1;
 }
 
 }

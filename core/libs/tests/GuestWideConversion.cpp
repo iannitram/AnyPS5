@@ -182,6 +182,10 @@ static void CheckScanWithoutSizes() {
     Require(swscanf_nid_postfix(u"xyz7", u"%3c%d", narrow, &first) == 2 && std::memcmp(narrow, "xyz", 3) == 0 && first == 7, "swscanf %c");
     Require(swscanf_nid_postfix(u"cab12", u"%l[abc]%n", text, &first) == 1 && std::u16string(text) == u"cab" && first == 3, "swscanf %l[ and %n");
     Require(swscanf_nid_postfix(u"", u"%d", &first) == -1, "swscanf input failure");
+    char16_t shortItem[4] = {u'?', u'?', u'?', u'?'};
+    Require(swscanf_nid_postfix(u"ab", u"%3lc", shortItem) == 1 && shortItem[0] == u'a' && shortItem[1] == u'b' && shortItem[2] == u'?', "swscanf %c stores a short item, as FreeBSD's convert_wchar does");
+    Require(swscanf_nid_postfix(u" %", u"%%") == -1, "swscanf %% does not skip space, as FreeBSD's vfwscanf does");
+    Require(swscanf_nid_postfix(u"%5", u"%%%d", &first) == 1 && first == 5, "swscanf %% matches a percent sign");
     Require(swscanf_nid_postfix(u"x", u"%d", &first) == 0, "swscanf matching failure");
     Require(Throws([&] { swscanf_nid_postfix(u"5", u"%d", static_cast<int*>(nullptr)); }), "swscanf null pointer throws");
     double real = 0;

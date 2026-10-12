@@ -18,6 +18,8 @@ int APS5_VABI pthread_sigmask_nid_postfix(int, const void*, void*);
 int* APS5_VABI __error_nid_postfix();
 int APS5_VABI _is_signal_return_nid_postfix(std::uint64_t);
 unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int);
+int APS5_VABI scePthreadCreate(void**, const void*, void* (APS5_VABI *)(void*), void*, const char*);
+int APS5_VABI scePthreadJoin(void*, void**);
 }
 struct GuestSignalSet {
     std::uint32_t bits[4];
@@ -39,6 +41,18 @@ void APS5_VABI Callback(int value) {
     handlerReturn = reinterpret_cast<std::uintptr_t>(__builtin_return_address(0));
 }
 static void Require(bool value) { if (!value) std::abort(); }
+static bool Equal(const GuestSignalSet& left, const GuestSignalSet& right) {
+    return std::memcmp(&left, &right, sizeof(left)) == 0;
+}
+GuestSignalSet inherited{};
+void* APS5_VABI BlockTermOnThread(void*) {
+    Require(pthread_sigmask_nid_postfix(1, nullptr, &inherited) == 0);
+    const GuestSignalSet term{{1u << 14, 0, 0, 0}};
+    Require(pthread_sigmask_nid_postfix(3, &term, nullptr) == 0);
+    received = 0;
+    Require(raise_nid_postfix(15) == 0 && received == 0);
+    return nullptr;
+}
 int main() {
     const auto invalid = reinterpret_cast<Handler>(static_cast<std::uintptr_t>(-1));
     const auto ignore = reinterpret_cast<Handler>(std::uintptr_t{1});
@@ -146,6 +160,37 @@ int main() {
     Require(sigprocmask_nid_postfix(1, &urgMask, nullptr) == 0);
     Require(raise_nid_postfix(15) == 0 && received == 15);
     Require(sigprocmask_nid_postfix(2, &urgMask, nullptr) == 0);
+    {
+        const GuestSignalSet wide{{0x20 | 1u << 8 | 1u << 16 | 1u << 31, 0x1, 0, 0x80000000u}};
+        const GuestSignalSet maskable{{0x20, 0x1, 0, 0x80000000u}};
+        const GuestSignalSet empty{};
+        GuestSignalSet current{};
+        Require(sigprocmask_nid_postfix(3, &wide, nullptr) == 0);
+        Require(sigprocmask_nid_postfix(1, nullptr, &current) == 0 && Equal(current, maskable));
+        Require(sigprocmask_nid_postfix(3, &empty, nullptr) == 0);
+        Require(pthread_sigmask_nid_postfix(1, &wide, &current) == 0 && Equal(current, empty));
+        Require(pthread_sigmask_nid_postfix(1, nullptr, &current) == 0 && Equal(current, maskable));
+        void* thread = nullptr;
+        Require(scePthreadCreate(&thread, nullptr, BlockTermOnThread, nullptr, "sigmask") == 0);
+        Require(scePthreadJoin(thread, nullptr) == 0);
+        Require(Equal(inherited, maskable));
+        Require(pthread_sigmask_nid_postfix(1, nullptr, &current) == 0 && Equal(current, maskable));
+        GuestSignalSet hostThread{{1, 1, 1, 1}};
+        std::thread([&] { Require(sigprocmask_nid_postfix(1, nullptr, &hostThread) == 0); }).join();
+        Require(Equal(hostThread, empty));
+        Require(pthread_sigmask_nid_postfix(3, &empty, nullptr) == 0);
+        received = 0;
+        Require(raise_nid_postfix(15) == 0 && received == 15);
+        *__error_nid_postfix() = 0;
+        current = wide;
+        Require(sigprocmask_nid_postfix(0, &wide, &current) == -1 && *__error_nid_postfix() == 22 && Equal(current, wide));
+        Require(sigprocmask_nid_postfix(4, nullptr, &current) == 0);
+        Require(pthread_sigmask_nid_postfix(1, &wide, nullptr) == 0);
+        current = empty;
+        Require(pthread_sigmask_nid_postfix(4, &wide, &current) == 22 && Equal(current, empty));
+        Require(sigprocmask_nid_postfix(1, nullptr, &current) == 0 && Equal(current, maskable));
+        Require(sigprocmask_nid_postfix(3, &empty, nullptr) == 0);
+    }
 
     Require(GuestAlarm_nid_no_patch(0) == 0);
     Require(GuestAlarm_nid_no_patch(5) == 0);
