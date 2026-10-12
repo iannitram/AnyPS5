@@ -253,6 +253,7 @@ int APS5_VABI vfscanf_nid_postfix(FileStream* stream, const char* format, VaList
 #ifdef _WIN32
     const int result = LibcDetail::ScanFileWindows_nid_no_patch(native, format, args);
 #else
+    RejectGuestWideScan(format);
     std::va_list copy;
     va_copy(copy, *reinterpret_cast<std::va_list*>(args));
     const int result = std::vfscanf(native, format, copy);
@@ -269,7 +270,6 @@ int APS5_VABI fscanf_nid_postfix(FileStream* stream, const char* format, ...) {
     const int result = vfscanf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
     __builtin_sysv_va_end(args);
 #else
-    RejectGuestWideScan(format);
     std::va_list args;
     va_start(args, format);
     const int result = vfscanf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
