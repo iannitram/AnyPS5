@@ -461,6 +461,13 @@ int APS5_VABI vsnprintf_nid_postfix(char* str, size_t size, const char* format, 
 #endif
 }
 
+static bool SnprintfSArgumentsValid(char* buffer, size_t size, const char* format) {
+    constexpr size_t RsizeMax = SIZE_MAX >> 1;
+    if (buffer != nullptr && format != nullptr && size != 0 && size <= RsizeMax) return true;
+    if (buffer != nullptr && size != 0 && size < RsizeMax) buffer[0] = 0;
+    return false;
+}
+
 #ifdef _WIN32
 
 int APS5_VABI vsscanf_s_nid_postfix(const char* buffer, const char* format, VaList* args) {
@@ -469,10 +476,12 @@ int APS5_VABI vsscanf_s_nid_postfix(const char* buffer, const char* format, VaLi
 }
 
 int APS5_VABI vsnprintf_s_nid_postfix(char* buffer, size_t size, const char* format, VaList* args) {
+    if (!SnprintfSArgumentsValid(buffer, size, format)) return -1;
     return LibcDetail::FormatWindows(buffer, size, format, args);
 }
 
 int APS5_VABI snprintf_s_nid_postfix(char* buffer, size_t size, const char* format, ...) {
+    if (!SnprintfSArgumentsValid(buffer, size, format)) return -1;
     __builtin_sysv_va_list args;
     __builtin_sysv_va_start(args, format);
     const int result = LibcDetail::FormatWindows(buffer, size, format, args);
@@ -497,6 +506,7 @@ int APS5_VABI vsscanf_s_nid_postfix(const char* buffer, const char* format, VaLi
 }
 
 int APS5_VABI vsnprintf_s_nid_postfix(char* buffer, size_t size, const char* format, VaList* args) {
+    if (!SnprintfSArgumentsValid(buffer, size, format)) return -1;
     if (HasGuestWideFormat(format)) return LibcDetail::FormatWindows(buffer, size, format, args);
     std::va_list copy;
     va_copy(copy, *reinterpret_cast<std::va_list*>(args));
@@ -523,6 +533,7 @@ int APS5_VABI sprintf_s_nid_postfix(char* buffer, size_t size, const char* forma
 }
 
 int APS5_VABI snprintf_s_nid_postfix(char* buffer, size_t size, const char* format, ...) {
+    if (!SnprintfSArgumentsValid(buffer, size, format)) return -1;
     std::va_list args;
     va_start(args, format);
     const int result = HasGuestWideFormat(format) ? LibcDetail::FormatWindows(buffer, size, format, args) : std::vsnprintf(buffer, size, format, args);
