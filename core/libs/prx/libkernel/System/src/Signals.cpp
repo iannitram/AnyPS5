@@ -115,6 +115,13 @@ void ExpireAlarm() {
     throw std::runtime_error("alarm: delivering SIGALRM to a guest handler is not implemented");
 }
 
+void RequireDeliverableAlarm(int guest, std::uintptr_t handler) {
+    if (guest != GuestSigalrm || handler <= 1) return;
+    auto& alarms = Alarms();
+    std::lock_guard lock(alarms.lock);
+    if (alarms.deadline) NotImplemented_nid_no_patch("sigaction: delivering SIGALRM from an armed timer to a guest handler");
+}
+
 void RunAlarms() {
     auto& alarms = Alarms();
     std::unique_lock lock(alarms.lock);
@@ -128,7 +135,7 @@ void RunAlarms() {
         if (alarms.interval.count() > 0) {
             auto next = deadline + alarms.interval;
             const auto now = std::chrono::steady_clock::now();
-            while (next <= now) next += alarms.interval;
+            if (next <= now) next += alarms.interval * ((now - next) / alarms.interval + 1);
             alarms.deadline = next;
         } else {
             alarms.deadline.reset();
@@ -138,26 +145,6 @@ void RunAlarms() {
         lock.lock();
     }
 }
-}
-
-extern "C" unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int seconds) {
-    auto& alarms = Alarms();
-    std::lock_guard lock(alarms.lock);
-    const auto now = std::chrono::steady_clock::now();
-    unsigned int remaining = 0;
-    if (alarms.deadline && *alarms.deadline > now) {
-        const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(*alarms.deadline - now).count();
-        remaining = static_cast<unsigned int>((micros + 999999) / 1000000);
-    }
-    alarms.interval = std::chrono::microseconds(0);
-    if (seconds == 0) alarms.deadline.reset();
-    else alarms.deadline = now + std::chrono::seconds(seconds);
-    if (!alarms.threadStarted) {
-        std::thread(RunAlarms).detach();
-        alarms.threadStarted = true;
-    }
-    alarms.changed.notify_all();
-    return remaining;
 }
 
 struct GuestItimerval {
@@ -221,6 +208,10 @@ extern "C" int APS5_VABI setitimer_nid_postfix(int which, const GuestItimerval* 
         *__error_nid_postfix() = 22;
         return -1;
     }
+    if (arming) {
+        std::lock_guard lock(registration);
+        if (dispositions[GuestSigalrm].handler > 1) NotImplemented_nid_no_patch("setitimer: delivering SIGALRM to a guest handler");
+    }
     GuestItimerval previous{};
     auto& alarms = Alarms();
     {
@@ -244,6 +235,15 @@ extern "C" int APS5_VABI setitimer_nid_postfix(int which, const GuestItimerval* 
     }
     if (output != nullptr) *output = previous;
     return 0;
+}
+
+extern "C" unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int seconds) {
+    GuestItimerval request{};
+    request.value.tv_sec = seconds;
+    GuestItimerval previous{};
+    if (setitimer_nid_postfix(0, &request, &previous) != 0) return static_cast<unsigned int>(-1);
+    if (previous.value.tv_usec != 0) ++previous.value.tv_sec;
+    return static_cast<unsigned int>(previous.value.tv_sec);
 }
 
 extern "C" std::uint32_t APS5_VABI ualarm_nid_postfix(std::uint32_t microseconds, std::uint32_t reload) {
@@ -274,6 +274,7 @@ GuestHandler APS5_VABI signal_nid_postfix(int guest, GuestHandler handler) {
     const auto invalid = reinterpret_cast<GuestHandler>(static_cast<std::uintptr_t>(-1));
     if (guest < 1 || guest > MaxSignal || ((guest == GuestSigkill || guest == GuestSigstop) && handler != nullptr)) { *__error_nid_postfix() = 22; return invalid; }
     std::lock_guard lock(registration);
+    RequireDeliverableAlarm(guest, reinterpret_cast<std::uintptr_t>(handler));
     const GuestSigaction action{reinterpret_cast<std::uintptr_t>(handler), SignalInterrupts_nid_no_patch(guest) ? 0 : SaRestart, {}};
     if (!Install(guest, action)) { *__error_nid_postfix() = 22; return invalid; }
     const auto previous = reinterpret_cast<GuestHandler>(dispositions[guest].handler);
@@ -286,6 +287,7 @@ int APS5_VABI sigaction_nid_postfix(int guest, const GuestSigaction* action, Gue
     std::lock_guard lock(registration);
     const GuestSigaction old = dispositions[guest];
     if (action) {
+        RequireDeliverableAlarm(guest, action->handler);
         if (!Install(guest, *action)) { *__error_nid_postfix() = 22; return -1; }
         dispositions[guest] = *action;
     }
