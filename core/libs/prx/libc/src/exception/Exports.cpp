@@ -3,6 +3,7 @@
 #include "TypeInfo.cpp"
 #include "ExceptionPointer.cpp"
 #include "StandardExceptions.cpp"
+#include "RuntimeTypes.cpp"
 #include "ArraySupport.cpp"
 #include "GuardSupport.cpp"
 #include "Personality.cpp"
@@ -23,6 +24,10 @@ GCC_GLOBAL_ALIAS(_Unwind_Resume_nid_no_patch_cut, _Unwind_Resume_nid_postfix);
 GCC_GLOBAL_ALIAS(__cxa_free_exception, __cxa_free_exception_nid_postfix);
 GCC_GLOBAL_ALIAS(_ZSt9terminatev, _ZSt9terminatev_nid_postfix);
 GCC_GLOBAL_ALIAS(__cxa_call_terminate, __cxa_call_terminate_nid_postfix);
+GCC_GLOBAL_ALIAS(__cxa_call_unexpected, __cxa_call_unexpected_nid_postfix);
+GCC_GLOBAL_ALIAS(_ZSt10unexpectedv, _ZSt10unexpectedv_nid_postfix);
+GCC_GLOBAL_ALIAS(_ZSt14set_unexpectedPFvvE, _ZSt14set_unexpectedPFvvE_nid_postfix);
+GCC_GLOBAL_ALIAS(_ZSt14get_unexpectedv, _ZSt14get_unexpectedv_nid_postfix);
 GCC_GLOBAL_ALIAS(__cxa_allocate_exception, __cxa_allocate_exception_nid_postfix);
 GCC_GLOBAL_ALIAS(__cxa_throw, __cxa_throw_nid_postfix);
 GCC_GLOBAL_ALIAS(__cxa_init_primary_exception, __cxa_init_primary_exception_nid_postfix);
