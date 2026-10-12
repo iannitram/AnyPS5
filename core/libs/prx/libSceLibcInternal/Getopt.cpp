@@ -3,8 +3,9 @@
 #include <cstring>
 #include <string>
 
-#include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/General.hpp"
+
+struct FileStream;
 
 extern "C" {
 extern FileStream* __stderrp_nid_postfix;
