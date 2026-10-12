@@ -19,7 +19,7 @@ struct Header {
     int selector {};
     std::uint32_t _pad {};
     std::uint32_t _pad2 {};
-    const unsigned char* action {};
+    std::uintptr_t dataBase {};
     const unsigned char* lsda {};
     std::uintptr_t landing {};
     void* adjusted {};
@@ -47,6 +47,8 @@ inline Header* Primary(Header* header) {
 }
 const char* Kind(const std::type_info*);
 bool Match(const std::type_info* caught, const std::type_info* thrown, void*& object);
+void* ThrownObject(Header* primary);
+bool SpecAllows(std::intptr_t filter, const LibcUnwind::Byte* typeTable, LibcUnwind::Byte typeEncoding, LibcUnwind::Word dataBase, LibcUnwind::Word region, LibcUnwind::Word textBase, const std::type_info* thrown, void* object);
 void Release(void*);
 [[noreturn]] void Terminate();
 }
@@ -57,6 +59,7 @@ void APS5_VABI __cxa_free_exception_nid_postfix(void*);
 [[noreturn]] void APS5_VABI __cxa_throw_nid_postfix(void*, std::type_info*, void (*)(void*));
 [[noreturn]] void APS5_VABI __cxa_rethrow_nid_postfix();
 void* APS5_VABI __cxa_begin_catch_nid_postfix(void*);
+[[noreturn]] void APS5_VABI __cxa_call_unexpected_nid_postfix(void*);
 void APS5_VABI __cxa_end_catch_nid_postfix();
 }
 

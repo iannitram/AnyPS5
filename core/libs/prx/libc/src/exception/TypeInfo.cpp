@@ -14,6 +14,8 @@ void APS5_VABI DeleteTypeInfo(std::type_info*) {
 
 bool APS5_VABI IsPointerTypeInfo(const std::type_info*) { return false; }
 
+bool APS5_VABI IsTypeInfoKind(const std::type_info*) { return true; }
+
 bool APS5_VABI CatchTypeInfo(const std::type_info* self, const std::type_info* thrown, void** object, unsigned) {
     if (!self || !thrown || !object) throw std::invalid_argument("invalid RTTI catch arguments");
     return Match(self, thrown, *object);
