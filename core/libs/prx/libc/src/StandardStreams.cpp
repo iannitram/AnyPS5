@@ -20,6 +20,7 @@ int APS5_VABI fgetc_nid_postfix(FileStream* stream) {
     return result;
 }
 std::int32_t APS5_VABI fgetwc_nid_postfix(FileStream* stream) {
+    if (stream != nullptr) stream->Orient(1);
     return fgetc_nid_postfix(stream);
 }
 
@@ -99,14 +100,19 @@ int APS5_VABI fileno_nid_postfix(FileStream* stream) {
     return descriptor;
 }
 int APS5_VABI feof_unlocked_nid_postfix(FileStream* stream) {
+    if (stream == nullptr) throw std::invalid_argument("feof_unlocked: null stream");
     stream->SyncUnlockedStatus();
     return (stream->GuestState().flags & 0x20) != 0;
 }
 int APS5_VABI ferror_unlocked_nid_postfix(FileStream* stream) {
+    if (stream == nullptr) throw std::invalid_argument("ferror_unlocked: null stream");
     stream->SyncUnlockedStatus();
     return (stream->GuestState().flags & 0x40) != 0;
 }
-void APS5_VABI clearerr_unlocked_nid_postfix(FileStream* stream) { clearerr_nid_postfix(stream); }
+void APS5_VABI clearerr_unlocked_nid_postfix(FileStream* stream) {
+    if (stream == nullptr) throw std::invalid_argument("clearerr_unlocked: null stream");
+    stream->ClearUnlockedError();
+}
 int APS5_VABI fileno_unlocked_nid_postfix(FileStream* stream) { return fileno_nid_postfix(stream); }
 int APS5_VABI getchar_unlocked_nid_postfix() { return getc_unlocked_nid_postfix(__stdinp_nid_postfix); }
 int APS5_VABI putchar_unlocked_nid_postfix(int value) { return putc_unlocked_nid_postfix(value, __stdoutp_nid_postfix); }

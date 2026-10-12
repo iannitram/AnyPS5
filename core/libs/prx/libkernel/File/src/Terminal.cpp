@@ -69,7 +69,6 @@ constexpr std::uint32_t NoFlush = 0x80000000;
 constexpr int MinimumIndex = 16;
 constexpr int TimeIndex = 17;
 
-// FreeBSD 11 struct termios.
 struct GuestTermios {
     std::uint32_t inputFlags;
     std::uint32_t outputFlags;
@@ -123,7 +122,6 @@ int APS5_VABI tcsetattr_nid_postfix(int descriptor, int action, const void* attr
     return Fail(TerminalError(descriptor));
 }
 
-// The rest of FreeBSD 11's termios.c issues terminal ioctls, which fail as tcgetattr's does.
 int APS5_VABI tcdrain_nid_postfix(int descriptor) { return Fail(TerminalError(descriptor)); }
 int APS5_VABI tcsendbreak_nid_postfix(int descriptor, int) { return Fail(TerminalError(descriptor)); }
 int APS5_VABI tcgetpgrp_nid_postfix(int descriptor) { return Fail(TerminalError(descriptor)); }
@@ -188,7 +186,6 @@ char* APS5_VABI ttyname_nid_postfix(int descriptor) {
     return name;
 }
 
-// FreeBSD 11 copies /dev/tty and replaces the name only when /dev/tty is a character device.
 char* APS5_VABI ctermid_nid_postfix(char* buffer) {
     static char name[64];
     char* target = buffer != nullptr ? buffer : name;

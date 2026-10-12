@@ -39,7 +39,7 @@ int APS5_VABI getgrgid_r_nid_postfix(std::uint32_t, void*, char*, std::size_t, v
 void* APS5_VABI getgrnam_nid_postfix(const char*);
 void* APS5_VABI getgrgid_nid_postfix(std::uint32_t);
 void* APS5_VABI getgrent_nid_postfix(void);
-void APS5_VABI setgrent_nid_postfix(void);
+int APS5_VABI setgrent_nid_postfix(void);
 void APS5_VABI endgrent_nid_postfix(void);
 int APS5_VABI getgrouplist_nid_postfix(const char*, std::uint32_t, std::uint32_t*, int*);
 }
@@ -77,14 +77,16 @@ int main() {
     Require(getgrnam_r_nid_postfix("wheel", buffer, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrnam_r");
     group = &entry;
     Require(getgrgid_r_nid_postfix(0, buffer, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrgid_r");
-    setgrent_nid_postfix();
+    Require(setgrent_nid_postfix() == 1, "setgrent returns 1, as getgrent.c does");
     errno = 0;
     Require(getgrnam_nid_postfix("wheel") == nullptr && getgrgid_nid_postfix(0) == nullptr && getgrent_nid_postfix() == nullptr && errno == ENOENT, "group lookups");
     endgrent_nid_postfix();
 
     std::uint32_t groups[4] = {7, 7, 7, 7};
     int count = 4;
+    errno = 0;
     Require(getgrouplist_nid_postfix("user", 100, groups, &count) == 0 && count == 1 && groups[0] == 100 && groups[1] == 7, "getgrouplist");
+    Require(errno == 0, "getgrouplist keeps errno, as nsdispatch restores it");
     count = 0;
     Require(getgrouplist_nid_postfix("user", 100, nullptr, &count) == -1 && count == 1, "getgrouplist sizing");
     std::puts("guest user database tests passed");
