@@ -7,7 +7,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -79,6 +81,15 @@ void CheckQuickSort() {
         Require(std::is_sorted(values.begin(), values.end(), [](Record a, Record b) { return a.key < b.key; }), "qsort_r sorts");
     }
     qsort_r_nid_postfix(nullptr, 0, sizeof(Record), &thunk, CompareWithThunk);
+    qsort_r_nid_postfix(records.data(), 1, 0, &thunk, CompareWithThunk);
+    bool threw = false;
+    try { qsort_r_nid_postfix(records.data(), records.size(), 0, &thunk, CompareWithThunk); }
+    catch (const std::invalid_argument&) { threw = true; }
+    Require(threw, "qsort_r rejects a zero element size");
+    threw = false;
+    try { qsort_r_nid_postfix(records.data(), std::numeric_limits<std::size_t>::max() / 2, 4, &thunk, CompareWithThunk); }
+    catch (const std::overflow_error&) { threw = true; }
+    Require(threw, "qsort_r rejects an overflowing array size");
 }
 
 void CheckHeapSort() {
