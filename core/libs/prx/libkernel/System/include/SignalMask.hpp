@@ -7,6 +7,12 @@ struct GuestSignalSet {
     std::uint32_t bits[4];
 };
 
+struct GuestSigaction {
+    std::uintptr_t handler;
+    int flags;
+    GuestSignalSet mask;
+};
+
 GuestSignalSet CurrentGuestSignalMask();
 void SetCurrentGuestSignalMask(const GuestSignalSet& mask);
 

@@ -56,6 +56,12 @@ std::uint32_t Mask() {
     return set.bits[0];
 }
 
+SignalSet FullMask() {
+    SignalSet set{};
+    _sigprocmask_nid_postfix(1, nullptr, &set);
+    return set;
+}
+
 SignalAction Action(int signal) {
     SignalAction action{};
     sigaction_nid_postfix(signal, nullptr, &action);
@@ -75,6 +81,9 @@ int main() {
     Require(sigrelse_nid_postfix(UserSignal) == 0 && Mask() == 0, "sigrelse");
     *__error_nid_postfix() = 0;
     Require(sighold_nid_postfix(0) == -1 && *__error_nid_postfix() == 22, "sighold of an invalid signal");
+    Require(sighold_nid_postfix(40) == 0 && FullMask().bits[1] == 0x80u, "sighold of a signal above 32");
+    Require(sigrelse_nid_postfix(40) == 0 && FullMask().bits[1] == 0, "sigrelse of a signal above 32");
+    Require(sigset_nid_postfix(9, 3) == 0 && sigset_nid_postfix(9, 3) == 0 && (FullMask().bits[0] & (1u << 8)) == 0, "SIGKILL cannot be held");
     Require(sigrelse_nid_postfix(129) == -1 && *__error_nid_postfix() == 22, "sigrelse of an invalid signal");
 
     Require(sigignore_nid_postfix(UserSignal) == 0 && Action(UserSignal).handler == 1, "sigignore");
