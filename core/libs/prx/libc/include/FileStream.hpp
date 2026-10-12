@@ -1,6 +1,7 @@
 #ifndef CORE_LIBS_PRX_LIBC_INCLUDE_FILESTREAM_HPP
 #define CORE_LIBS_PRX_LIBC_INCLUDE_FILESTREAM_HPP
 
+#include <atomic>
 #include <cstdio>
 #include <filesystem>
 #include <stdexcept>
@@ -42,7 +43,8 @@ class FileStream {
     std::byte _reserved[256 - sizeof(GuestFilePrefix)]{};
     std::FILE* _handle;
     bool _dynamic;
-    bool encodingError = false;
+    bool guestError = false;
+    std::atomic<int> orientation{0};
 
 public:
     explicit FileStream(std::FILE* handle, bool dynamic = false) : _handle(handle), _dynamic(dynamic) {
@@ -69,10 +71,16 @@ public:
     }
 
     GuestFilePrefix& GuestState() { return _guest; }
+    int Orientation() const { return orientation.load(); }
+    void Orient(int requested) {
+        int unoriented = 0;
+        orientation.compare_exchange_strong(unoriented, requested);
+    }
     bool Reopen(const std::filesystem::path& filename, const char* mode) {
         auto* previous = GetHandle();
         _guest = {};
-        encodingError = false;
+        guestError = false;
+        orientation.store(0);
 #ifdef _WIN32
         std::wstring wideMode;
         for (const char character : std::string_view(mode)) wideMode.push_back(static_cast<unsigned char>(character));
@@ -94,7 +102,7 @@ public:
         _guest.readRemaining = 0;
         _guest.writeRemaining = 0;
         _guest.flags = static_cast<std::int16_t>((_guest.flags & ~0x60) |
-            (std::feof(GetHandle()) ? 0x20 : 0) | (std::ferror(GetHandle()) || encodingError ? 0x40 : 0));
+            (std::feof(GetHandle()) ? 0x20 : 0) | (std::ferror(GetHandle()) || guestError ? 0x40 : 0));
     }
 
     void SyncUnlockedStatus() {
@@ -108,25 +116,36 @@ public:
         const bool error = ::ferror_unlocked(GetHandle()) != 0;
 #endif
         _guest.flags = static_cast<std::int16_t>((_guest.flags & ~0x60) |
-            (endOfFile ? 0x20 : 0) | (error || encodingError ? 0x40 : 0));
+            (endOfFile ? 0x20 : 0) | (error || guestError ? 0x40 : 0));
     }
 
-    void SetEncodingError() {
-        encodingError = true;
+    void SetError() {
+        guestError = true;
         SyncStatus();
     }
 
     void ClearError() {
         std::clearerr(GetHandle());
-        encodingError = false;
+        guestError = false;
         SyncStatus();
     }
 
-    void Close() {
+    void ClearUnlockedError() {
+#ifdef _WIN32
+        std::clearerr(GetHandle());
+#else
+        ::clearerr_unlocked(GetHandle());
+#endif
+        guestError = false;
+        SyncUnlockedStatus();
+    }
+
+    int Close() {
         GetHandle();
-        if (std::fclose(std::exchange(_handle, nullptr)) != 0) throw std::runtime_error("FileStream: close failed");
+        const int result = std::fclose(std::exchange(_handle, nullptr));
         _guest.flags = 0;
         _guest.descriptor = -1;
+        return result;
     }
 };
 static_assert(std::is_standard_layout_v<FileStream>);

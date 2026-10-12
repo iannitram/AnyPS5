@@ -11,6 +11,10 @@
 #include <initializer_list>
 extern "C" {
 double APS5_VABI atof_nid_postfix(const char*);
+double APS5_VABI strtod_nid_postfix(const char*, char**);
+double APS5_VABI wcstod_nid_postfix(const char16_t*, char16_t**);
+float APS5_VABI wcstof_nid_postfix(const char16_t*, char16_t**);
+long double APS5_VABI wcstold_nid_postfix(const char16_t*, char16_t**);
 float APS5_VABI strtof_nid_postfix(const char*, char**);
 long double APS5_VABI strtold_nid_postfix(const char*, char**);
 std::int64_t APS5_VABI strtol_nid_postfix(const char*, char**, int);
@@ -40,6 +44,7 @@ int APS5_VABI __fpclassifyf_nid_postfix(float);
 int APS5_VABI isnanf_nid_postfix(float);
 int APS5_VABI __signbitl_nid_postfix(long double);
 float APS5_VABI fmodf_nid_postfix(float, float);
+double APS5_VABI fmod_nid_postfix(double, double);
 float APS5_VABI asinf_nid_postfix(float);
 float APS5_VABI acosf_nid_postfix(float);
 double APS5_VABI asin_nid_postfix(double);
@@ -176,6 +181,16 @@ static void CheckLongDoubleErrno() {
     Require(keepsErrno([] { return logb_nid_postfix(0.0); }));
     Require(keepsErrno([] { return remainder_nid_postfix(1.0, 0.0); }));
     Require(keepsErrno([] { return remainder_nid_postfix(INFINITY, 1.0); }));
+    Require(keepsErrno([] { return ldexpl_nid_postfix(1.0L, 100000); }));
+}
+
+static void CheckExp2Errno() {
+    errno = 0;
+    std::feclearexcept(FE_ALL_EXCEPT);
+    double result = exp2_nid_postfix(1024.0);
+    Require(errno == 0);
+    Require(std::isinf(result) && result > 0);
+    Require(std::fetestexcept(FE_OVERFLOW | FE_INEXACT) == (FE_OVERFLOW | FE_INEXACT));
 }
 
 static void CheckLongDouble() {
@@ -198,6 +213,13 @@ static void CheckLongDouble() {
     Require(frexpl_nid_postfix(INFINITY, &exponent) == INFINITY && exponent == 77);
     Require(frexpl_nid_postfix(-INFINITY, &exponent) == -INFINITY && exponent == 77);
     Require(std::isnan(frexpl_nid_postfix(NAN, &exponent)) && exponent == 77);
+}
+
+static void CheckFmodErrno() {
+    errno = 0;
+    (void)fmod_nid_postfix(1.0, 0.0);
+    Require(errno == 0);
+    Require(fmod_nid_postfix(1e300, 3.0) == std::fmod(1e300, 3.0));
 }
 
 static void CheckIntegerConversions() {
@@ -479,8 +501,49 @@ static void CheckFloatRounding(float value, std::int64_t expected, bool invalid)
     }
 }
 
+static void CheckNoConversionIsPositiveZero() {
+    for (const char* text : {"", " ", "-", "+", "-.", "+.", "-x", "-.e1", "-e5", "- 1", "  -."}) {
+        char* end = nullptr;
+        const double parsed = strtod_nid_postfix(text, &end);
+        Require(parsed == 0. && !std::signbit(parsed) && end == text);
+        const float parsedFloat = strtof_nid_postfix(text, &end);
+        Require(parsedFloat == 0.f && !std::signbit(parsedFloat) && end == text);
+        const long double parsedLong = strtold_nid_postfix(text, &end);
+        Require(parsedLong == 0.L && !std::signbit(parsedLong) && end == text);
+        Require(!std::signbit(atof_nid_postfix(text)));
+    }
+    char* end = nullptr;
+    const char negativeZero[] = "-0.0x";
+    const double parsed = strtod_nid_postfix(negativeZero, &end);
+    Require(parsed == 0. && std::signbit(parsed) && end == negativeZero + 4);
+    for (const char* text : {"-0", "-.0", "-0e5", "-0x0p0", "-0x"}) {
+        const double keptDouble = strtod_nid_postfix(text, &end);
+        Require(keptDouble == 0. && std::signbit(keptDouble) && end != text);
+        const float keptFloat = strtof_nid_postfix(text, &end);
+        Require(keptFloat == 0.f && std::signbit(keptFloat) && end != text);
+        const long double keptLong = strtold_nid_postfix(text, nullptr);
+        Require(keptLong == 0.L && std::signbit(keptLong));
+    }
+    Require(strtod_nid_postfix("-inf", nullptr) == -std::numeric_limits<double>::infinity());
+    Require(std::isnan(atof_nid_postfix("nan")));
+    const double noEndPointer = strtod_nid_postfix("-.", nullptr);
+    Require(noEndPointer == 0. && !std::signbit(noEndPointer));
+    const char16_t wide[] = u"-.";
+    char16_t* wideEnd = nullptr;
+    const char16_t wideKept[] = u" -0.0x";
+    const double keptWide = wcstod_nid_postfix(wideKept, &wideEnd);
+    Require(keptWide == 0. && std::signbit(keptWide) && wideEnd == wideKept + 5);
+    const double parsedWide = wcstod_nid_postfix(wide, &wideEnd);
+    Require(parsedWide == 0. && !std::signbit(parsedWide) && wideEnd == wide);
+    const float parsedWideFloat = wcstof_nid_postfix(wide, &wideEnd);
+    Require(parsedWideFloat == 0.f && !std::signbit(parsedWideFloat) && wideEnd == wide);
+    const long double parsedWideLong = wcstold_nid_postfix(wide, &wideEnd);
+    Require(parsedWideLong == 0.L && !std::signbit(parsedWideLong) && wideEnd == wide);
+}
+
 int main() {
     CheckFloatClassification();
+    CheckNoConversionIsPositiveZero();
     CheckMissingClassificationExports();
     CheckIntegerConversions();
     CheckExtendedMath();
@@ -556,6 +619,7 @@ int main() {
     Require(exp2_nid_postfix(-3.) == 0.125);
     Require(ldexp_nid_postfix(0.75, 4) == 12.);
     CheckSquareRoot();
+    CheckExp2Errno();
     CheckExactOperations();
     CheckLongDouble();
     CheckLongDoubleErrno();
@@ -642,4 +706,5 @@ int main() {
     Require(__powisf2_nid_postfix(2.0f, -127) == 0x1p-127f);
     CheckHyperbolic();
     CheckHypotSpecialValue();
+    CheckFmodErrno();
 }
