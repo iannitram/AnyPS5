@@ -1,13 +1,15 @@
+#include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -20,7 +22,6 @@
 
 namespace {
 
-// FreeBSD 11 struct mq_attr: four longs and four reserved ones.
 struct GuestQueueAttributes {
     std::int64_t flags;
     std::int64_t maximumMessages;
@@ -57,7 +58,9 @@ constexpr std::int64_t MaximumMessages = 100;
 constexpr std::int64_t MaximumMessageSize = 16384;
 constexpr unsigned PriorityLimit = 64;
 constexpr int NotifyNone = 0;
-constexpr int RealtimeClock = 0;
+constexpr int NotifySignal = 1;
+constexpr int NotifyThread = 2;
+constexpr int NotifyThreadId = 4;
 
 struct Message {
     unsigned priority;
@@ -82,12 +85,12 @@ struct Queue {
 
 struct Descriptor {
     std::shared_ptr<Queue> queue;
-    int flags;
+    std::atomic<int> flags;
 };
 
 std::mutex registryLock;
 std::list<std::shared_ptr<Queue>> queues;
-std::set<const Descriptor*> descriptors;
+std::map<const void*, std::shared_ptr<Descriptor>> descriptors;
 
 int Fail(int error) {
     errno = error;
@@ -99,7 +102,6 @@ void* FailOpen(int error) {
     return reinterpret_cast<void*>(-1);
 }
 
-// FreeBSD's mqueuefs accepts "/name" with no other slash, of at most 255 bytes.
 int CheckName(const char* name) {
     if (name == nullptr) throw std::invalid_argument("mq: null name");
     const std::size_t length = std::strlen(name);
@@ -108,29 +110,34 @@ int CheckName(const char* name) {
     return 0;
 }
 
-Descriptor* Find(void* handle) {
+std::shared_ptr<Descriptor> Find(void* handle) {
     std::lock_guard lock(registryLock);
-    auto* descriptor = static_cast<Descriptor*>(handle);
-    return descriptors.count(descriptor) ? descriptor : nullptr;
+    const auto entry = descriptors.find(handle);
+    return entry != descriptors.end() ? entry->second : nullptr;
 }
 
 std::optional<std::uint64_t> Deadline(const KernelTimespec* timeout, bool& invalid) {
     invalid = false;
     if (timeout == nullptr) return std::nullopt;
-    KernelUseconds usec = 0;
-    if (!PosixThread::RelativeMicroseconds(RealtimeClock, timeout, &usec)) {
+    if (timeout->tv_nsec < 0 || timeout->tv_nsec >= 1000000000) {
         invalid = true;
         return std::nullopt;
     }
-    return TimedWait::DeadlineNanos(usec);
+    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const long double target = static_cast<long double>(timeout->tv_sec) * 1e9L + static_cast<long double>(timeout->tv_nsec);
+    const long double remaining = target - static_cast<long double>(now);
+    const std::uint64_t base = TimedWait::NowNanos();
+    if (remaining <= 0) return base;
+    const long double limit = static_cast<long double>(UINT64_MAX - base);
+    return remaining >= limit ? UINT64_MAX : base + static_cast<std::uint64_t>(remaining);
 }
 
 int Send(void* handle, const char* data, std::size_t length, unsigned priority, const KernelTimespec* timeout, bool timed) {
-    Descriptor* descriptor = Find(handle);
+    const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr || (descriptor->flags & AccessMask) == ReadOnly) return Fail(GuestBadDescriptor);
     Queue& queue = *descriptor->queue;
-    if (length > static_cast<std::size_t>(queue.messageSize)) return Fail(GuestMessageSize);
     if (priority >= PriorityLimit) return Fail(PosixThread::GUEST_EINVAL);
+    if (length > static_cast<std::size_t>(queue.messageSize)) return Fail(GuestMessageSize);
     if (data == nullptr && length != 0) throw std::invalid_argument("mq_send: null message");
     ThreadCancel::Check();
     std::unique_lock lock(queue.lock);
@@ -144,15 +151,14 @@ int Send(void* handle, const char* data, std::size_t length, unsigned priority, 
     }
     auto position = queue.messages.begin();
     while (position != queue.messages.end() && position->priority >= priority) ++position;
-    const bool wasEmpty = queue.messages.empty();
     queue.messages.insert(position, Message{priority, std::vector<char>(data, data + length)});
-    if (wasEmpty && queue.receiversWaiting == 0 && queue.notifier != nullptr) queue.notifier = nullptr;
+    if (queue.receiversWaiting == 0 && queue.notifier != nullptr) queue.notifier = nullptr;
     queue.notEmpty.NotifyOne();
     return 0;
 }
 
 std::int64_t Receive(void* handle, char* buffer, std::size_t length, unsigned* priority, const KernelTimespec* timeout, bool timed) {
-    Descriptor* descriptor = Find(handle);
+    const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr || (descriptor->flags & AccessMask) == WriteOnly) return Fail(GuestBadDescriptor);
     Queue& queue = *descriptor->queue;
     if (length < static_cast<std::size_t>(queue.messageSize)) return Fail(GuestMessageSize);
@@ -166,9 +172,21 @@ std::int64_t Receive(void* handle, char* buffer, std::size_t length, unsigned* p
         const auto deadline = timed ? Deadline(timeout, invalid) : std::nullopt;
         if (invalid) return Fail(PosixThread::GUEST_EINVAL);
         ++queue.receiversWaiting;
-        const bool received = ThreadCancel::WaitUntil(queue.notEmpty, lock, deadline, ready);
+        while (!ready()) {
+            const bool signaled = ThreadCancel::Wait(queue.notEmpty, lock, deadline);
+            if (ThreadCancel::Requested()) {
+                --queue.receiversWaiting;
+                lock.unlock();
+                ThreadCancel::Check();
+                lock.lock();
+                ++queue.receiversWaiting;
+            }
+            if (!signaled && !ready()) {
+                --queue.receiversWaiting;
+                return Fail(PosixThread::GUEST_ETIMEDOUT);
+            }
+        }
         --queue.receiversWaiting;
-        if (!received) return Fail(PosixThread::GUEST_ETIMEDOUT);
     }
     Message message = std::move(queue.messages.front());
     queue.messages.pop_front();
@@ -230,22 +248,25 @@ void* APS5_VABI mq_open_nid_postfix(const char* name, int flags, ...) {
         queues.push_back(queue);
     }
     ++queue->openCount;
-    auto* descriptor = new Descriptor{queue, flags & (AccessMask | NonBlocking)};
-    descriptors.insert(descriptor);
-    return descriptor;
+    auto descriptor = std::make_shared<Descriptor>();
+    descriptor->queue = queue;
+    descriptor->flags = flags & (AccessMask | NonBlocking);
+    descriptors.emplace(descriptor.get(), descriptor);
+    return descriptor.get();
 }
 
 int APS5_VABI mq_close_nid_postfix(void* handle) {
     std::lock_guard lock(registryLock);
-    auto* descriptor = static_cast<Descriptor*>(handle);
-    if (!descriptors.erase(descriptor)) return Fail(GuestBadDescriptor);
+    const auto entry = descriptors.find(handle);
+    if (entry == descriptors.end()) return Fail(GuestBadDescriptor);
+    const std::shared_ptr<Descriptor> descriptor = entry->second;
+    descriptors.erase(entry);
     Queue& queue = *descriptor->queue;
     {
         std::lock_guard queueLock(queue.lock);
-        if (queue.notifier == descriptor) queue.notifier = nullptr;
+        if (queue.notifier == descriptor.get()) queue.notifier = nullptr;
     }
     if (--queue.openCount == 0 && !queue.linked) queues.remove(descriptor->queue);
-    delete descriptor;
     return 0;
 }
 
@@ -278,7 +299,7 @@ std::int64_t APS5_VABI mq_timedreceive_nid_postfix(void* handle, char* buffer, s
 }
 
 int APS5_VABI mq_getattr_nid_postfix(void* handle, GuestQueueAttributes* attributes) {
-    Descriptor* descriptor = Find(handle);
+    const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr) return Fail(GuestBadDescriptor);
     if (attributes == nullptr) throw std::invalid_argument("mq_getattr: null attributes");
     Queue& queue = *descriptor->queue;
@@ -292,7 +313,7 @@ int APS5_VABI mq_getattr_nid_postfix(void* handle, GuestQueueAttributes* attribu
 }
 
 int APS5_VABI mq_setattr_nid_postfix(void* handle, const GuestQueueAttributes* attributes, GuestQueueAttributes* previous) {
-    Descriptor* descriptor = Find(handle);
+    const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr) return Fail(GuestBadDescriptor);
     if (attributes == nullptr) throw std::invalid_argument("mq_setattr: null attributes");
     if (previous != nullptr) mq_getattr_nid_postfix(handle, previous);
@@ -302,17 +323,20 @@ int APS5_VABI mq_setattr_nid_postfix(void* handle, const GuestQueueAttributes* a
 }
 
 int APS5_VABI mq_notify_nid_postfix(void* handle, const GuestSignalEvent* event) {
-    Descriptor* descriptor = Find(handle);
+    const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr) return Fail(GuestBadDescriptor);
     Queue& queue = *descriptor->queue;
     std::lock_guard lock(queue.lock);
     if (event == nullptr) {
-        if (queue.notifier == descriptor) queue.notifier = nullptr;
+        if (queue.notifier == descriptor.get()) queue.notifier = nullptr;
         return 0;
     }
+    if (event->notify != NotifyNone && event->notify != NotifySignal && event->notify != NotifyThread && event->notify != NotifyThreadId)
+        return Fail(PosixThread::GUEST_EINVAL);
     if (queue.notifier != nullptr) return Fail(GuestBusy);
-    if (event->notify != NotifyNone) throw std::runtime_error("mq_notify: signal and thread notification are not implemented");
-    queue.notifier = descriptor;
+    if (event->notify != NotifyNone) NotImplemented_nid_no_patch("mq_notify: signal and thread notification");
+    queue.notifier = descriptor.get();
+    if (queue.receiversWaiting == 0 && !queue.messages.empty()) queue.notifier = nullptr;
     return 0;
 }
 
