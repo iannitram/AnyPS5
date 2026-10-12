@@ -57,6 +57,7 @@ add_library(libkernel SHARED EXCLUDE_FROM_ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SoftwareVersion.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Signals.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SignalSets.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SignalCompatibility.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Notification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/UserContext.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Time/Time.cpp
@@ -583,6 +584,15 @@ if(BUILD_TESTING)
     set_tests_properties(guest_kill PROPERTIES TIMEOUT 20)
     if(WIN32)
         set_tests_properties(guest_kill PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
+    add_test_executable(guest_signal_compatibility_tests ${LIBS_INCLUDE_DIR}/tests/GuestSignalCompatibility.cpp)
+    target_include_directories(guest_signal_compatibility_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_signal_compatibility_tests PRIVATE libkernel libc)
+    configure_windows_unwind(guest_signal_compatibility_tests)
+    add_test(NAME guest_signal_compatibility COMMAND guest_signal_compatibility_tests)
+    if(WIN32)
+        set_tests_properties(guest_signal_compatibility PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
     endif()
     add_test_executable(guest_signal_set_tests ${LIBS_INCLUDE_DIR}/tests/GuestSignalSets.cpp)
