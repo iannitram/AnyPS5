@@ -1,6 +1,7 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -115,6 +116,28 @@ static std::int64_t ReadRemaining() {
     return guarded.timer.value.tv_sec * 1000000 + guarded.timer.value.tv_usec;
 }
 
+void CheckAlarmRace() {
+    const auto ignore = reinterpret_cast<Handler>(std::uintptr_t{1});
+    std::atomic<bool> stop{false};
+    std::thread arming([&] {
+        while (!stop) {
+            try { ualarm_nid_postfix(1, 0); } catch (const std::exception&) {}
+        }
+    });
+    std::thread installing([&] {
+        while (!stop) {
+            try { signal_nid_postfix(14, AlarmHandler); } catch (const std::exception&) {}
+            signal_nid_postfix(14, ignore);
+        }
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    stop = true;
+    arming.join();
+    installing.join();
+    ualarm_nid_postfix(0, 0);
+    Require(signal_nid_postfix(14, ignore) == ignore, "an alarm racing a handler install never reaches the handler");
+}
+
 int main() {
     GuestAlarm_nid_no_patch(0);
     Require(ReadRemaining() == 0, "inactive alarm is not zero");
@@ -164,4 +187,5 @@ int main() {
     Require(ReadRemaining() == 0, "expired alarm is not zero");
     GuestAlarm_nid_no_patch(0);
     CheckSetitimer();
+    CheckAlarmRace();
 }
