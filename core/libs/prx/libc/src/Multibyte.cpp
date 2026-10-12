@@ -43,6 +43,10 @@ std::size_t APS5_VABI mbrtoc32_nid_postfix(std::uint32_t* destination, const cha
 }
 
 std::size_t APS5_VABI c32rtomb_nid_postfix(char* destination, std::uint32_t value, void*) {
+    if ((value >= 0xd800 && value <= 0xdfff) || value > 0x10ffff) {
+        errno = 86;
+        return static_cast<std::size_t>(-1);
+    }
     if (!destination) return 1;
     if (value > 255) {
         errno = 86;
@@ -52,22 +56,21 @@ std::size_t APS5_VABI c32rtomb_nid_postfix(char* destination, std::uint32_t valu
     return 1;
 }
 
-// FreeBSD 11 keeps the pending surrogate in the first bytes of the caller's mbstate_t, or in
-// a private state when it is null.
 std::size_t APS5_VABI mbrtoc16_nid_postfix(std::uint16_t* destination, const char* source, std::size_t count, void* state) {
     static std::uint16_t privateState[2];
     auto* trail = state != nullptr ? static_cast<std::uint16_t*>(state) : privateState;
+    if (!destination || !source) {
+        *trail = 0;
+        return mbrtoc32_nid_postfix(nullptr, source, count, nullptr);
+    }
     if (*trail >= 0xdc00 && *trail <= 0xdfff) {
-        if (destination) *destination = *trail;
+        *destination = *trail;
         *trail = 0;
         return static_cast<std::size_t>(-3);
     }
     std::uint32_t value = 0;
     const std::size_t result = mbrtoc32_nid_postfix(&value, source, count, nullptr);
-    if (result <= 4) {
-        *trail = 0;
-        if (destination) *destination = static_cast<std::uint16_t>(value);
-    }
+    if (result != static_cast<std::size_t>(-1) && result != static_cast<std::size_t>(-2)) *destination = static_cast<std::uint16_t>(value);
     return result;
 }
 
@@ -77,7 +80,7 @@ std::size_t APS5_VABI c16rtomb_nid_postfix(char* destination, std::uint16_t valu
     std::uint32_t full;
     if (destination == nullptr) {
         full = 0;
-    } else if (*lead != 0) {
+    } else if (*lead >= 0xd800 && *lead <= 0xdbff) {
         if (value < 0xdc00 || value > 0xdfff) {
             errno = 86;
             return static_cast<std::size_t>(-1);

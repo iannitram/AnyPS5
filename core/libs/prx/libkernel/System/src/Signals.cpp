@@ -21,6 +21,7 @@ extern "C" int* APS5_VABI __error_nid_postfix();
 extern "C" int APS5_VABI getpid_nid_postfix(void);
 extern "C" bool SignalInterrupts_nid_no_patch(int signal);
 extern "C" Pthread APS5_VABI scePthreadSelf(void);
+extern "C" int APS5_VABI raise_nid_postfix(int guest);
 
 static_assert(sizeof(GuestSigaction) == 32 && offsetof(GuestSigaction, flags) == 8 && offsetof(GuestSigaction, mask) == 12);
 
@@ -57,7 +58,7 @@ struct AtomicSignalSet {
 };
 static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
 thread_local AtomicSignalSet threadMask;
-AtomicSignalSet pending;
+thread_local AtomicSignalSet pending;
 std::mutex registration;
 GuestSigaction dispositions[MaxSignal + 1]{};
 int NativeSignal(int guest) {
@@ -93,13 +94,13 @@ bool Delivered(const GuestSigaction& action) {
 bool Install(int guest, const GuestSigaction& action) {
     const int native = NativeSignal(guest);
     if (!native) return true;
-    if (action.handler == 1) pending.Take(guest);
     const auto previous = handlers[guest].exchange(Delivered(action) ? reinterpret_cast<GuestHandler>(action.handler) : nullptr);
     auto hostHandler = action.handler == 1 ? SIG_IGN : Delivered(action) ? Dispatch : SIG_DFL;
     if (std::signal(native, hostHandler) == SIG_ERR) {
         handlers[guest].store(previous);
         return false;
     }
+    if (action.handler == 1) pending.Take(guest);
     return true;
 }
 }
@@ -175,7 +176,7 @@ GuestSignalSet Maskable(GuestSignalSet set) {
 
 void DeliverUnblocked() {
     for (int guest : {2, 4, 6, 8, 11, 15})
-        if (!threadMask.Contains(guest) && pending.Take(guest)) std::raise(NativeSignal(guest));
+        if (!threadMask.Contains(guest) && pending.Take(guest)) raise_nid_postfix(guest);
 }
 
 int ChangeSignalMask(int how, const GuestSignalSet* set, GuestSignalSet* previousSet) {

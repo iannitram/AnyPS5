@@ -145,6 +145,13 @@ int main() {
     signal_nid_postfix(Terminate, reinterpret_cast<Handler>(std::uintptr_t{1}));
     Require(Pending().bits[0] == 0, "ignoring a signal discards it");
     Require(_sigprocmask_nid_postfix(2, &terminate, nullptr) == 0 && caught == 0, "a discarded signal is not delivered");
+    signal_nid_postfix(Terminate, Catch);
+    Require(_sigprocmask_nid_postfix(1, &terminate, nullptr) == 0 && raise_nid_postfix(Terminate) == 0 && caught == 0, "raise while blocked again");
+    const SignalAction information{reinterpret_cast<std::uintptr_t>(Catch), 0x40, {}};
+    Require(sigaction_nid_postfix(Terminate, &information, nullptr) == 0, "switch to an SA_SIGINFO handler");
+    bool threwPending = false;
+    try { _sigprocmask_nid_postfix(2, &terminate, nullptr); } catch (const std::exception&) { threwPending = true; }
+    Require(threwPending && caught == 0, "a pending signal for an SA_SIGINFO handler throws as raise does");
     signal_nid_postfix(Terminate, nullptr);
 
     const int self = getpid_nid_postfix();
