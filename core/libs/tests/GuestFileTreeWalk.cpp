@@ -313,6 +313,30 @@ void CheckNftw() {
 
 }
 
+#ifndef _WIN32
+void CheckLongPath() {
+    std::filesystem::path deep = std::filesystem::path(root) / "long";
+    for (int level = 0; level < 5; ++level) deep /= std::string(230, static_cast<char>('a' + level));
+    std::filesystem::create_directories(deep);
+    const std::string fileName(250, 'f');
+    std::ofstream(deep / fileName).put('x');
+    std::string start = root + "/long";
+    char* paths[] = {start.data(), nullptr};
+    Stream* fts = fts_open_nid_postfix(paths, Physical, ByName);
+    Require(fts != nullptr, "fts_open long path");
+    bool found = false;
+    while (Entry* entry = fts_read_nid_postfix(fts)) {
+        if (std::string(entry->name) != fileName) continue;
+        found = true;
+        Require(entry->info == InfoFile, "an entry read after the path buffer grows is stat'ed through the new buffer");
+        Require(std::string(entry->path).size() == entry->pathLength && std::string(entry->path).size() > 1024, "long entry path");
+    }
+    Require(found, "long file found");
+    Require(fts_close_nid_postfix(fts) == 0, "fts_close long path");
+    std::filesystem::remove_all(std::filesystem::path(root) / "long");
+}
+#endif
+
 int main() {
     std::array<void*, 10> api{};
     ApplicationHeapRegister_nid_no_patch(api.data());
@@ -331,6 +355,9 @@ int main() {
     CheckSkipAndChildren();
     CheckOptions();
     CheckNftw();
+#ifndef _WIN32
+    CheckLongPath();
+#endif
 
     std::filesystem::remove_all(directory);
     std::puts("guest file tree walk tests passed");
