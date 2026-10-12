@@ -22,6 +22,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkAddress.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Spawn.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathClassification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
@@ -542,6 +543,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_stream_scanning COMMAND guest_stream_scanning_tests)
     if(WIN32)
         set_tests_properties(guest_stream_scanning PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_spawn_tests ${LIBS_INCLUDE_DIR}/tests/GuestSpawn.cpp)
+    target_include_directories(guest_spawn_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_spawn_tests PRIVATE libc)
+    configure_windows_unwind(guest_spawn_tests)
+    add_test(NAME guest_spawn COMMAND guest_spawn_tests)
+    if(WIN32)
+        set_tests_properties(guest_spawn PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
