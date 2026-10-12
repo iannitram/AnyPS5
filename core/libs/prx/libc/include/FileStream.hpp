@@ -138,11 +138,12 @@ public:
         SyncUnlockedStatus();
     }
 
-    void Close() {
+    int Close() {
         GetHandle();
-        if (std::fclose(std::exchange(_handle, nullptr)) != 0) throw std::runtime_error("FileStream: close failed");
+        const int result = std::fclose(std::exchange(_handle, nullptr));
         _guest.flags = 0;
         _guest.descriptor = -1;
+        return result;
     }
 };
 static_assert(std::is_standard_layout_v<FileStream>);
