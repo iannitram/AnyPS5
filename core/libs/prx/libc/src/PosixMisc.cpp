@@ -17,6 +17,10 @@ GuestTm* APS5_VABI gmtime_s_nid_postfix(const std::int64_t* timer, GuestTm* resu
 std::size_t APS5_VABI fread_nid_postfix(void* buffer, std::size_t size, std::size_t count, FileStream* stream);
 std::size_t APS5_VABI fwrite_nid_postfix(const void* buffer, std::size_t size, std::size_t count, FileStream* stream);
 void* APS5_VABI memalign_nid_postfix(std::size_t alignment, std::size_t size);
+char* APS5_VABI getcwd_nid_postfix(char* buffer, std::size_t size);
+int APS5_VABI strerror_r_nid_postfix(int error, char* buffer, std::size_t length);
+int APS5_VABI fgetc_nid_postfix(FileStream* stream);
+extern FileStream* __stdinp_nid_postfix;
 }
 
 namespace {
@@ -25,6 +29,7 @@ constexpr int GuestOverflow = 84;
 constexpr std::size_t AsctimeSize = 26;
 constexpr std::size_t PageSize = 16384;
 constexpr int TimeUtc = 1;
+constexpr std::size_t MaxPath = 1024;
 
 }
 
@@ -89,6 +94,53 @@ int APS5_VABI timespec_get_nid_postfix(KernelTimespec* time, int base) {
     time->tv_sec = seconds.count();
     time->tv_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(now - seconds).count();
     return base;
+}
+
+// FreeBSD 11's confstr for amd64: the LP64 environment is the only supported one.
+std::size_t APS5_VABI confstr_nid_postfix(int name, char* buffer, std::size_t length) {
+    static constexpr const char* Unsupported = "unsupported programming environment";
+    const char* value;
+    switch (name) {
+    case 1: value = "/usr/bin:/bin:/usr/sbin:/sbin"; break;
+    case 2: case 3: case 4: case 5: case 6: case 7: case 11: case 12: case 13: value = Unsupported; break;
+    case 8: case 9: case 10: value = ""; break;
+    case 14: value = "_POSIX_V6_LP64_OFF64"; break;
+    default:
+        errno = EINVAL;
+        return 0;
+    }
+    const std::size_t size = std::strlen(value) + 1;
+    if (length != 0 && buffer != nullptr) {
+        const std::size_t copied = size < length ? size - 1 : length - 1;
+        std::memcpy(buffer, value, copied);
+        buffer[copied] = '\0';
+    }
+    return size;
+}
+
+char* APS5_VABI getwd_nid_postfix(char* buffer) {
+    if (char* result = getcwd_nid_postfix(buffer, MaxPath)) return result;
+    strerror_r_nid_postfix(errno, buffer, MaxPath);
+    return nullptr;
+}
+
+char* APS5_VABI gets_nid_postfix(char* buffer) {
+    static bool warned = false;
+    if (!warned) {
+        std::fputs("warning: this program uses gets(), which is unsafe.\n", stderr);
+        std::fflush(stderr);
+        warned = true;
+    }
+    char* cursor = buffer;
+    for (int c; (c = fgetc_nid_postfix(__stdinp_nid_postfix)) != '\n';) {
+        if (c == EOF) {
+            if (cursor == buffer) return nullptr;
+            break;
+        }
+        *cursor++ = static_cast<char>(c);
+    }
+    *cursor = '\0';
+    return buffer;
 }
 
 }
