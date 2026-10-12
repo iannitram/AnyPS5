@@ -123,6 +123,7 @@ long double AsinNumerator(long double t) {
 long double AsinDenominator(long double t) {
     const auto& q = AsinDenominatorCoefficients;
     return 1.0L + t * (q[0] + t * (q[1] + t * (q[2] + t * (q[3] + t * q[4]))));
+}
 
 template<typename TResult, typename TFunction>
 TResult KeepErrno(TFunction function) {
