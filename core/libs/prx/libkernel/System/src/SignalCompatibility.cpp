@@ -3,18 +3,12 @@
 #include <cstring>
 
 #include "prx/libc/include/General.hpp"
+#include "prx/libkernel/System/include/SignalMask.hpp"
 
 namespace {
 
-struct SignalSet {
-    std::uint32_t bits[4];
-};
-
-struct SignalAction {
-    std::uintptr_t handler;
-    int flags;
-    SignalSet mask;
-};
+using SignalSet = GuestSignalSet;
+using SignalAction = GuestSigaction;
 static_assert(sizeof(SignalAction) == 32);
 
 struct SignalVector {
@@ -45,6 +39,7 @@ int APS5_VABI _sigprocmask_nid_postfix(int how, const SignalSet* set, SignalSet*
 int APS5_VABI sigemptyset_nid_postfix(SignalSet* set);
 int APS5_VABI sigaddset_nid_postfix(SignalSet* set, int signal);
 int APS5_VABI sigismember_nid_postfix(const SignalSet* set, int signal);
+int APS5_VABI kill_nid_postfix(int pid, int signal);
 
 bool SignalInterrupts_nid_no_patch(int signal) {
     if (signal < 1 || signal > MaxSignal) return false;
@@ -150,6 +145,35 @@ int APS5_VABI sigpending_nid_postfix(SignalSet* set) {
     }
     std::memset(set, 0, sizeof(*set));
     return 0;
+}
+
+int APS5_VABI sigqueue_nid_postfix(int pid, int signal, void* value) {
+    (void)value;
+    if (signal < 0 || signal > MaxSignal || pid <= 0) {
+        *__error_nid_postfix() = 22;
+        return -1;
+    }
+    return kill_nid_postfix(pid, signal);
+}
+
+int APS5_VABI killpg_nid_postfix(int group, int signal) {
+    if (group == 1) {
+        *__error_nid_postfix() = 3;
+        return -1;
+    }
+    return kill_nid_postfix(-group, signal);
+}
+
+int APS5_VABI sigsuspend_nid_postfix(const SignalSet* mask) {
+    (void)mask;
+    NotImplemented_nid_no_patch("sigsuspend: waiting for a delivered signal");
+    return -1;
+}
+
+int APS5_VABI sigpause_nid_postfix(int mask) {
+    (void)mask;
+    NotImplemented_nid_no_patch("sigpause: waiting for a delivered signal");
+    return -1;
 }
 
 }

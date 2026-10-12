@@ -82,6 +82,7 @@ void CheckQuickSort() {
     }
     qsort_r_nid_postfix(nullptr, 0, sizeof(Record), &thunk, CompareWithThunk);
     qsort_r_nid_postfix(records.data(), 1, 0, &thunk, CompareWithThunk);
+    qsort_r_nid_postfix(records.data(), 6, 0, &thunk, CompareWithThunk);
     bool threw = false;
     try { qsort_r_nid_postfix(records.data(), records.size(), 0, &thunk, CompareWithThunk); }
     catch (const std::invalid_argument&) { threw = true; }

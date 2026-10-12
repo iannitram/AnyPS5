@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
 
 namespace {
 struct SignalSet {
@@ -21,6 +22,11 @@ using Handler = void (APS5_VABI *)(int);
 }
 
 extern "C" {
+int APS5_VABI sigqueue_nid_postfix(int, int, void*);
+int APS5_VABI killpg_nid_postfix(int, int);
+int APS5_VABI sigsuspend_nid_postfix(const void*);
+int APS5_VABI sigpause_nid_postfix(int);
+int APS5_VABI getpid_nid_postfix(void);
 int* APS5_VABI __error_nid_postfix();
 int APS5_VABI sigaction_nid_postfix(int, const SignalAction*, SignalAction*);
 int APS5_VABI _sigprocmask_nid_postfix(int, const SignalSet*, SignalSet*);
@@ -56,6 +62,12 @@ std::uint32_t Mask() {
     return set.bits[0];
 }
 
+SignalSet FullMask() {
+    SignalSet set{};
+    _sigprocmask_nid_postfix(1, nullptr, &set);
+    return set;
+}
+
 SignalAction Action(int signal) {
     SignalAction action{};
     sigaction_nid_postfix(signal, nullptr, &action);
@@ -75,6 +87,9 @@ int main() {
     Require(sigrelse_nid_postfix(UserSignal) == 0 && Mask() == 0, "sigrelse");
     *__error_nid_postfix() = 0;
     Require(sighold_nid_postfix(0) == -1 && *__error_nid_postfix() == 22, "sighold of an invalid signal");
+    Require(sighold_nid_postfix(40) == 0 && FullMask().bits[1] == 0x80u, "sighold of a signal above 32");
+    Require(sigrelse_nid_postfix(40) == 0 && FullMask().bits[1] == 0, "sigrelse of a signal above 32");
+    Require(sigset_nid_postfix(9, 3) == 0 && sigset_nid_postfix(9, 3) == 0 && (FullMask().bits[0] & (1u << 8)) == 0, "SIGKILL cannot be held");
     Require(sigrelse_nid_postfix(129) == -1 && *__error_nid_postfix() == 22, "sigrelse of an invalid signal");
 
     Require(sigignore_nid_postfix(UserSignal) == 0 && Action(UserSignal).handler == 1, "sigignore");
@@ -106,6 +121,19 @@ int main() {
     SignalSet pending{{1, 2, 3, 4}};
     Require(sigpending_nid_postfix(&pending) == 0 && pending.bits[0] == 0 && pending.bits[3] == 0, "nothing is pending");
     Require(sigpending_nid_postfix(nullptr) == -1 && *__error_nid_postfix() == 14, "null set");
+
+    const int self = getpid_nid_postfix();
+    Require(sigqueue_nid_postfix(self, 0, nullptr) == 0, "sigqueue checks the process");
+    *__error_nid_postfix() = 0;
+    Require(sigqueue_nid_postfix(self + 1, 0, nullptr) == -1 && *__error_nid_postfix() == 3, "sigqueue to another process");
+    Require(sigqueue_nid_postfix(0, 0, nullptr) == -1 && *__error_nid_postfix() == 22, "sigqueue needs a positive pid");
+    Require(sigqueue_nid_postfix(self, 129, nullptr) == -1 && *__error_nid_postfix() == 22, "sigqueue of an invalid signal");
+    Require(killpg_nid_postfix(self, 0) == 0 && killpg_nid_postfix(0, 0) == 0, "killpg of the own group");
+    Require(killpg_nid_postfix(1, 0) == -1 && *__error_nid_postfix() == 3, "killpg of group 1");
+    int thrown = 0;
+    try { sigsuspend_nid_postfix(&pending); } catch (const std::exception&) { ++thrown; }
+    try { sigpause_nid_postfix(0); } catch (const std::exception&) { ++thrown; }
+    Require(thrown == 2, "sigsuspend and sigpause throw");
 
     sigsetmask_nid_postfix(original);
     std::puts("guest signal compatibility tests passed");

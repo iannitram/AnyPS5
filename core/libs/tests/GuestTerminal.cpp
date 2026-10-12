@@ -88,6 +88,10 @@ static void CheckAttributeHelpers() {
     Require(attributes.control == (0xffffffffu & ~0x1000u));
     Require(attributes.characters[16] == 1 && attributes.characters[17] == 0 && attributes.characters[15] == 0xff && attributes.characters[18] == 0xff);
     Require(attributes.inputSpeed == 115200);
+    std::memset(&attributes, 0, sizeof(attributes));
+    cfmakeraw_nid_postfix(&attributes);
+    Require(attributes.input == 0x1u && attributes.output == 0 && attributes.control == 0xb00u && attributes.local == 0);
+    Require(attributes.characters[16] == 1 && attributes.characters[17] == 0);
 
     char buffer[32];
     Require(std::strcmp(ctermid_nid_postfix(buffer), "/dev/tty") == 0 && ctermid_nid_postfix(buffer) == buffer);

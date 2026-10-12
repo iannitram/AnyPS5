@@ -13,7 +13,7 @@ std::size_t APS5_VABI wcscspn_nid_postfix(const char16_t*, const char16_t*);
 int APS5_VABI wctomb_nid_postfix(char*, char16_t);
 int APS5_VABI wctrans_nid_postfix(const char*);
 std::uint32_t APS5_VABI towctrans_nid_postfix(std::uint32_t, int);
-std::uint32_t APS5_VABI _Towctrans_nid_postfix(std::uint32_t, int);
+std::uint32_t APS5_VABI _Towctrans_nid_postfix(std::uint32_t, std::uint64_t);
 std::size_t APS5_VABI wcsftime_nid_postfix(char16_t*, std::size_t, const char16_t*, const GuestTm*);
 }
 
