@@ -154,6 +154,30 @@ static void CheckAsinfErrno() {
     Require(errno == 0);
 }
 
+static void CheckLongDoubleErrno() {
+    const auto keepsErrno = [](auto call) {
+        errno = 12345;
+        (void)call();
+        return errno == 12345;
+    };
+    Require(keepsErrno([] { return acosl_nid_postfix(2.0L); }));
+    Require(keepsErrno([] { return logl_nid_postfix(-1.0L); }));
+    Require(keepsErrno([] { return logl_nid_postfix(0.0L); }));
+    Require(keepsErrno([] { return log10l_nid_postfix(0.0L); }));
+    Require(keepsErrno([] { return expl_nid_postfix(100000.0L); }));
+    Require(keepsErrno([] { return exp2l_nid_postfix(100000.0L); }));
+    Require(keepsErrno([] { return coshl_nid_postfix(100000.0L); }));
+    Require(keepsErrno([] { return sinhl_nid_postfix(100000.0L); }));
+    Require(keepsErrno([] { return powl_nid_postfix(0.0L, -1.0L); }));
+    Require(keepsErrno([] { return powl_nid_postfix(-2.0L, 0.5L); }));
+    Require(keepsErrno([] { return sinl_nid_postfix(INFINITY); }));
+    Require(keepsErrno([] { return cosl_nid_postfix(INFINITY); }));
+    Require(keepsErrno([] { return tanl_nid_postfix(INFINITY); }));
+    Require(keepsErrno([] { return logb_nid_postfix(0.0); }));
+    Require(keepsErrno([] { return remainder_nid_postfix(1.0, 0.0); }));
+    Require(keepsErrno([] { return remainder_nid_postfix(INFINITY, 1.0); }));
+}
+
 static void CheckLongDouble() {
     Require(ExtendedBits(acosl_nid_postfix(-1.0L), 0xc90fdaa22168c235ull, 0x4000));
     Require(ExtendedBits(acosl_nid_postfix(0.0L), 0xc90fdaa22168c235ull, 0x3fff));
@@ -534,6 +558,7 @@ int main() {
     CheckSquareRoot();
     CheckExactOperations();
     CheckLongDouble();
+    CheckLongDoubleErrno();
     Require(scalbn_nid_postfix(0.75, -2) == 0.1875);
     Require(scalbnf_nid_postfix(0.75f, 4) == 12.f);
     Require(nextafterf_nid_postfix(1.f, 2.f) == 0x1.000002p0f && nextafterf_nid_postfix(1.f, 0.f) == 0x1.fffffep-1f);
