@@ -43,6 +43,7 @@ class FileStream {
     std::FILE* _handle;
     bool _dynamic;
     bool guestError = false;
+    int orientation = 0;
 
 public:
     explicit FileStream(std::FILE* handle, bool dynamic = false) : _handle(handle), _dynamic(dynamic) {
@@ -69,10 +70,15 @@ public:
     }
 
     GuestFilePrefix& GuestState() { return _guest; }
+    int Orientation() const { return orientation; }
+    void Orient(int requested) {
+        if (orientation == 0) orientation = requested;
+    }
     bool Reopen(const std::filesystem::path& filename, const char* mode) {
         auto* previous = GetHandle();
         _guest = {};
         guestError = false;
+        orientation = 0;
 #ifdef _WIN32
         std::wstring wideMode;
         for (const char character : std::string_view(mode)) wideMode.push_back(static_cast<unsigned char>(character));

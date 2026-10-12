@@ -6,8 +6,6 @@
 #include <cstdarg>
 #include <cstring>
 #include <stdexcept>
-#include <map>
-#include <mutex>
 #include <string>
 
 #include "SceTypes.hpp"
@@ -204,6 +202,8 @@ extern "C" {
 
 extern FileStream* __stdinp_nid_postfix;
 extern FileStream* __stdoutp_nid_postfix;
+void APS5_VABI flockfile_nid_postfix(FileStream* stream);
+void APS5_VABI funlockfile_nid_postfix(FileStream* stream);
 std::int32_t APS5_VABI fgetwc_nid_postfix(FileStream* stream);
 
 int APS5_VABI vswprintf_nid_postfix(char16_t* buffer, std::size_t size, const char16_t* format, VaList* args) {
@@ -266,6 +266,7 @@ int APS5_VABI wprintf_nid_postfix(const char16_t* format, ...) {
 int APS5_VABI fputwc_nid_postfix(char16_t value, FileStream* stream) {
     if (stream == nullptr) { errno = 22; return -1; }
     try {
+        stream->Orient(1);
         const std::string bytes = ToUtf8(std::u16string(1, value));
         auto* native = GetNativeStream(stream);
         if (std::fwrite(bytes.data(), 1, bytes.size(), native) != bytes.size()) throw std::runtime_error("stream write failed");
@@ -280,6 +281,7 @@ int APS5_VABI fputwc_nid_postfix(char16_t value, FileStream* stream) {
 int APS5_VABI fputws_nid_postfix(const char16_t* str, FileStream* stream) {
     if (str == nullptr || stream == nullptr) { errno = 22; return -1; }
     try {
+        stream->Orient(1);
         const std::u16string text(str);
         const std::string bytes = ToUtf8(text);
         auto* native = GetNativeStream(stream);
@@ -294,8 +296,9 @@ int APS5_VABI fputws_nid_postfix(const char16_t* str, FileStream* stream) {
 
 int APS5_VABI vfwprintf_nid_postfix(FileStream* stream, const char16_t* format, VaList* args) {
     if (stream == nullptr || format == nullptr) { errno = 22; return -1; }
+    stream->Orient(1);
+    const std::u16string text = FormatWide(format, args);
     try {
-        const std::u16string text = FormatWide(format, args);
         const std::string bytes = ToUtf8(text);
         auto* native = GetNativeStream(stream);
         const bool written = std::fwrite(bytes.data(), 1, bytes.size(), native) == bytes.size();
@@ -315,15 +318,7 @@ int APS5_VABI fwprintf_nid_postfix(FileStream* stream, const char16_t* format, .
 }
 
 int APS5_VABI vwprintf_nid_postfix(const char16_t* format, VaList* args) {
-    if (format == nullptr) { errno = 22; return -1; }
-    try {
-        const std::u16string text = FormatWide(format, args);
-        const std::string bytes = ToUtf8(text);
-        return std::fwrite(bytes.data(), 1, bytes.size(), stdout) == bytes.size() ? static_cast<int>(text.size()) : -1;
-    } catch (const std::exception&) {
-        errno = 22;
-        return -1;
-    }
+    return vfwprintf_nid_postfix(__stdoutp_nid_postfix, format, args);
 }
 
 int APS5_VABI putwc_nid_postfix(char16_t value, FileStream* stream) { return fputwc_nid_postfix(value, stream); }
@@ -340,6 +335,7 @@ char16_t* APS5_VABI fgetws_nid_postfix(char16_t* buffer, int size, FileStream* s
         errno = 22;
         return nullptr;
     }
+    flockfile_nid_postfix(stream);
     int count = 0;
     while (count < size - 1) {
         const std::int32_t value = fgetwc_nid_postfix(stream);
@@ -347,22 +343,17 @@ char16_t* APS5_VABI fgetws_nid_postfix(char16_t* buffer, int size, FileStream* s
         buffer[count++] = static_cast<char16_t>(value);
         if (value == u'\n') break;
     }
-    if (count == 0 && size > 1) return nullptr;
+    const bool failed = std::ferror(GetNativeStream(stream)) != 0;
+    funlockfile_nid_postfix(stream);
+    if (failed || (count == 0 && size > 1)) return nullptr;
     buffer[count] = 0;
     return buffer;
 }
 
-// FreeBSD 11 keeps the orientation in the FILE; the guest FileStream has no field for it.
 int APS5_VABI fwide_nid_postfix(FileStream* stream, int mode) {
     if (stream == nullptr) throw std::invalid_argument("fwide: null stream");
-    static std::mutex lock;
-    static std::map<FileStream*, int> orientations;
-    if (mode > 0) mode = 1;
-    else if (mode < 0) mode = -1;
-    std::lock_guard guard(lock);
-    int& orientation = orientations[stream];
-    if (orientation == 0 && mode != 0) orientation = mode;
-    return orientation;
+    if (mode != 0) stream->Orient(mode > 0 ? 1 : -1);
+    return stream->Orientation();
 }
 
 }

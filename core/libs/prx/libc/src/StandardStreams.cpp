@@ -20,6 +20,7 @@ int APS5_VABI fgetc_nid_postfix(FileStream* stream) {
     return result;
 }
 std::int32_t APS5_VABI fgetwc_nid_postfix(FileStream* stream) {
+    if (stream != nullptr) stream->Orient(1);
     return fgetc_nid_postfix(stream);
 }
 
