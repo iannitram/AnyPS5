@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <cstddef>
+#include <cstdio>
 #include <stdexcept>
 
 #include "prx/libc/include/General.hpp"
@@ -60,5 +61,27 @@ GuestProtocolEntry* APS5_VABI getprotobynumber_nid_postfix(int) { return Unavail
 GuestProtocolEntry* APS5_VABI getprotoent_nid_postfix(void) { return UnavailableEntry<GuestProtocolEntry>(); }
 void APS5_VABI setprotoent_nid_postfix(int) {}
 void APS5_VABI endprotoent_nid_postfix(void) {}
+
+extern const char* const h_errlist_nid_postfix[] = {
+    "Resolver Error 0 (no error)", "Unknown host", "Host name lookup failure", "Unknown server error", "No address associated with name"
+};
+extern const int h_nerr_nid_postfix = 5;
+
+const char* APS5_VABI hstrerror_nid_postfix(int error) {
+    if (error < 0) return "Resolver internal error";
+    if (error < h_nerr_nid_postfix) return h_errlist_nid_postfix[error];
+    return "Unknown resolver error";
+}
+
+// No guest resolver function sets h_errno, so herror always reports error 0.
+void APS5_VABI herror_nid_postfix(const char* prefix) {
+    if (prefix != nullptr && *prefix != '\0') {
+        std::fputs(prefix, stderr);
+        std::fputs(": ", stderr);
+    }
+    std::fputs(hstrerror_nid_postfix(0), stderr);
+    std::fputs("\n", stderr);
+    std::fflush(stderr);
+}
 
 }

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 extern "C" {
 int APS5_VABI getservbyname_r_nid_postfix(const char*, const char*, void*, char*, std::size_t, void**);
@@ -22,6 +23,9 @@ void* APS5_VABI getprotobynumber_nid_postfix(int);
 void* APS5_VABI getprotoent_nid_postfix(void);
 void APS5_VABI setprotoent_nid_postfix(int);
 void APS5_VABI endprotoent_nid_postfix(void);
+extern const char* const h_errlist_nid_postfix[];
+extern const int h_nerr_nid_postfix;
+const char* APS5_VABI hstrerror_nid_postfix(int);
 }
 
 namespace {
@@ -62,6 +66,9 @@ int main() {
     Require(getprotobyname_nid_postfix("udp") == nullptr && errno == ENOENT, "getprotobyname");
     Require(getprotobynumber_nid_postfix(17) == nullptr && getprotoent_nid_postfix() == nullptr, "protocol lookups");
     endprotoent_nid_postfix();
+    Require(h_nerr_nid_postfix == 5 && std::strcmp(h_errlist_nid_postfix[1], "Unknown host") == 0, "h_errlist");
+    Require(std::strcmp(hstrerror_nid_postfix(4), "No address associated with name") == 0, "hstrerror");
+    Require(std::strcmp(hstrerror_nid_postfix(-1), "Resolver internal error") == 0 && std::strcmp(hstrerror_nid_postfix(5), "Unknown resolver error") == 0, "hstrerror range");
     std::puts("guest network database tests passed");
     return 0;
 }
