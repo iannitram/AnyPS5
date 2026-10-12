@@ -98,6 +98,7 @@ struct AlarmState {
     std::mutex lock;
     std::condition_variable changed;
     std::optional<std::chrono::steady_clock::time_point> deadline;
+    std::chrono::microseconds interval{0};
     bool threadStarted = false;
 };
 
@@ -131,7 +132,14 @@ void RunAlarms() {
         }
         const auto deadline = *alarms.deadline;
         if (alarms.changed.wait_until(lock, deadline) != std::cv_status::timeout || alarms.deadline != deadline) continue;
-        alarms.deadline.reset();
+        if (alarms.interval.count() > 0) {
+            auto next = deadline + alarms.interval;
+            const auto now = std::chrono::steady_clock::now();
+            while (next <= now) next += alarms.interval;
+            alarms.deadline = next;
+        } else {
+            alarms.deadline.reset();
+        }
         lock.unlock();
         ExpireAlarm();
         lock.lock();
@@ -185,6 +193,7 @@ extern "C" unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int seconds) 
         const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(*alarms.deadline - now).count();
         remaining = static_cast<unsigned int>((micros + 999999) / 1000000);
     }
+    alarms.interval = std::chrono::microseconds(0);
     if (seconds == 0) alarms.deadline.reset();
     else alarms.deadline = now + std::chrono::seconds(seconds);
     if (!alarms.threadStarted) {
@@ -220,10 +229,76 @@ extern "C" int APS5_VABI getitimer_nid_postfix(int which, GuestItimerval* output
             const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(*alarms.deadline - now).count();
             result.value.tv_sec = micros / 1000000;
             result.value.tv_usec = micros % 1000000;
+            result.interval.tv_sec = alarms.interval.count() / 1000000;
+            result.interval.tv_usec = alarms.interval.count() % 1000000;
         }
     }
     *output = result;
     return 0;
+}
+
+namespace {
+bool InvalidTimerValue(const KernelTimeval& value) {
+    return value.tv_sec < 0 || value.tv_usec < 0 || value.tv_usec >= 1000000 || value.tv_sec > INT32_MAX / 2;
+}
+
+std::chrono::microseconds Microseconds(const KernelTimeval& value) {
+    return std::chrono::seconds(value.tv_sec) + std::chrono::microseconds(value.tv_usec);
+}
+}
+
+extern "C" int APS5_VABI setitimer_nid_postfix(int which, const GuestItimerval* input, GuestItimerval* output) {
+    if (which < 0 || which > 2) {
+        *__error_nid_postfix() = 22;
+        return -1;
+    }
+    if (input == nullptr) return getitimer_nid_postfix(which, output);
+    if (which != 0) throw std::runtime_error("setitimer: CPU interval timers are not implemented");
+    GuestItimerval request = *input;
+    if (InvalidTimerValue(request.value)) {
+        *__error_nid_postfix() = 22;
+        return -1;
+    }
+    const bool arming = request.value.tv_sec != 0 || request.value.tv_usec != 0;
+    if (!arming) request.interval = {};
+    else if (InvalidTimerValue(request.interval)) {
+        *__error_nid_postfix() = 22;
+        return -1;
+    }
+    GuestItimerval previous{};
+    auto& alarms = Alarms();
+    {
+        std::lock_guard lock(alarms.lock);
+        const auto now = std::chrono::steady_clock::now();
+        if (alarms.deadline && *alarms.deadline > now) {
+            const auto micros = std::chrono::duration_cast<std::chrono::microseconds>(*alarms.deadline - now).count();
+            previous.value.tv_sec = micros / 1000000;
+            previous.value.tv_usec = micros % 1000000;
+            previous.interval.tv_sec = alarms.interval.count() / 1000000;
+            previous.interval.tv_usec = alarms.interval.count() % 1000000;
+        }
+        alarms.interval = Microseconds(request.interval);
+        if (arming) alarms.deadline = now + Microseconds(request.value);
+        else alarms.deadline.reset();
+        if (!alarms.threadStarted) {
+            std::thread(RunAlarms).detach();
+            alarms.threadStarted = true;
+        }
+        alarms.changed.notify_all();
+    }
+    if (output != nullptr) *output = previous;
+    return 0;
+}
+
+extern "C" std::uint32_t APS5_VABI ualarm_nid_postfix(std::uint32_t microseconds, std::uint32_t reload) {
+    GuestItimerval request{};
+    request.interval.tv_sec = reload / 1000000;
+    request.interval.tv_usec = reload % 1000000;
+    request.value.tv_sec = microseconds / 1000000;
+    request.value.tv_usec = microseconds % 1000000;
+    GuestItimerval previous{};
+    if (setitimer_nid_postfix(0, &request, &previous) != 0) return static_cast<std::uint32_t>(-1);
+    return static_cast<std::uint32_t>(previous.value.tv_sec * 1000000 + previous.value.tv_usec);
 }
 
 struct GuestStack {

@@ -14,11 +14,15 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/RuneLocale.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StringExtensions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ComplexMath.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MathSpecial.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatingEnvironment.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkAddress.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Spawn.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathClassification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
@@ -512,6 +516,42 @@ if(BUILD_TESTING)
     add_test(NAME guest_math_classification COMMAND guest_math_classification_tests)
     if(WIN32)
         set_tests_properties(guest_math_classification PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_complex_math_tests ${LIBS_INCLUDE_DIR}/tests/GuestComplexMath.cpp)
+    target_include_directories(guest_complex_math_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_complex_math_tests PRIVATE libc)
+    configure_windows_unwind(guest_complex_math_tests)
+    add_test(NAME guest_complex_math COMMAND guest_complex_math_tests)
+    if(WIN32)
+        set_tests_properties(guest_complex_math PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_network_address_tests ${LIBS_INCLUDE_DIR}/tests/GuestNetworkAddress.cpp)
+    target_include_directories(guest_network_address_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_network_address_tests PRIVATE libc)
+    configure_windows_unwind(guest_network_address_tests)
+    add_test(NAME guest_network_address COMMAND guest_network_address_tests)
+    if(WIN32)
+        set_tests_properties(guest_network_address PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_stream_scanning_tests ${LIBS_INCLUDE_DIR}/tests/GuestStreamScanning.cpp)
+    target_include_directories(guest_stream_scanning_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_stream_scanning_tests PRIVATE libc)
+    configure_windows_unwind(guest_stream_scanning_tests)
+    add_test(NAME guest_stream_scanning COMMAND guest_stream_scanning_tests)
+    if(WIN32)
+        set_tests_properties(guest_stream_scanning PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_spawn_tests ${LIBS_INCLUDE_DIR}/tests/GuestSpawn.cpp)
+    target_include_directories(guest_spawn_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_spawn_tests PRIVATE libc)
+    configure_windows_unwind(guest_spawn_tests)
+    add_test(NAME guest_spawn COMMAND guest_spawn_tests)
+    if(WIN32)
+        set_tests_properties(guest_spawn PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
