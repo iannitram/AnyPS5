@@ -16,6 +16,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatingEnvironment.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Time.cpp
@@ -452,6 +453,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_search_tables COMMAND guest_search_tables_tests)
     if(WIN32)
         set_tests_properties(guest_search_tables PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_sorting_tests ${LIBS_INCLUDE_DIR}/tests/GuestSorting.cpp)
+    target_include_directories(guest_sorting_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_sorting_tests PRIVATE libc)
+    configure_windows_unwind(guest_sorting_tests)
+    add_test(NAME guest_sorting COMMAND guest_sorting_tests)
+    if(WIN32)
+        set_tests_properties(guest_sorting PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
