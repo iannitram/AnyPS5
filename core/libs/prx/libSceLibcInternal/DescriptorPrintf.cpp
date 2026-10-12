@@ -41,8 +41,7 @@ int APS5_VABI vdprintf_nid_postfix(int descriptor, const char* format, VaList* a
     std::size_t written = 0;
     while (written < static_cast<std::size_t>(length)) {
         const std::int64_t result = _write_nid_postfix(descriptor, text + written, static_cast<std::size_t>(length) - written);
-        if (result < 0) return -1;
-        if (result == 0) break;
+        if (result <= 0) return -1;
         written += static_cast<std::size_t>(result);
     }
     return static_cast<int>(written);
