@@ -630,7 +630,8 @@ int APS5_VABI glob_nid_postfix(const char* pattern, int flags, int (APS5_VABI *e
 }
 
 void APS5_VABI globfree_nid_postfix(GuestGlob* glob) {
-    if (glob == nullptr || glob->paths == nullptr) return;
+    if (glob == nullptr) throw std::invalid_argument("globfree: null result");
+    if (glob->paths == nullptr) return;
     char** path = glob->paths + glob->offsets;
     for (std::size_t i = glob->pathCount; i--; ++path)
         if (*path) free_nid_postfix(*path);
