@@ -136,7 +136,7 @@ void CheckLines() {
 void CheckTemporaries() {
     std::string pattern = "anyps5-mkstemps-XXXXXX.log";
     const int descriptor = mkstemps_nid_postfix(pattern.data(), 4);
-    Require(descriptor >= 0 && pattern.rfind(".log") == pattern.size() - 4 && pattern.find('X') == std::string::npos, "mkstemps");
+    Require(descriptor >= 0 && pattern.size() == 26 && pattern.rfind("anyps5-mkstemps-", 0) == 0 && pattern.rfind(".log") == 22, "mkstemps keeps the prefix and the suffix");
     Require(std::filesystem::exists(pattern), "mkstemps created the file");
     close_nid_postfix(descriptor);
     std::filesystem::remove(pattern);
