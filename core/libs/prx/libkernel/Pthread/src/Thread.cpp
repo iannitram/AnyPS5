@@ -4,6 +4,7 @@
 #include "../include/Cancel.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libkernel/KernelErrors.hpp"
+#include "prx/libkernel/System/include/SignalMask.hpp"
 #include "prx/libc/include/CpuTopology.hpp"
 #include <algorithm>
 #include <cstdio>
@@ -45,6 +46,7 @@ struct ThreadArgs {
     PthreadEntry entry;
     void* arg;
     PthreadPrivate* self;
+    GuestSignalSet guestSignalMask;
 #ifndef _WIN32
     sigset_t signalMask;
 #endif
@@ -390,6 +392,7 @@ static void RunThread(std::unique_ptr<ThreadArgs> args) {
     TimedWait::BindThreadWaitState(&self->waitCount);
     CurrentGuestState().current = self;
     RegisterStack(self);
+    SetCurrentGuestSignalMask(args->guestSignalMask);
 #ifndef _WIN32
     const sigset_t signalMask = args->signalMask;
 #endif
@@ -550,7 +553,7 @@ int APS5_VABI scePthreadCreate(Pthread* thread, const PthreadAttr* attr, Pthread
     }
     if (name) p->name = name;
     std::promise<bool> start;
-    auto args = std::make_unique<ThreadArgs>(ThreadArgs{entry, arg, p.get()});
+    auto args = std::make_unique<ThreadArgs>(ThreadArgs{entry, arg, p.get(), CurrentGuestSignalMask()});
 #ifdef _WIN32
     SYSTEM_INFO system{};
     GetSystemInfo(&system);
