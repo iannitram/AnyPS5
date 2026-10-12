@@ -1,6 +1,7 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libkernel/Pthread/Posix/Common.hpp"
+#include "prx/libkernel/System/include/SignalMask.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <atomic>
 #include <chrono>
@@ -20,10 +21,6 @@ extern "C" int* APS5_VABI __error_nid_postfix();
 extern "C" int APS5_VABI getpid_nid_postfix(void);
 extern "C" Pthread APS5_VABI scePthreadSelf(void);
 
-struct GuestSignalSet {
-    std::uint32_t bits[4];
-};
-
 struct GuestSigaction {
     std::uintptr_t handler;
     int flags;
@@ -36,12 +33,12 @@ using GuestHandler = void (APS5_VABI *)(int);
 constexpr int MaxSignal = 128;
 constexpr int GuestSigkill = 9;
 constexpr int GuestSigstop = 17;
+constexpr int GuestSigthr = 32;
 constexpr int SaRestart = 0x2;
 constexpr int SaSiginfo = 0x40;
 std::atomic<GuestHandler> handlers[MaxSignal + 1]{};
 static_assert(std::atomic<GuestHandler>::is_always_lock_free);
-std::atomic<std::uint32_t> blockedMask{0};
-static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
+thread_local GuestSignalSet threadMask{};
 std::mutex registration;
 GuestSigaction dispositions[MaxSignal + 1]{};
 int NativeSignal(int guest) {
@@ -64,7 +61,7 @@ void Dispatch(int native) {
     // Preserve the guest's persistent registration across CRT delivery.
     std::signal(native, Dispatch);
 #endif
-    if ((blockedMask.load() & (1u << (guest - 1))) != 0) return;
+    if ((threadMask.bits[(guest - 1) / 32] & (1u << ((guest - 1) % 32))) != 0) return;
     const auto callback = handlers[guest].load();
     if (reinterpret_cast<std::uintptr_t>(callback) > 1) callback(guest);
 }
@@ -129,6 +126,41 @@ void RunAlarms() {
         lock.lock();
     }
 }
+}
+
+namespace {
+GuestSignalSet Maskable(GuestSignalSet set) {
+    for (int fixed : {GuestSigkill, GuestSigstop, GuestSigthr})
+        set.bits[(fixed - 1) / 32] &= ~(1u << ((fixed - 1) % 32));
+    return set;
+}
+
+int ChangeSignalMask(int how, const GuestSignalSet* set, GuestSignalSet* previousSet) {
+    const GuestSignalSet requested = set != nullptr ? *set : GuestSignalSet{};
+    if (previousSet != nullptr) *previousSet = threadMask;
+    if (set == nullptr) return 0;
+    GuestSignalSet next = threadMask;
+    switch (how) {
+        case 1:
+            for (int word = 0; word < 4; ++word) next.bits[word] |= Maskable(requested).bits[word];
+            break;
+        case 2:
+            for (int word = 0; word < 4; ++word) next.bits[word] &= ~requested.bits[word];
+            break;
+        case 3: next = Maskable(requested); break;
+        default: return 22;
+    }
+    threadMask = next;
+    return 0;
+}
+}
+
+GuestSignalSet CurrentGuestSignalMask() {
+    return threadMask;
+}
+
+void SetCurrentGuestSignalMask(const GuestSignalSet& mask) {
+    threadMask = Maskable(mask);
 }
 
 extern "C" unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int seconds) {
@@ -253,22 +285,10 @@ int APS5_VABI sigaltstack_nid_postfix(const GuestStack* stack, GuestStack* previ
     return 0;
 }
 int APS5_VABI _sigprocmask_nid_postfix(int how, const GuestSignalSet* set, GuestSignalSet* previousSet) {
-    std::lock_guard lock(registration);
-    if (previousSet != nullptr) {
-        previousSet->bits[0] = blockedMask.load();
-        previousSet->bits[1] = 0;
-        previousSet->bits[2] = 0;
-        previousSet->bits[3] = 0;
-    }
-    if (set != nullptr) {
-        switch (how) {
-            case 1: blockedMask.fetch_or(set->bits[0]); break;
-            case 2: blockedMask.fetch_and(~set->bits[0]); break;
-            case 3: blockedMask.store(set->bits[0]); break;
-            default: throw std::invalid_argument("_sigprocmask: invalid how");
-        }
-    }
-    return 0;
+    const int error = ChangeSignalMask(how, set, previousSet);
+    if (error == 0) return 0;
+    *__error_nid_postfix() = error;
+    return -1;
 }
 
 int APS5_VABI sigprocmask_nid_postfix(int how, const void* set, void* previousSet) {
@@ -277,8 +297,7 @@ int APS5_VABI sigprocmask_nid_postfix(int how, const void* set, void* previousSe
 }
 
 int APS5_VABI pthread_sigmask_nid_postfix(int how, const GuestSignalSet* set, GuestSignalSet* previousSet) {
-    if (set != nullptr && (how < 1 || how > 3)) return 22;
-    return _sigprocmask_nid_postfix(how, set, previousSet);
+    return ChangeSignalMask(how, set, previousSet);
 }
 
 int APS5_VABI sigtimedwait_nid_postfix(const GuestSignalSet* set, void* info, const void* timeout) {
