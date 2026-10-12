@@ -37,6 +37,7 @@ add_library(libkernel SHARED EXCLUDE_FROM_ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Tsd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Sem.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/MessageQueue.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Extras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Spinlock.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Socket/src/Socket.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Socket/src/Udp.cpp
@@ -615,6 +616,16 @@ if(BUILD_TESTING)
     set_tests_properties(guest_shared_memory_segments PROPERTIES TIMEOUT 20)
     if(WIN32)
         set_tests_properties(guest_shared_memory_segments PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
+    add_test_executable(guest_pthread_extras_tests ${LIBS_INCLUDE_DIR}/tests/GuestPthreadExtras.cpp)
+    target_include_directories(guest_pthread_extras_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_pthread_extras_tests PRIVATE libkernel libc)
+    configure_windows_unwind(guest_pthread_extras_tests)
+    add_test(NAME guest_pthread_extras COMMAND guest_pthread_extras_tests)
+    set_tests_properties(guest_pthread_extras PROPERTIES TIMEOUT 20)
+    if(WIN32)
+        set_tests_properties(guest_pthread_extras PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
     endif()
     add_test_executable(guest_signal_set_tests ${LIBS_INCLUDE_DIR}/tests/GuestSignalSets.cpp)

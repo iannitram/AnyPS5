@@ -33,6 +33,7 @@ struct PthreadMutexattrPrivate {
     MutexType type;
     int protocol = 0;
     int ceiling = 0;
+    int pshared = 0;
 };
 
 struct PthreadMutexPrivate {
@@ -41,12 +42,15 @@ struct PthreadMutexPrivate {
     MutexType _type;
     std::atomic<std::thread::id> _owner;
     int _count;
+    int _protocol = 0;
+    int _ceiling = 0;
 
     PthreadMutexPrivate() : _type(MutexType::ErrorCheck), _owner(std::thread::id{}), _count(0) {}
 };
 
 struct PthreadRwlockattrPrivate {
     int type;
+    int pshared = 0;
 };
 
 struct PthreadRwlockPrivate {
@@ -63,6 +67,7 @@ struct PthreadRwlockPrivate {
 
 struct PthreadCondattrPrivate {
     int _clockid;
+    int _pshared = 0;
 };
 
 struct PthreadCondPrivate {
