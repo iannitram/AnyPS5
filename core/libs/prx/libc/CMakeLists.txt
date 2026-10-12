@@ -14,6 +14,8 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/RuneLocale.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StringExtensions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ComplexMath.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MathSpecial.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatingEnvironment.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
@@ -512,6 +514,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_math_classification COMMAND guest_math_classification_tests)
     if(WIN32)
         set_tests_properties(guest_math_classification PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_complex_math_tests ${LIBS_INCLUDE_DIR}/tests/GuestComplexMath.cpp)
+    target_include_directories(guest_complex_math_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_complex_math_tests PRIVATE libc)
+    configure_windows_unwind(guest_complex_math_tests)
+    add_test(NAME guest_complex_math COMMAND guest_complex_math_tests)
+    if(WIN32)
+        set_tests_properties(guest_complex_math PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
