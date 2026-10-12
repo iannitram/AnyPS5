@@ -1,11 +1,18 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
+#include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/General.hpp"
 
-extern "C" const char* APS5_VABI getprogname_nid_postfix();
-extern "C" char* APS5_VABI getenv_nid_postfix(const char* name);
+extern "C" {
+extern FileStream* __stderrp_nid_postfix;
+const char* APS5_VABI getprogname_nid_postfix();
+char* APS5_VABI getenv_nid_postfix(const char* name);
+int APS5_VABI fprintf_nid_postfix(FileStream* stream, const char* format, ...);
+void APS5_VABI warnx_nid_postfix(const char* format, ...);
+}
 
 namespace {
 
@@ -38,13 +45,30 @@ int nonOptionEnd = -1;
 DashPrefix dashPrefix = DashPrefix::None;
 int posixlyCorrect = -1;
 
+std::string Format(const char* format, va_list arguments) {
+    va_list copy;
+    va_copy(copy, arguments);
+    const int length = std::vsnprintf(nullptr, 0, format, copy);
+    va_end(copy);
+    std::string text(length > 0 ? static_cast<std::size_t>(length) : 0, '\0');
+    if (length > 0) std::vsnprintf(text.data(), text.size() + 1, format, arguments);
+    return text;
+}
+
 void Warn(const char* format, ...) {
-    std::fprintf(stderr, "%s: ", getprogname_nid_postfix());
     va_list arguments;
     va_start(arguments, format);
-    std::vfprintf(stderr, format, arguments);
+    const std::string message = Format(format, arguments);
     va_end(arguments);
-    std::fputc('\n', stderr);
+    warnx_nid_postfix("%s", message.c_str());
+}
+
+void WarnShort(const char* format, ...) {
+    va_list arguments;
+    va_start(arguments, format);
+    const std::string message = Format(format, arguments);
+    va_end(arguments);
+    fprintf_nid_postfix(__stderrp_nid_postfix, "%s: %s\n", getprogname_nid_postfix(), message.c_str());
 }
 
 }
@@ -333,7 +357,7 @@ int APS5_VABI getopt_nid_postfix(int count, char* const* arguments, const char* 
 
     if (optopt == ':' || (option = const_cast<char*>(std::strchr(options, optopt))) == nullptr) {
         if (*shortPlace == 0) ++optind;
-        if (opterr && *options != ':') Warn("illegal option -- %c", optopt);
+        if (opterr && *options != ':') WarnShort("illegal option -- %c", optopt);
         return BadCharacter;
     }
 
@@ -350,7 +374,7 @@ int APS5_VABI getopt_nid_postfix(int count, char* const* arguments, const char* 
         } else {
             shortPlace = Empty;
             if (*options == ':') return ':';
-            if (opterr) Warn("option requires an argument -- %c", optopt);
+            if (opterr) WarnShort("option requires an argument -- %c", optopt);
             return BadCharacter;
         }
         shortPlace = Empty;
