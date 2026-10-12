@@ -77,6 +77,13 @@ int main() {
     Require(fgetws_nid_postfix(buffer, 2, &reader) == buffer && std::u16string(buffer) == u"a", "fgetws respects the size");
     Require(getwc_nid_postfix(&reader) == u'b', "getwc");
     Require(fgetws_nid_postfix(buffer, 32, &reader) == nullptr, "fgetws at end of file");
+    std::FILE* flagged = std::tmpfile();
+    std::fputs("xy\n", flagged);
+    std::rewind(flagged);
+    FileStream stale(flagged);
+    stale.SetError();
+    Require(fgetws_nid_postfix(buffer, 32, &stale) == buffer && std::u16string(buffer) == u"xy\n", "a stale error flag does not fail a read that succeeds, as fgetws.c only checks its own refill");
+    stale.Close();
     Require(fgetws_nid_postfix(buffer, 0, &reader) == nullptr && errno == 22, "fgetws size 0");
 
     Require(fwide_nid_postfix(&reader, 0) == 1 && fwide_nid_postfix(&reader, -3) == 1, "fgetwc orients the stream wide, as FreeBSD's ORIENT does");

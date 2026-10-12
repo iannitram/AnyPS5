@@ -336,6 +336,10 @@ char16_t* APS5_VABI fgetws_nid_postfix(char16_t* buffer, int size, FileStream* s
         return nullptr;
     }
     flockfile_nid_postfix(stream);
+    struct Unlock {
+        FileStream* stream;
+        ~Unlock() { funlockfile_nid_postfix(stream); }
+    } unlock{stream};
     int count = 0;
     while (count < size - 1) {
         const std::int32_t value = fgetwc_nid_postfix(stream);
@@ -343,9 +347,7 @@ char16_t* APS5_VABI fgetws_nid_postfix(char16_t* buffer, int size, FileStream* s
         buffer[count++] = static_cast<char16_t>(value);
         if (value == u'\n') break;
     }
-    const bool failed = std::ferror(GetNativeStream(stream)) != 0;
-    funlockfile_nid_postfix(stream);
-    if (failed || (count == 0 && size > 1)) return nullptr;
+    if (count == 0 && size > 1) return nullptr;
     buffer[count] = 0;
     return buffer;
 }
