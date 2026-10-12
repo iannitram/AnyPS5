@@ -631,10 +631,15 @@ int APS5_VABI scePthreadJoin(Pthread thread, void** retval) {
     if (thread->_detached) return SCE_KERNEL_ERROR_EINVAL;
     if (thread == CurrentGuestState().current)
         throw std::runtime_error("scePthreadJoin: cannot join current thread");
+    return PthreadJoinUntil_nid_no_patch(thread, retval, std::nullopt);
+}
+
+int PthreadJoinUntil_nid_no_patch(Pthread thread, void** retval, std::optional<std::uint64_t> deadlineNanos) {
     ThreadCancel::Check();
     {
         std::unique_lock lock(thread->_join_mtx);
-        ThreadCancel::WaitUntil(thread->_join_cv, lock, std::nullopt, [&] { return thread->_finished.load(); });
+        if (!ThreadCancel::WaitUntil(thread->_join_cv, lock, deadlineNanos, [&] { return thread->_finished.load(); }))
+            return SCE_KERNEL_ERROR_ETIMEDOUT;
     }
 #ifdef _WIN32
     if (WaitForSingleObject(thread->nativeHandle, INFINITE) != WAIT_OBJECT_0)
