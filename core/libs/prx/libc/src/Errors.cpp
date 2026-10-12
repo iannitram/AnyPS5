@@ -4,9 +4,9 @@
 
 extern "C" int* APS5_VABI __error_nid_postfix();
 
-namespace {
-// Guest FreeBSD errno numbering, not the host CRT's numbering.
-constexpr const char* messages[] = {
+extern "C" {
+// Guest FreeBSD errno numbering, not the host CRT's numbering; exported as FreeBSD 11's sys_errlist.
+extern const char* const sys_errlist_nid_postfix[] = {
     "No error: 0", "Operation not permitted", "No such file or directory",
     "No such process", "Interrupted system call", "Input/output error",
     "Device not configured", "Argument list too long", "Exec format error",
@@ -41,7 +41,28 @@ constexpr const char* messages[] = {
     "Capabilities insufficient", "Not permitted in capability mode", "State not recoverable",
     "Previous owner died"
 };
-static_assert(sizeof(messages) / sizeof(messages[0]) == 97);
+extern const int sys_nerr_nid_postfix = 97;
+
+extern const char* const sys_signame_nid_postfix[] = {
+    "Signal 0", "HUP", "INT", "QUIT", "ILL", "TRAP", "ABRT", "EMT", "FPE", "KILL", "BUS", "SEGV", "SYS", "PIPE", "ALRM", "TERM",
+    "URG", "STOP", "TSTP", "CONT", "CHLD", "TTIN", "TTOU", "IO", "XCPU", "XFSZ", "VTALRM", "PROF", "WINCH", "INFO", "USR1", "USR2"
+};
+
+extern const char* const sys_siglist_nid_postfix[] = {
+    "Signal 0", "Hangup", "Interrupt", "Quit", "Illegal instruction", "Trace/BPT trap", "Abort trap", "EMT trap",
+    "Floating point exception", "Killed", "Bus error", "Segmentation fault", "Bad system call", "Broken pipe", "Alarm clock",
+    "Terminated", "Urgent I/O condition", "Suspended (signal)", "Suspended", "Continued", "Child exited", "Stopped (tty input)",
+    "Stopped (tty output)", "I/O possible", "Cputime limit exceeded", "Filesize limit exceeded", "Virtual timer expired",
+    "Profiling timer expired", "Window size changes", "Information request", "User defined signal 1", "User defined signal 2"
+};
+
+extern const int sys_nsig_nid_postfix = 32;
+}
+
+namespace {
+const char* const* const messages = sys_errlist_nid_postfix;
+static_assert(sizeof(sys_errlist_nid_postfix) / sizeof(sys_errlist_nid_postfix[0]) == 97);
+static_assert(sizeof(sys_siglist_nid_postfix) / sizeof(sys_siglist_nid_postfix[0]) == 32);
 bool Known(int error) { return error >= 0 && error < 97; }
 }
 
@@ -80,4 +101,15 @@ void APS5_VABI perror_nid_postfix(const char* prefix) {
     else std::fprintf(stderr, "%s\n", message);
     *__error_nid_postfix() = saved;
 }
+void APS5_VABI psignal_nid_postfix(int signal, const char* prefix) {
+    const char* text = signal >= 0 && signal < sys_nsig_nid_postfix ? sys_siglist_nid_postfix[signal] : "Unknown signal";
+    if (prefix != nullptr && *prefix != '\0') {
+        std::fputs(prefix, stderr);
+        std::fputs(": ", stderr);
+    }
+    std::fputs(text, stderr);
+    std::fputs("\n", stderr);
+    std::fflush(stderr);
+}
+
 }
