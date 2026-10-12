@@ -151,8 +151,8 @@ int APS5_VABI pthread_timedjoin_np_nid_postfix(Pthread thread, void** value, con
     const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     const long double remaining = static_cast<long double>(abstime->tv_sec) * 1e9L + static_cast<long double>(abstime->tv_nsec) - static_cast<long double>(now);
     const std::uint64_t base = TimedWait::NowNanos();
-    const std::uint64_t deadline = remaining <= 0 ? base
-        : remaining >= static_cast<long double>(UINT64_MAX - base) ? UINT64_MAX : base + static_cast<std::uint64_t>(remaining);
+    if (remaining >= static_cast<long double>(std::uint64_t{1} << 60)) return PosixThread::ToErrno(PthreadJoinUntil_nid_no_patch(thread, value, std::nullopt));
+    const std::uint64_t deadline = remaining <= 0 ? base : base + static_cast<std::uint64_t>(remaining);
     return PosixThread::ToErrno(PthreadJoinUntil_nid_no_patch(thread, value, deadline));
 }
 

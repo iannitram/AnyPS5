@@ -148,6 +148,17 @@ void CheckMessages() {
     Require(mq_send_nid_postfix(queue, "wakes", 5, 3) == 0, "send to a waiting receiver");
     receiver.join();
     Require(received, "blocked receiver woke");
+    received = false;
+    std::thread patient([&] {
+        char message[8];
+        KernelTimespec forever{};
+        forever.tv_sec = INT64_MAX;
+        received = mq_timedreceive_nid_postfix(queue, message, sizeof(message), nullptr, &forever) == 4;
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    Require(mq_send_nid_postfix(queue, "late", 4, 0) == 0, "send to a receiver with a far deadline");
+    patient.join();
+    Require(received, "a far-future deadline keeps waiting instead of timing out");
 
     for (int i = 0; i < 3; i++) Require(mq_send_nid_postfix(queue, "f", 1, 0) == 0, "fill");
     std::atomic<bool> sent{false};
@@ -184,10 +195,22 @@ void CheckMessages() {
     Require(mq_notify_nid_postfix(queue, &none) == 0 && mq_send_nid_postfix(queue, "m", 1, 0) == 0 && mq_notify_nid_postfix(reader, &none) == 0, "a send with no receiver consumes the registration");
     Require(mq_notify_nid_postfix(reader, nullptr) == 0 && mq_receive_nid_postfix(queue, buffer, sizeof(buffer), nullptr) == 1, "drain again");
     Require(Fails(mq_send_nid_postfix(queue, buffer, sizeof(buffer) + 1, 64), 22), "priority is checked before size, as mqueue_send does");
+    std::atomic<bool> waited{false};
+    std::thread consumer([&] {
+        char message[1024];
+        waited = mq_receive_nid_postfix(queue, message, sizeof(message), nullptr) == 1;
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    Require(mq_notify_nid_postfix(queue, &none) == 0, "a waiting receiver keeps the registration");
+    Require(mq_send_nid_postfix(queue, "a", 1, 0) == 0 && mq_send_nid_postfix(queue, "b", 1, 0) == 0, "two sends");
+    consumer.join();
+    Require(waited && mq_notify_nid_postfix(reader, &none) == 0, "a send or receive leaving messages with no receiver consumes the registration, as _mqueue_recv does");
+    Require(mq_notify_nid_postfix(reader, nullptr) == 0 && mq_receive_nid_postfix(queue, buffer, sizeof(buffer), nullptr) == 1, "drain the last message");
 
     Require(mq_close_nid_postfix(reader) == 0 && mq_close_nid_postfix(writer) == 0 && mq_close_nid_postfix(queue) == 0, "close all");
     Require(mq_unlink_nid_postfix("/anyps5-messages") == 0, "unlink after close");
     Require(Fails(mq_send_nid_postfix(queue, "x", 1, 0), 9), "closed descriptor");
+    Require(Fails(mq_notify_nid_postfix(queue, &unknown), 22), "sigev is checked before the descriptor, as kern_kmq_notify does");
 
     void* doomed = mq_open_nid_postfix("/anyps5-doomed", ReadWrite | Create, 0600, nullptr);
     Require(doomed != Failed, "open doomed queue");

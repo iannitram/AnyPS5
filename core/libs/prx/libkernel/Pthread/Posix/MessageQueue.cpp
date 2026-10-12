@@ -61,6 +61,7 @@ constexpr int NotifyNone = 0;
 constexpr int NotifySignal = 1;
 constexpr int NotifyThread = 2;
 constexpr int NotifyThreadId = 4;
+constexpr std::uint64_t UntimedNanos = std::uint64_t{1} << 60;
 
 struct Message {
     unsigned priority;
@@ -128,8 +129,8 @@ std::optional<std::uint64_t> Deadline(const KernelTimespec* timeout, bool& inval
     const long double remaining = target - static_cast<long double>(now);
     const std::uint64_t base = TimedWait::NowNanos();
     if (remaining <= 0) return base;
-    const long double limit = static_cast<long double>(UINT64_MAX - base);
-    return remaining >= limit ? UINT64_MAX : base + static_cast<std::uint64_t>(remaining);
+    if (remaining >= static_cast<long double>(UntimedNanos)) return std::nullopt;
+    return base + static_cast<std::uint64_t>(remaining);
 }
 
 int Send(void* handle, const char* data, std::size_t length, unsigned priority, const KernelTimespec* timeout, bool timed) {
@@ -190,10 +191,20 @@ std::int64_t Receive(void* handle, char* buffer, std::size_t length, unsigned* p
     }
     Message message = std::move(queue.messages.front());
     queue.messages.pop_front();
+    if (queue.notifier != nullptr && queue.receiversWaiting == 0 && !queue.messages.empty()) queue.notifier = nullptr;
     std::memcpy(buffer, message.data.data(), message.data.size());
     if (priority != nullptr) *priority = message.priority;
     queue.notFull.NotifyOne();
     return static_cast<std::int64_t>(message.data.size());
+}
+
+void ReadAttributes(const Descriptor& descriptor, GuestQueueAttributes* attributes) {
+    const Queue& queue = *descriptor.queue;
+    *attributes = {};
+    attributes->flags = descriptor.flags & NonBlocking;
+    attributes->maximumMessages = queue.maximumMessages;
+    attributes->messageSize = queue.messageSize;
+    attributes->currentMessages = static_cast<std::int64_t>(queue.messages.size());
 }
 
 }
@@ -302,13 +313,8 @@ int APS5_VABI mq_getattr_nid_postfix(void* handle, GuestQueueAttributes* attribu
     const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr) return Fail(GuestBadDescriptor);
     if (attributes == nullptr) throw std::invalid_argument("mq_getattr: null attributes");
-    Queue& queue = *descriptor->queue;
-    std::lock_guard lock(queue.lock);
-    *attributes = {};
-    attributes->flags = descriptor->flags & NonBlocking;
-    attributes->maximumMessages = queue.maximumMessages;
-    attributes->messageSize = queue.messageSize;
-    attributes->currentMessages = static_cast<std::int64_t>(queue.messages.size());
+    std::lock_guard lock(descriptor->queue->lock);
+    ReadAttributes(*descriptor, attributes);
     return 0;
 }
 
@@ -316,13 +322,15 @@ int APS5_VABI mq_setattr_nid_postfix(void* handle, const GuestQueueAttributes* a
     const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr) return Fail(GuestBadDescriptor);
     if (attributes == nullptr) throw std::invalid_argument("mq_setattr: null attributes");
-    if (previous != nullptr) mq_getattr_nid_postfix(handle, previous);
     std::lock_guard lock(descriptor->queue->lock);
+    if (previous != nullptr) ReadAttributes(*descriptor, previous);
     descriptor->flags = (descriptor->flags & ~NonBlocking) | (static_cast<int>(attributes->flags) & NonBlocking);
     return 0;
 }
 
 int APS5_VABI mq_notify_nid_postfix(void* handle, const GuestSignalEvent* event) {
+    if (event != nullptr && event->notify != NotifyNone && event->notify != NotifySignal && event->notify != NotifyThread && event->notify != NotifyThreadId)
+        return Fail(PosixThread::GUEST_EINVAL);
     const std::shared_ptr<Descriptor> descriptor = Find(handle);
     if (descriptor == nullptr) return Fail(GuestBadDescriptor);
     Queue& queue = *descriptor->queue;
@@ -331,8 +339,6 @@ int APS5_VABI mq_notify_nid_postfix(void* handle, const GuestSignalEvent* event)
         if (queue.notifier == descriptor.get()) queue.notifier = nullptr;
         return 0;
     }
-    if (event->notify != NotifyNone && event->notify != NotifySignal && event->notify != NotifyThread && event->notify != NotifyThreadId)
-        return Fail(PosixThread::GUEST_EINVAL);
     if (queue.notifier != nullptr) return Fail(GuestBusy);
     if (event->notify != NotifyNone) NotImplemented_nid_no_patch("mq_notify: signal and thread notification");
     queue.notifier = descriptor.get();
