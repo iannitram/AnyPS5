@@ -49,7 +49,7 @@ constexpr int DupMax = 255;
 constexpr int Infinite = DupMax + 1;
 constexpr int Outside = 256;
 constexpr std::size_t ElementLimit = std::size_t{1} << 19;
-constexpr int MaxNesting = 1000;
+constexpr int MaxNesting = 200;
 
 using Position = std::int64_t;
 constexpr Position NoPosition = std::numeric_limits<Position>::min();
@@ -294,6 +294,7 @@ private:
     int flags_;
     bool bre_;
     Program& program_;
+    std::size_t expanded_ = 0;
     std::array<bool, 10> closed_{};
     int nesting_ = 0;
     int anyIndex_ = -1;
@@ -450,7 +451,14 @@ private:
         Sequence operand(std::make_move_iterator(items.begin() + static_cast<std::ptrdiff_t>(position)),
                          std::make_move_iterator(items.end()));
         items.erase(items.begin() + static_cast<std::ptrdiff_t>(position), items.end());
-        Append(items, Repeat(std::move(operand), from, to));
+        const std::size_t before = CountElements(operand);
+        Sequence repeated = Repeat(std::move(operand), from, to);
+        const std::size_t after = CountElements(repeated);
+        if (after > before) {
+            Require(after - before <= ElementLimit - expanded_, ErrSpace);
+            expanded_ += after - before;
+        }
+        Append(items, std::move(repeated));
     }
 
     void ApplyStar(Sequence& items, std::size_t position) {
