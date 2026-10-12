@@ -22,8 +22,8 @@ void APS5_VABI err_set_exit_nid_postfix(ExitHook);
 void APS5_VABI warn_nid_postfix(const char*, ...);
 void APS5_VABI warnc_nid_postfix(int, const char*, ...);
 void APS5_VABI warnx_nid_postfix(const char*, ...);
-void APS5_VABI vwarn_nid_postfix(const char*, std::va_list);
-void APS5_VABI vwarnx_nid_postfix(const char*, std::va_list);
+void APS5_VABI vwarn_nid_postfix(const char*, void*);
+void APS5_VABI vwarnx_nid_postfix(const char*, void*);
 const char* APS5_VABI getprogname_nid_postfix();
 }
 
@@ -53,18 +53,36 @@ std::string Drain(std::FILE* file) {
     return text;
 }
 
-void CallVwarn(const char* format, ...) {
+void APS5_VABI CallVwarn(const char* format, ...) {
+#ifdef _WIN32
+    __builtin_sysv_va_list arguments;
+    __builtin_sysv_va_start(arguments, format);
+#else
     std::va_list arguments;
     va_start(arguments, format);
+#endif
     vwarn_nid_postfix(format, arguments);
+#ifdef _WIN32
+    __builtin_sysv_va_end(arguments);
+#else
     va_end(arguments);
+#endif
 }
 
-void CallVwarnx(const char* format, ...) {
+void APS5_VABI CallVwarnx(const char* format, ...) {
+#ifdef _WIN32
+    __builtin_sysv_va_list arguments;
+    __builtin_sysv_va_start(arguments, format);
+#else
     std::va_list arguments;
     va_start(arguments, format);
+#endif
     vwarnx_nid_postfix(format, arguments);
+#ifdef _WIN32
+    __builtin_sysv_va_end(arguments);
+#else
     va_end(arguments);
+#endif
 }
 
 }
