@@ -19,6 +19,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MathClassification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Time.cpp
@@ -502,6 +503,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_wide_extras COMMAND guest_wide_extras_tests)
     if(WIN32)
         set_tests_properties(guest_wide_extras PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_math_classification_tests ${LIBS_INCLUDE_DIR}/tests/GuestMathClassification.cpp)
+    target_include_directories(guest_math_classification_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_math_classification_tests PRIVATE libc)
+    configure_windows_unwind(guest_math_classification_tests)
+    add_test(NAME guest_math_classification COMMAND guest_math_classification_tests)
+    if(WIN32)
+        set_tests_properties(guest_math_classification PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
