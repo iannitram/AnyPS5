@@ -15,5 +15,6 @@ struct GuestSigaction {
 
 GuestSignalSet CurrentGuestSignalMask();
 void SetCurrentGuestSignalMask(const GuestSignalSet& mask);
+GuestSignalSet PendingGuestSignals();
 
 #endif

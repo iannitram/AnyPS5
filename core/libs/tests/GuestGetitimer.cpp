@@ -1,6 +1,7 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -33,6 +34,14 @@ static void Require(bool value, const char* message) {
         std::fprintf(stderr, "%s\n", message);
         std::abort();
     }
+}
+
+static void APS5_VABI AlarmHandler(int) {}
+
+static bool Throws(void (*action)()) {
+    try { action(); }
+    catch (const std::runtime_error&) { return true; }
+    return false;
 }
 
 static GuestItimerval Read() {
@@ -81,6 +90,13 @@ static void CheckSetitimer() {
     Require(Micros(current.value) > 1400000 && Micros(current.interval) == 250000, "ualarm arms with reload");
     const std::uint32_t left = ualarm_nid_postfix(0, 0);
     Require(left > 1400000 && left <= 1500000 && Micros(Read().value) == 0, "ualarm returns the remaining microseconds");
+
+    const auto ignore = reinterpret_cast<Handler>(std::uintptr_t{1});
+    Require(ualarm_nid_postfix(5000000, 0) == 0, "arm before installing a handler");
+    Require(Throws([] { signal_nid_postfix(14, AlarmHandler); }), "installing a SIGALRM handler while armed is not implemented");
+    Require(ualarm_nid_postfix(0, 0) > 0 && signal_nid_postfix(14, AlarmHandler) == ignore, "a handler installs while disarmed");
+    Require(Throws([] { ualarm_nid_postfix(5000000, 0); }) && Micros(Read().value) == 0, "arming with a SIGALRM handler is not implemented");
+    Require(signal_nid_postfix(14, ignore) == AlarmHandler, "restore the ignored disposition");
 }
 
 static std::int64_t ReadRemaining() {
@@ -98,6 +114,28 @@ static std::int64_t ReadRemaining() {
     Require(guarded.timer.value.tv_sec >= 0 && guarded.timer.value.tv_usec >= 0
         && guarded.timer.value.tv_usec < 1000000, "invalid timeval normalization");
     return guarded.timer.value.tv_sec * 1000000 + guarded.timer.value.tv_usec;
+}
+
+void CheckAlarmRace() {
+    const auto ignore = reinterpret_cast<Handler>(std::uintptr_t{1});
+    std::atomic<bool> stop{false};
+    std::thread arming([&] {
+        while (!stop) {
+            try { ualarm_nid_postfix(1, 0); } catch (const std::exception&) {}
+        }
+    });
+    std::thread installing([&] {
+        while (!stop) {
+            try { signal_nid_postfix(14, AlarmHandler); } catch (const std::exception&) {}
+            signal_nid_postfix(14, ignore);
+        }
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    stop = true;
+    arming.join();
+    installing.join();
+    ualarm_nid_postfix(0, 0);
+    Require(signal_nid_postfix(14, ignore) == ignore, "an alarm racing a handler install never reaches the handler");
 }
 
 int main() {
@@ -139,12 +177,15 @@ int main() {
     Require(GuestAlarm_nid_no_patch(0) > 0, "getitimer cancelled the alarm");
     Require(ReadRemaining() == 0, "cancelled alarm is not zero");
 
-    GuestAlarm_nid_no_patch(std::numeric_limits<unsigned int>::max());
-    Require(ReadRemaining() > static_cast<std::int64_t>(std::numeric_limits<int>::max()) * 1000000,
-        "long alarm was truncated to signed 32 bits");
+    Require(GuestAlarm_nid_no_patch(std::numeric_limits<unsigned int>::max()) == std::numeric_limits<unsigned int>::max() && ReadRemaining() == 0,
+        "an alarm beyond INT32_MAX / 2 seconds fails as setitimer does");
+    Require(GuestAlarm_nid_no_patch(INT32_MAX / 2) == 0 && ReadRemaining() > static_cast<std::int64_t>(INT32_MAX / 2 - 1) * 1000000,
+        "the longest alarm setitimer accepts");
+    Require(GuestAlarm_nid_no_patch(0) == static_cast<unsigned int>(INT32_MAX / 2), "alarm rounds the remaining time up");
     GuestAlarm_nid_no_patch(1);
     std::this_thread::sleep_for(std::chrono::milliseconds(1100));
     Require(ReadRemaining() == 0, "expired alarm is not zero");
     GuestAlarm_nid_no_patch(0);
     CheckSetitimer();
+    CheckAlarmRace();
 }
