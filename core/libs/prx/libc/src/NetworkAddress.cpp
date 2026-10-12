@@ -3,6 +3,7 @@
 #include <cstring>
 #include <stdexcept>
 
+#include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/General.hpp"
 
 namespace {
@@ -19,7 +20,6 @@ struct GuestEtherAddress {
     std::uint8_t octet[6];
 };
 
-// FreeBSD 11 cmsghdr: the data follows the header aligned to 8 bytes.
 struct GuestControlMessage {
     std::uint32_t length;
     int level;
@@ -246,7 +246,6 @@ std::uint32_t APS5_VABI inet_network_nid_postfix(const char* text) {
     return value;
 }
 
-// Classful network and host parts, as FreeBSD's inet_lnaof, inet_netof and inet_makeaddr.
 std::uint32_t APS5_VABI inet_lnaof_nid_postfix(GuestInAddress address) {
     const std::uint32_t value = Swap32(address.address);
     if ((value & 0x80000000) == 0) return value & 0x00ffffff;
@@ -302,7 +301,7 @@ unsigned APS5_VABI inet_nsap_addr_nid_postfix(const char* text, std::uint8_t* bi
 }
 
 char* APS5_VABI inet_nsap_ntoa_nid_postfix(int length, const std::uint8_t* binary, char* text) {
-    static char buffer[255 * 3];
+    thread_local char buffer[255 * 3];
     char* start = text != nullptr ? text : buffer;
     text = start;
     *text++ = '0';
@@ -354,9 +353,54 @@ char* APS5_VABI ether_ntoa_nid_postfix(const GuestEtherAddress* address) {
     return ether_ntoa_r_nid_postfix(address, text);
 }
 
-// The console has no /etc/ethers, so the lookups fail as FreeBSD's do when it cannot be opened.
-int APS5_VABI ether_ntohost_nid_postfix(char*, const GuestEtherAddress*) { return 1; }
-int APS5_VABI ether_hostton_nid_postfix(const char*, GuestEtherAddress*) { return 1; }
+FileStream* APS5_VABI fopen_nid_postfix(const char* filename, const char* mode);
+int APS5_VABI fclose_nid_postfix(FileStream* stream);
+char* APS5_VABI fgets_nid_postfix(char* buffer, int size, FileStream* stream);
+int APS5_VABI ether_line_nid_postfix(const char* line, GuestEtherAddress* address, char* hostname);
+
+}
+
+namespace {
+
+template<typename Match>
+int SearchEthers(Match match) {
+    FileStream* file = fopen_nid_postfix("/etc/ethers", "r");
+    if (file == nullptr) return 1;
+    char line[1024 + 2];
+    GuestEtherAddress address {};
+    char host[256];
+    while (fgets_nid_postfix(line, 1024, file) != nullptr) {
+        if (line[0] == '#') continue;
+        if (ether_line_nid_postfix(line, &address, host) == 0 && match(address, host)) {
+            fclose_nid_postfix(file);
+            return 0;
+        }
+    }
+    fclose_nid_postfix(file);
+    return 1;
+}
+
+}
+
+extern "C" {
+
+int APS5_VABI ether_ntohost_nid_postfix(char* hostname, const GuestEtherAddress* address) {
+    if (hostname == nullptr || address == nullptr) throw std::invalid_argument("ether_ntohost: null argument");
+    return SearchEthers([&](const GuestEtherAddress& entry, const char* host) {
+        if (std::memcmp(entry.octet, address->octet, 6) != 0) return false;
+        std::strcpy(hostname, host);
+        return true;
+    });
+}
+
+int APS5_VABI ether_hostton_nid_postfix(const char* hostname, GuestEtherAddress* address) {
+    if (hostname == nullptr || address == nullptr) throw std::invalid_argument("ether_hostton: null argument");
+    return SearchEthers([&](const GuestEtherAddress& entry, const char* host) {
+        if (std::strcmp(hostname, host) != 0) return false;
+        std::memcpy(address->octet, entry.octet, 6);
+        return true;
+    });
+}
 
 int APS5_VABI inet6_option_space_nid_postfix(int bytes) {
     bytes += 2;

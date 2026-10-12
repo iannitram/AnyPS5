@@ -43,7 +43,9 @@ int main() {
     char entry[64];
     char buffer[256];
     void* result = entry;
+    errno = 0;
     Require(getservbyname_r_nid_postfix("http", "tcp", entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getservbyname_r");
+    Require(errno == 0, "the service _r forms keep errno, as getservent.c only returns the error");
     result = entry;
     Require(getservbyport_r_nid_postfix(80, "tcp", entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getservbyport_r");
     result = entry;

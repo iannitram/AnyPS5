@@ -1,6 +1,7 @@
 #ifndef CORE_LIBS_PRX_LIBC_INCLUDE_FILESTREAM_HPP
 #define CORE_LIBS_PRX_LIBC_INCLUDE_FILESTREAM_HPP
 
+#include <atomic>
 #include <cstdio>
 #include <filesystem>
 #include <stdexcept>
@@ -43,6 +44,7 @@ class FileStream {
     std::FILE* _handle;
     bool _dynamic;
     bool guestError = false;
+    std::atomic<int> orientation{0};
 
 public:
     explicit FileStream(std::FILE* handle, bool dynamic = false) : _handle(handle), _dynamic(dynamic) {
@@ -69,10 +71,16 @@ public:
     }
 
     GuestFilePrefix& GuestState() { return _guest; }
+    int Orientation() const { return orientation.load(); }
+    void Orient(int requested) {
+        int unoriented = 0;
+        orientation.compare_exchange_strong(unoriented, requested);
+    }
     bool Reopen(const std::filesystem::path& filename, const char* mode) {
         auto* previous = GetHandle();
         _guest = {};
         guestError = false;
+        orientation.store(0);
 #ifdef _WIN32
         std::wstring wideMode;
         for (const char character : std::string_view(mode)) wideMode.push_back(static_cast<unsigned char>(character));
@@ -122,11 +130,22 @@ public:
         SyncStatus();
     }
 
-    void Close() {
+    void ClearUnlockedError() {
+#ifdef _WIN32
+        std::clearerr(GetHandle());
+#else
+        ::clearerr_unlocked(GetHandle());
+#endif
+        guestError = false;
+        SyncUnlockedStatus();
+    }
+
+    int Close() {
         GetHandle();
-        if (std::fclose(std::exchange(_handle, nullptr)) != 0) throw std::runtime_error("FileStream: close failed");
+        const int result = std::fclose(std::exchange(_handle, nullptr));
         _guest.flags = 0;
         _guest.descriptor = -1;
+        return result;
     }
 };
 static_assert(std::is_standard_layout_v<FileStream>);

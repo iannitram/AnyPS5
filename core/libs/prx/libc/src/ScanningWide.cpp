@@ -140,7 +140,6 @@ class WideScanner {
     bool converted = false;
 
 public:
-    // The secure form takes an array size after each %s, %c and %[ pointer and reports null pointers as EOF.
     WideScanner(const char16_t* buffer, const char16_t* formatText, const void* source, bool secureForm)
         : start(buffer), input(buffer), format(formatText), args(source), secure(secureForm) {}
 
@@ -215,8 +214,13 @@ private:
     Outcome Conversion() {
         if (*format == u'%') {
             ++format;
-            SkipSpace();
-            return Literal(u'%');
+            if (secure) {
+                SkipSpace();
+                return Literal(u'%');
+            }
+            if (*input != u'%') return Outcome::Input;
+            ++input;
+            return Outcome::Done;
         }
         const Directive directive = Parse();
         switch (directive.conversion) {
@@ -334,7 +338,7 @@ private:
         if (directive.conversion == u'c') {
             const std::size_t count = directive.width == 0 ? 1 : directive.width;
             while (item.size() < count && input[item.size()] != 0) item.push_back(input[item.size()]);
-            if (item.size() < count) return Outcome::Matching;
+            if (secure && item.size() < count) return Outcome::Matching;
         } else {
             const std::size_t limit = directive.width == 0 ? std::numeric_limits<std::size_t>::max() : directive.width;
             while (item.size() < limit && input[item.size()] != 0) {

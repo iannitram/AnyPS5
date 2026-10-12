@@ -5,7 +5,6 @@
 extern "C" int* APS5_VABI __error_nid_postfix();
 
 extern "C" {
-// Guest FreeBSD errno numbering, not the host CRT's numbering; exported as FreeBSD 11's sys_errlist.
 extern const char* const sys_errlist_nid_postfix[] = {
     "No error: 0", "Operation not permitted", "No such file or directory",
     "No such process", "Interrupted system call", "Input/output error",
