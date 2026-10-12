@@ -65,6 +65,14 @@ inline std::atomic<void(*)()> terminateHandler {DefaultTerminate};
 }
 [[noreturn]] void Terminate() { InvokeTerminate(terminateHandler.load(std::memory_order_acquire)); }
 
+[[noreturn]] static void DefaultUnexpected() { Terminate(); }
+inline std::atomic<void(*)()> unexpectedHandler {DefaultUnexpected};
+[[noreturn]] void InvokeUnexpected(void (*handler)()) {
+    handler();
+    RawLog("unexpected_handler unexpectedly returned\n");
+    std::abort();
+}
+
 _Unwind_Exception* UnwindOf(Header* header) {
     return Native(header->unwind.exception_class) ? &header->unwind : reinterpret_cast<_Unwind_Exception*>(header->landing);
 }
@@ -210,6 +218,28 @@ bool Match(const std::type_info* caught, const std::type_info* thrown, void*& ob
     if (search.count == 1) { object = search.found; return true; }
     return false;
 }
+
+void* ThrownObject(Header* primary) {
+    void* object = primary + 1;
+    if (primary->type && std::strcmp(Kind(primary->type), "N10__cxxabiv119__pointer_type_infoE") == 0)
+        std::memcpy(&object, object, sizeof(object));
+    return object;
+}
+
+bool SpecAllows(std::intptr_t filter, const LibcUnwind::Byte* typeTable, LibcUnwind::Byte typeEncoding,
+                LibcUnwind::Word dataBase, LibcUnwind::Word region, LibcUnwind::Word textBase,
+                const std::type_info* thrown, void* object) {
+    if (!typeTable) Terminate();
+    const LibcUnwind::Byte* list = typeTable + (-filter - 1);
+    for (;;) {
+        auto index = LibcUnwind::Uleb(list);
+        if (!index) return false;
+        const LibcUnwind::Byte* entry = typeTable - index * LibcUnwind::EncodingSize(typeEncoding);
+        auto* allowed = reinterpret_cast<const std::type_info*>(LibcUnwind::Encoded(entry, typeEncoding, dataBase, region, textBase));
+        void* candidate = object;
+        if (allowed && Match(allowed, thrown, candidate)) return true;
+    }
+}
 }
 
 extern "C" {
@@ -235,6 +265,7 @@ void APS5_VABI __cxa_free_exception_nid_postfix(void* object) {
     header->type = type;
     header->destructor = destructor;
     header->terminate = terminateHandler.load(std::memory_order_acquire);
+    header->unexpected = unexpectedHandler.load(std::memory_order_acquire);
     header->adjusted = object;
     header->unwind.exception_class = PrimaryClass;
     header->unwind.exception_cleanup = Cleanup;
@@ -256,6 +287,7 @@ LibcException::Header* __cxa_init_primary_exception_nid_postfix(void* object, st
     header->type = type;
     header->destructor = destructor;
     header->terminate = terminateHandler.load(std::memory_order_acquire);
+    header->unexpected = unexpectedHandler.load(std::memory_order_acquire);
     header->adjusted = object;
     header->unwind.exception_class = PrimaryClass;
     header->unwind.exception_cleanup = Cleanup;
@@ -333,6 +365,12 @@ LibcTerminateHandler APS5_VABI _ZSt13set_terminatePFvvE_nid_postfix(LibcTerminat
     return LibcException::terminateHandler.exchange(handler ? handler : std::abort);
 }
 LibcTerminateHandler APS5_VABI _ZSt13get_terminatev_nid_postfix() { return LibcException::terminateHandler.load(); }
+[[noreturn]] void APS5_VABI _ZSt10unexpectedv_nid_postfix() { LibcException::InvokeUnexpected(LibcException::unexpectedHandler.load(std::memory_order_acquire)); }
+LibcTerminateHandler APS5_VABI _ZSt14set_unexpectedPFvvE_nid_postfix(LibcTerminateHandler handler) {
+    return LibcException::unexpectedHandler.exchange(handler ? handler : LibcException::DefaultUnexpected);
+}
+LibcTerminateHandler APS5_VABI _ZSt14get_unexpectedv_nid_postfix() { return LibcException::unexpectedHandler.load(); }
+
 
 void APS5_VABI __cxa_increment_exception_refcount_nid_postfix(void* object) {
     if (object) LibcException::AllocationOf(LibcException::FromObject(object))->references.fetch_add(1, std::memory_order_relaxed);
