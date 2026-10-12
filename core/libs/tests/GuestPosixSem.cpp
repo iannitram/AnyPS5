@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <string>
 #include <thread>
 
 extern "C" {
@@ -17,6 +18,9 @@ int APS5_VABI sem_trywait_nid_postfix(void*);
 int APS5_VABI sem_timedwait_nid_postfix(void*, const KernelTimespec*);
 int APS5_VABI sem_getvalue_nid_postfix(void*, int*);
 int* APS5_VABI __error_nid_postfix();
+void* APS5_VABI sem_open_nid_postfix(const char*, int, ...);
+int APS5_VABI sem_close_nid_postfix(void*);
+int APS5_VABI sem_unlink_nid_postfix(const char*);
 }
 
 static void Require(bool condition, const char* message) {
@@ -24,6 +28,40 @@ static void Require(bool condition, const char* message) {
         std::fprintf(stderr, "%s\n", message);
         std::abort();
     }
+}
+
+static void CheckNamedSemaphores() {
+    constexpr int create = 0x0200;
+    constexpr int exclusive = 0x0800;
+    int value = -1;
+    *__error_nid_postfix() = 0;
+    Require(sem_open_nid_postfix("/anyps5-named", 0) == nullptr && *__error_nid_postfix() == 2, "opening a missing semaphore is ENOENT");
+    void* first = sem_open_nid_postfix("/anyps5-named", create | exclusive, 0600, 2u);
+    Require(first != nullptr, "create");
+    Require(sem_getvalue_nid_postfix(first, &value) == 0 && value == 2, "initial value");
+    Require(sem_open_nid_postfix("/anyps5-named", create | exclusive, 0600, 5u) == nullptr && *__error_nid_postfix() == 17, "exclusive create of an existing name is EEXIST");
+    void* second = sem_open_nid_postfix("/anyps5-named", create, 0600, 9u);
+    Require(second == first, "reopening returns the same semaphore");
+    Require(sem_post_nid_postfix(second) == 0 && sem_getvalue_nid_postfix(first, &value) == 0 && value == 3, "shared count");
+    Require(sem_close_nid_postfix(second) == 0 && sem_close_nid_postfix(first) == 0, "close both");
+    void* reopened = sem_open_nid_postfix("/anyps5-named", 0);
+    Require(reopened != nullptr && sem_getvalue_nid_postfix(reopened, &value) == 0 && value == 3, "a closed semaphore persists until unlinked");
+    Require(sem_unlink_nid_postfix("/anyps5-named") == 0, "unlink");
+    Require(sem_trywait_nid_postfix(reopened) == 0, "an unlinked semaphore stays usable while open");
+    Require(sem_open_nid_postfix("/anyps5-named", 0) == nullptr && *__error_nid_postfix() == 2, "unlinked name is gone");
+    void* fresh = sem_open_nid_postfix("/anyps5-named", create, 0600, 1u);
+    Require(fresh != nullptr && fresh != reopened && sem_getvalue_nid_postfix(fresh, &value) == 0 && value == 1, "a new semaphore after unlink");
+    Require(sem_close_nid_postfix(reopened) == 0 && sem_close_nid_postfix(fresh) == 0 && sem_unlink_nid_postfix("/anyps5-named") == 0, "cleanup");
+    Require(sem_unlink_nid_postfix("/anyps5-named") == -1 && *__error_nid_postfix() == 2, "unlink of a missing name is ENOENT");
+    Require(sem_open_nid_postfix("anyps5", create, 0600, 0u) == nullptr && *__error_nid_postfix() == 22, "names start with a slash");
+    Require(sem_unlink_nid_postfix("anyps5") == -1 && *__error_nid_postfix() == 2, "unlink of a name without a slash is ENOENT");
+    Require(sem_open_nid_postfix("/anyps5", 0x0001) == nullptr && *__error_nid_postfix() == 22, "other flags are EINVAL");
+    const std::string longName = "/" + std::string(1020, 'x');
+    Require(sem_open_nid_postfix(longName.c_str(), create, 0600, 0u) == nullptr && *__error_nid_postfix() == 63, "long name is ENAMETOOLONG");
+    std::uintptr_t unnamed = 0;
+    Require(sem_init_nid_postfix(&unnamed, 0, 0) == 0, "unnamed");
+    Require(sem_close_nid_postfix(&unnamed) == -1 && *__error_nid_postfix() == 22, "closing an unnamed semaphore is EINVAL");
+    sem_destroy_nid_postfix(&unnamed);
 }
 
 int main(int argc, char** argv) {
@@ -99,4 +137,5 @@ int main(int argc, char** argv) {
     Require(sem_timedwait_nid_postfix(&sem, &expiredTimeout) == -1 && *__error_nid_postfix() == 60, "blocked expired-timeout wait must report ETIMEDOUT");
     Require(sem_getvalue_nid_postfix(&sem, &value) == 0 && value == 0, "failed timed waits must preserve the count");
     Require(sem_destroy_nid_postfix(&sem) == 0, "blocked semaphore destroy must succeed");
+    CheckNamedSemaphores();
 }
