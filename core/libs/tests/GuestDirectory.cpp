@@ -12,7 +12,9 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <string>
+#include <thread>
 extern "C" {
 void* APS5_VABI opendir_nid_postfix(const char*);
 GuestDirectoryEntry* APS5_VABI readdir_nid_postfix(void*);
@@ -89,6 +91,36 @@ static void CheckPositionsAndScanning(const std::filesystem::path& root) {
     Require(scandir_nid_postfix((root / "missing").string().c_str(), &list, nullptr, nullptr) == -1 && *__error_nid_postfix() == 2);
     for (const char* name : {"b.txt", "a.txt", "c.txt", "d.txt"}) std::filesystem::remove(root / name);
 }
+static void CheckConcurrentReaddirR(const std::filesystem::path& root) {
+    const auto folder = root / "concurrent";
+    Require(std::filesystem::create_directory(folder));
+    constexpr int FileCount = 400;
+    for (int i = 0; i < FileCount; i++) std::ofstream(folder / ("f" + std::to_string(i)));
+    void* directory = opendir_nid_postfix(folder.string().c_str());
+    Require(directory != nullptr);
+    std::vector<std::vector<std::string>> seen(4);
+    std::vector<std::thread> readers;
+    for (auto& names : seen) {
+        readers.emplace_back([directory, &names] {
+            GuestDirectoryEntry entry {};
+            GuestDirectoryEntry* result = nullptr;
+            while (readdir_r_nid_postfix(directory, &entry, &result) == 0 && result != nullptr) {
+                Require(std::strlen(entry.name) == entry.nameLength);
+                names.emplace_back(entry.name);
+            }
+        });
+    }
+    for (auto& reader : readers) reader.join();
+    Require(closedir_nid_postfix(directory) == 0);
+    std::set<std::string> unique;
+    std::size_t total = 0;
+    for (const auto& names : seen) {
+        total += names.size();
+        unique.insert(names.begin(), names.end());
+    }
+    Require(total == FileCount + 2 && unique.size() == total);
+    std::filesystem::remove_all(folder);
+}
 int main() {
     std::array<void*, 10> api{};
     ApplicationHeapRegister_nid_no_patch(api.data());
@@ -146,6 +178,7 @@ int main() {
     std::filesystem::remove_all(root / std::filesystem::path(folder));
     std::filesystem::remove(root / "sample.txt");
     CheckPositionsAndScanning(root);
+    CheckConcurrentReaddirR(root);
     std::filesystem::remove(root / "subdirectory");
     std::filesystem::remove(root);
 }

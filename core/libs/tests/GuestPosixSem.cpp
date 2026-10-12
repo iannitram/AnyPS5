@@ -43,6 +43,8 @@ static void CheckNamedSemaphores() {
     void* second = sem_open_nid_postfix("/anyps5-named", create, 0600, 9u);
     Require(second == first, "reopening returns the same semaphore");
     Require(sem_post_nid_postfix(second) == 0 && sem_getvalue_nid_postfix(first, &value) == 0 && value == 3, "shared count");
+    Require(sem_destroy_nid_postfix(first) == -1 && *__error_nid_postfix() == 22, "destroying a named semaphore is EINVAL");
+    Require(sem_getvalue_nid_postfix(first, &value) == 0 && value == 3, "a named semaphore survives sem_destroy");
     Require(sem_close_nid_postfix(second) == 0 && sem_close_nid_postfix(first) == 0, "close both");
     void* reopened = sem_open_nid_postfix("/anyps5-named", 0);
     Require(reopened != nullptr && sem_getvalue_nid_postfix(reopened, &value) == 0 && value == 3, "a closed semaphore persists until unlinked");

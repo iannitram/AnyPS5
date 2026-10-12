@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 
 extern "C" {
@@ -59,6 +60,15 @@ void Require(bool value, const char* what) {
     }
 }
 
+long double X87(std::uint64_t mantissa, std::uint16_t signAndExponent) {
+    unsigned char bytes[sizeof(long double)] {};
+    std::memcpy(bytes, &mantissa, sizeof(mantissa));
+    std::memcpy(bytes + 8, &signAndExponent, sizeof(signAndExponent));
+    long double value;
+    std::memcpy(&value, bytes, sizeof(value));
+    return value;
+}
+
 bool PositiveZero(double x) { return x == 0 && !std::signbit(x); }
 bool NegativeZero(double x) { return x == 0 && std::signbit(x); }
 
@@ -77,10 +87,16 @@ void CheckRounding() {
     Require(lrint_nid_postfix(1e30) == INT64_MIN && std::fetestexcept(FE_INVALID), "lrint overflow is the indefinite integer");
     Require(lrintf_nid_postfix(std::numeric_limits<float>::quiet_NaN()) == INT64_MIN, "lrintf nan");
     Require(lrintl_nid_postfix(1e30L) == INT64_MIN, "lrintl overflow");
-    Require(lroundl_nid_postfix(-2.5L) == -3 && llroundl_nid_postfix(0x1p63L) == INT64_MIN, "lroundl");
+    Require(lroundl_nid_postfix(-2.5L) == -3 && lroundl_nid_postfix(2.5L) == 3, "lroundl rounds half away from zero");
     std::feclearexcept(FE_ALL_EXCEPT);
-    Require(lroundl_nid_postfix(std::numeric_limits<long double>::quiet_NaN()) == INT64_MIN && std::fetestexcept(FE_INVALID), "lroundl nan");
-    Require(lroundl_nid_postfix(-9223372036854775808.0L) == INT64_MIN && lroundl_nid_postfix(9223372036854775807.0L) == INT64_MAX, "lroundl range ends");
+    Require(lroundl_nid_postfix(9223372036854775807.0L) == INT64_MAX && lroundl_nid_postfix(-9223372036854775807.0L) == -INT64_MAX && !std::fetestexcept(FE_INVALID), "lroundl range ends");
+    const long double outOfRange[] = {std::numeric_limits<long double>::quiet_NaN(), INFINITY, -INFINITY, 0x1p63L, 0x1p63L - 0.5L, -0x1p63L, 1e30L, -1e30L};
+    for (long double x : outOfRange) {
+        std::feclearexcept(FE_ALL_EXCEPT);
+        Require(lroundl_nid_postfix(x) == INT64_MAX && std::fetestexcept(FE_INVALID), "lroundl out of range");
+        std::feclearexcept(FE_ALL_EXCEPT);
+        Require(llroundl_nid_postfix(x) == INT64_MAX && std::fetestexcept(FE_INVALID), "llroundl out of range");
+    }
     std::feclearexcept(FE_ALL_EXCEPT);
 }
 
@@ -92,6 +108,10 @@ void CheckSigns() {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     Require(fmax_nid_postfix(nan, 1.0) == 1.0 && fmax_nid_postfix(1.0, nan) == 1.0 && std::isnan(fmax_nid_postfix(nan, nan)), "fmax nan");
     Require(fminf_nid_postfix(std::numeric_limits<float>::quiet_NaN(), -2.0f) == -2.0f && fmaxl_nid_postfix(1.0L, 2.0L) == 2.0L, "fminf and fmaxl");
+    std::feclearexcept(FE_ALL_EXCEPT);
+    Require(fmax_nid_postfix(std::numeric_limits<double>::signaling_NaN(), 1.0) == 1.0 && fmin_nid_postfix(1.0, std::numeric_limits<double>::signaling_NaN()) == 1.0, "fmax and fmin of a signaling nan");
+    Require(fminf_nid_postfix(std::numeric_limits<float>::signaling_NaN(), -2.0f) == -2.0f && fmaxl_nid_postfix(std::numeric_limits<long double>::signaling_NaN(), 2.0L) == 2.0L, "fminf and fmaxl of a signaling nan");
+    Require(!std::fetestexcept(FE_INVALID), "fmax and fmin raise no invalid for a nan");
     Require(fdim_nid_postfix(5.0, 3.0) == 2.0 && PositiveZero(fdim_nid_postfix(3.0, 5.0)) && std::isnan(fdim_nid_postfix(nan, 1.0)), "fdim");
     Require(fdiml_nid_postfix(1.0L, std::numeric_limits<long double>::quiet_NaN()) != fdiml_nid_postfix(1.0L, std::numeric_limits<long double>::quiet_NaN()), "fdiml nan");
 }
@@ -101,6 +121,8 @@ void CheckExponents() {
     Require(ilogb_nid_postfix(std::numeric_limits<double>::quiet_NaN()) == INT_MAX && ilogb_nid_postfix(-INFINITY) == INT_MAX, "ilogb of nan and infinity");
     Require(ilogb_nid_postfix(1024.0) == 10 && ilogb_nid_postfix(std::numeric_limits<double>::denorm_min()) == -1074, "ilogb finite");
     Require(ilogbf_nid_postfix(std::numeric_limits<float>::denorm_min()) == -149 && ilogbl_nid_postfix(std::numeric_limits<long double>::denorm_min()) == -16445, "ilogb subnormal");
+    Require(ilogbl_nid_postfix(X87(0x4000000000000000ULL, 0x3fff)) == 0 && ilogbl_nid_postfix(X87(1ULL << 63, 0)) == -16382, "ilogbl of an unnormal and a pseudo-denormal");
+    Require(ilogbl_nid_postfix(X87(0, 0x7fff)) == INT_MAX && ilogbl_nid_postfix(X87(1, 0x7fff)) == INT_MAX && ilogbl_nid_postfix(-INFINITY) == INT_MAX, "ilogbl of pseudo-infinity, pseudo-nan and infinity");
     Require(logbl_nid_postfix(0.375L) == -2.0L && std::isinf(logbl_nid_postfix(0.0L)), "logbl");
     Require(scalbln_nid_postfix(1.0, 3) == 8.0 && std::isinf(scalbln_nid_postfix(1.0, INT64_MAX)) && PositiveZero(scalbln_nid_postfix(1.0, INT64_MIN)), "scalbln");
     Require(scalbnl_nid_postfix(1.0L, 16383) == std::ldexp(1.0L, 16383), "scalbnl");
