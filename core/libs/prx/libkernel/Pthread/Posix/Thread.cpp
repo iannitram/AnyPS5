@@ -145,12 +145,15 @@ int APS5_VABI pthread_join_nid_postfix(Pthread thread, void** value) {
 
 int APS5_VABI pthread_timedjoin_np_nid_postfix(Pthread thread, void** value, const KernelTimespec* abstime) {
     if (abstime == nullptr || abstime->tv_sec < 0 || abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000) return PosixThread::GUEST_EINVAL;
-    if (thread == nullptr) return PosixThread::GUEST_ESRCH;
+    if (thread == nullptr) return PosixThread::GUEST_EINVAL;
     if (thread == scePthreadSelf()) return GUEST_EDEADLK;
     if (thread->_detached) return PosixThread::GUEST_EINVAL;
-    KernelUseconds usec = 0;
-    PosixThread::RelativeMicroseconds(GUEST_REALTIME_CLOCK, abstime, &usec);
-    return PosixThread::ToErrno(PthreadJoinUntil_nid_no_patch(thread, value, TimedWait::DeadlineNanos(usec)));
+    const auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const long double remaining = static_cast<long double>(abstime->tv_sec) * 1e9L + static_cast<long double>(abstime->tv_nsec) - static_cast<long double>(now);
+    const std::uint64_t base = TimedWait::NowNanos();
+    if (remaining >= static_cast<long double>(std::uint64_t{1} << 60)) return PosixThread::ToErrno(PthreadJoinUntil_nid_no_patch(thread, value, std::nullopt));
+    const std::uint64_t deadline = remaining <= 0 ? base : base + static_cast<std::uint64_t>(remaining);
+    return PosixThread::ToErrno(PthreadJoinUntil_nid_no_patch(thread, value, deadline));
 }
 
 int APS5_VABI pthread_rename_np_nid_postfix(Pthread thread, const char* name) {

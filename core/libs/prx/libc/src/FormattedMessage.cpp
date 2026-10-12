@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -50,31 +51,38 @@ bool ValidVerbs(const std::string& verbs) {
     return true;
 }
 
-// FreeBSD 11's printfmt, which separates the components that are present by ": ", puts the
-// action on its own line after "TO FIX: " and the tag after a space.
 std::string Format(const std::string& verbs, const char* label, int severity, const char* text, const char* action, const char* tag) {
-    std::string output;
     const char* name = Severity(severity);
+    std::size_t size = 32;
+    for (const char* part : {label, name, text, action, tag})
+        if (part != nullptr) size += std::strlen(part);
+    std::string output;
+    const auto append = [&](const char* part) {
+        if (output.size() + 1 < size) output.append(part, std::min(std::strlen(part), size - 1 - output.size()));
+    };
+    const auto separate = [&](const char* separator) {
+        if (!output.empty()) append(separator);
+    };
     for (const auto& component : Components(verbs)) {
         if (component == "label" && label != nullptr) {
-            if (!output.empty()) output += ": ";
-            output += label;
+            separate(": ");
+            append(label);
         } else if (component == "severity" && name != nullptr) {
-            if (!output.empty()) output += ": ";
-            output += name;
+            separate(": ");
+            append(name);
         } else if (component == "text" && text != nullptr) {
-            if (!output.empty()) output += ": ";
-            output += text;
+            separate(": ");
+            append(text);
         } else if (component == "action" && action != nullptr) {
-            if (!output.empty()) output += "\n";
-            output += "TO FIX: ";
-            output += action;
+            separate("\n");
+            append("TO FIX: ");
+            append(action);
         } else if (component == "tag" && tag != nullptr) {
-            if (!output.empty()) output += " ";
-            output += tag;
+            separate(" ");
+            append(tag);
         }
     }
-    if (!output.empty()) output += "\n";
+    separate("\n");
     return output;
 }
 

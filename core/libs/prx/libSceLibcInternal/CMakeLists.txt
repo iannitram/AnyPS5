@@ -19,7 +19,7 @@ if(BUILD_TESTING)
         set_tests_properties(guest_getopt PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceLibcInternal>")
     endif()
-    add_test_executable(guest_error_reports_tests ${LIBS_INCLUDE_DIR}/tests/GuestErrorReports.cpp FileTreeWalk.cpp)
+    add_test_executable(guest_error_reports_tests ${LIBS_INCLUDE_DIR}/tests/GuestErrorReports.cpp)
     target_include_directories(guest_error_reports_tests PRIVATE ${LIBS_INCLUDE_DIR})
     target_link_libraries(guest_error_reports_tests PRIVATE libSceLibcInternal libkernel libc)
     configure_windows_unwind(guest_error_reports_tests)

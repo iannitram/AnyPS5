@@ -2,24 +2,20 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <ctime>
+#include <exception>
 #include <map>
 #include <mutex>
 #include <stdexcept>
-#ifdef _WIN32
-#include <malloc.h>
-#endif
 
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
+#include "prx/libkernel/DirectMemory/DirectMemory.hpp"
 
 extern "C" int APS5_VABI getpid_nid_postfix(void);
 
 namespace {
 
-// FreeBSD 11 struct ipc_perm and struct shmid_ds.
 struct GuestIpcPermissions {
     std::uint32_t creatorUser;
     std::uint32_t creatorGroup;
@@ -43,6 +39,7 @@ struct GuestSegmentStatus {
 static_assert(sizeof(GuestIpcPermissions) == 32 && sizeof(GuestSegmentStatus) == 80);
 
 constexpr int GuestNoEntry = 2;
+constexpr int GuestNoMemory = 12;
 constexpr int GuestExists = 17;
 constexpr int GuestTooManyFiles = 24;
 constexpr int GuestNoSpace = 28;
@@ -54,10 +51,15 @@ constexpr int Exclusive = 02000;
 constexpr int RemoveCommand = 0;
 constexpr int SetCommand = 1;
 constexpr int StatusCommand = 2;
+constexpr int ReadOnly = 010000;
 constexpr std::uint16_t AccessPermissions = 0777;
+constexpr std::uint16_t SegmentRemoved = 0x0400;
+constexpr std::uint16_t SegmentAllocated = 0x0800;
+constexpr int ReadWrite = 3;
 
-constexpr std::size_t PageSize = 16384;
-constexpr std::size_t MaximumSegmentSize = std::size_t{131072} * 4096;
+constexpr std::size_t PageSize = 4096;
+constexpr std::size_t MaximumPages = 131072;
+constexpr std::size_t MaximumSegmentSize = MaximumPages * PageSize;
 constexpr std::size_t MaximumSegments = 192;
 constexpr int MaximumAttachments = 128;
 
@@ -74,6 +76,7 @@ struct Registry {
     std::array<Segment, MaximumSegments> segments;
     std::map<void*, std::pair<std::size_t, int>> attachments;
     int attachCount = 0;
+    std::size_t committedPages = 0;
 };
 
 Registry& Segments() {
@@ -92,23 +95,23 @@ int Identifier(std::size_t index, const Segment& segment) {
     return static_cast<int>((static_cast<unsigned>(segment.sequence) << 16) | (index & 0xffff));
 }
 
+std::size_t MappedLength(std::size_t size) { return (size + PS5_PAGE_SIZE - 1) & ~(PS5_PAGE_SIZE - 1); }
+
 void* Allocate(std::size_t size) {
-    const std::size_t rounded = (size + PageSize - 1) & ~(PageSize - 1);
-#ifdef _WIN32
-    void* memory = _aligned_malloc(rounded, PageSize);
-#else
-    void* memory = std::aligned_alloc(PageSize, rounded);
-#endif
-    if (memory != nullptr) std::memset(memory, 0, rounded);
+    void* memory = nullptr;
+    try {
+        if (DoMapAnon(&memory, MappedLength(size), ReadWrite, 0) != 0) return nullptr;
+    } catch (const std::bad_alloc&) {
+        return nullptr;
+    } catch (const std::exception&) {
+        return nullptr;
+    }
     return memory;
 }
 
-void Release(Segment& segment) {
-#ifdef _WIN32
-    _aligned_free(segment.memory);
-#else
-    std::free(segment.memory);
-#endif
+void Release(Registry& registry, Segment& segment) {
+    DoMunmap(segment.memory, MappedLength(segment.status.size));
+    registry.committedPages -= segment.status.size / PageSize;
     segment.memory = nullptr;
     segment.allocated = false;
     segment.removed = false;
@@ -118,7 +121,7 @@ Segment* Lookup(Registry& registry, int identifier, std::size_t* index) {
     const std::size_t slot = static_cast<unsigned>(identifier) & 0xffff;
     if (identifier < 0 || slot >= MaximumSegments) return nullptr;
     Segment& segment = registry.segments[slot];
-    if (!segment.allocated || segment.removed || segment.sequence != ((static_cast<unsigned>(identifier) >> 16) & 0x7fff)) return nullptr;
+    if (!segment.allocated || segment.sequence != ((static_cast<unsigned>(identifier) >> 16) & 0x7fff)) return nullptr;
     *index = slot;
     return &segment;
 }
@@ -141,29 +144,31 @@ int APS5_VABI shmget_nid_postfix(std::int64_t key, std::size_t size, int flags) 
         if (!(flags & Create)) return Fail(GuestNoEntry);
     }
     if (size < 1 || size > MaximumSegmentSize) return Fail(GuestInvalid);
-    for (std::size_t index = 0; index < MaximumSegments; index++) {
-        Segment& segment = registry.segments[index];
-        if (segment.allocated) continue;
-        segment.memory = Allocate(size);
-        if (segment.memory == nullptr) return Fail(GuestNoSpace);
-        segment.allocated = true;
-        segment.removed = false;
-        segment.sequence = static_cast<std::uint16_t>((segment.sequence + 1) & 0x7fff);
-        segment.status = {};
-        segment.status.permissions.key = key;
-        segment.status.permissions.mode = static_cast<std::uint16_t>(flags & AccessPermissions);
-        segment.status.permissions.sequence = segment.sequence;
-        segment.status.size = size;
-        segment.status.creatorProcess = getpid_nid_postfix();
-        segment.status.changeTime = Now();
-        return Identifier(index, segment);
-    }
-    return Fail(GuestNoSpace);
+    std::size_t index = 0;
+    while (index < MaximumSegments && registry.segments[index].allocated) index++;
+    if (index == MaximumSegments) return Fail(GuestNoSpace);
+    const std::size_t rounded = (size + PageSize - 1) & ~(PageSize - 1);
+    if (registry.committedPages + rounded / PageSize > MaximumPages) return Fail(GuestNoMemory);
+    Segment& segment = registry.segments[index];
+    segment.memory = Allocate(rounded);
+    if (segment.memory == nullptr) return Fail(GuestNoMemory);
+    registry.committedPages += rounded / PageSize;
+    segment.allocated = true;
+    segment.removed = false;
+    segment.sequence = static_cast<std::uint16_t>((segment.sequence + 1) & 0x7fff);
+    segment.status = {};
+    segment.status.permissions.key = key;
+    segment.status.permissions.mode = static_cast<std::uint16_t>((flags & AccessPermissions) | SegmentAllocated);
+    segment.status.permissions.sequence = segment.sequence;
+    segment.status.size = rounded;
+    segment.status.creatorProcess = getpid_nid_postfix();
+    segment.status.changeTime = Now();
+    return Identifier(index, segment);
 }
 
 void* APS5_VABI shmat_nid_postfix(int identifier, const void* address, int flags) {
-    (void)flags;
-    if (address != nullptr) throw std::runtime_error("shmat: attaching at a requested address is not implemented");
+    if (address != nullptr) NotImplemented_nid_no_patch("shmat at a requested address");
+    if (flags & ReadOnly) NotImplemented_nid_no_patch("shmat with SHM_RDONLY");
     auto& registry = Segments();
     std::lock_guard lock(registry.lock);
     std::size_t index = 0;
@@ -197,7 +202,7 @@ int APS5_VABI shmdt_nid_postfix(const void* address) {
     --segment.status.attachments;
     segment.status.lastProcess = getpid_nid_postfix();
     segment.status.detachTime = Now();
-    if (segment.removed && segment.status.attachments == 0) Release(segment);
+    if (segment.removed && segment.status.attachments == 0) Release(registry, segment);
     return 0;
 }
 
@@ -222,8 +227,9 @@ int APS5_VABI shmctl_nid_postfix(int identifier, int command, GuestSegmentStatus
         return 0;
     case RemoveCommand:
         segment->status.permissions.key = PrivateKey;
+        segment->status.permissions.mode |= SegmentRemoved;
         segment->removed = true;
-        if (segment->status.attachments == 0) Release(*segment);
+        if (segment->status.attachments == 0) Release(registry, *segment);
         return 0;
     default:
         return Fail(GuestInvalid);
