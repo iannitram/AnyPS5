@@ -32,7 +32,6 @@ constexpr int FirstAlternateMonth = 58;
 
 extern "C" {
 
-// FreeBSD 11's nl_langinfo answered from its C locale tables, the only guest locale.
 char* APS5_VABI nl_langinfo_nid_postfix(int item) {
     const char* result = "";
     if (item >= FirstDay && item < FirstDay + 7) result = Days[item - FirstDay];
