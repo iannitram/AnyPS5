@@ -3,18 +3,12 @@
 #include <cstring>
 
 #include "prx/libc/include/General.hpp"
+#include "prx/libkernel/System/include/SignalMask.hpp"
 
 namespace {
 
-struct SignalSet {
-    std::uint32_t bits[4];
-};
-
-struct SignalAction {
-    std::uintptr_t handler;
-    int flags;
-    SignalSet mask;
-};
+using SignalSet = GuestSignalSet;
+using SignalAction = GuestSigaction;
 static_assert(sizeof(SignalAction) == 32);
 
 struct SignalVector {

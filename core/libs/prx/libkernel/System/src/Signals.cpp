@@ -22,11 +22,6 @@ extern "C" int APS5_VABI getpid_nid_postfix(void);
 extern "C" bool SignalInterrupts_nid_no_patch(int signal);
 extern "C" Pthread APS5_VABI scePthreadSelf(void);
 
-struct GuestSigaction {
-    std::uintptr_t handler;
-    int flags;
-    GuestSignalSet mask;
-};
 static_assert(sizeof(GuestSigaction) == 32 && offsetof(GuestSigaction, flags) == 8 && offsetof(GuestSigaction, mask) == 12);
 
 namespace {
