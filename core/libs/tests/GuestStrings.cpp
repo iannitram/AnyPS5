@@ -96,6 +96,10 @@ static void CheckBoundsCheckedFunctions() {
     Require(strnstr_nid_postfix(haystack, "st", 6) == haystack + 3);
     char formatted[8];
     Require(snprintf_s_nid_postfix(formatted, sizeof(formatted), "%d-%s", 42, "x") == 4 && std::strcmp(formatted, "42-x") == 0);
+    formatted[0] = 'x';
+    Require(snprintf_s_nid_postfix(formatted, 0, "%d", 1) < 0 && formatted[0] == 'x');
+    Require(snprintf_s_nid_postfix(nullptr, 4, "%d", 1) < 0);
+    Require(snprintf_s_nid_postfix(formatted, sizeof(formatted), nullptr) < 0 && formatted[0] == 0);
 }
 
 static void CheckSscanfS() {
