@@ -21,6 +21,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdlibExtras.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/LanguageInformation.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkDatabase.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/UserDatabase.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/UserShells.cpp
@@ -592,6 +593,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_network_database COMMAND guest_network_database_tests)
     if(WIN32)
         set_tests_properties(guest_network_database PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_language_information_tests ${LIBS_INCLUDE_DIR}/tests/GuestLanguageInformation.cpp)
+    target_include_directories(guest_language_information_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_language_information_tests PRIVATE libc)
+    configure_windows_unwind(guest_language_information_tests)
+    add_test(NAME guest_language_information COMMAND guest_language_information_tests)
+    if(WIN32)
+        set_tests_properties(guest_language_information PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
