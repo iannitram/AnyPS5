@@ -128,6 +128,16 @@ public:
         SyncStatus();
     }
 
+    void ClearUnlockedError() {
+#ifdef _WIN32
+        std::clearerr(GetHandle());
+#else
+        ::clearerr_unlocked(GetHandle());
+#endif
+        guestError = false;
+        SyncUnlockedStatus();
+    }
+
     void Close() {
         GetHandle();
         if (std::fclose(std::exchange(_handle, nullptr)) != 0) throw std::runtime_error("FileStream: close failed");

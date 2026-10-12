@@ -133,6 +133,9 @@ static void CheckUnlockedStreams() {
     Require(ferror_unlocked_nid_postfix(&stream));
     clearerr_unlocked_nid_postfix(&stream);
     Require(!(guest.flags & 0x40) && !ferror_unlocked_nid_postfix(&stream));
+    bool nullThrew = false;
+    try { feof_unlocked_nid_postfix(nullptr); } catch (const std::invalid_argument&) { nullThrew = true; }
+    Require(nullThrew);
     stream.Close();
 
     const auto filename = "anyps5-unlocked-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -195,7 +198,7 @@ static void CheckTryLock() {
     Require(threw);
 }
 
-static void CheckUnlockedStreamLock(bool write) {
+static void CheckUnlockedStreamLock(int operation) {
     FileStream stream(std::tmpfile());
     Require(std::fputc('A', stream.GetHandle()) == 'A');
     std::rewind(stream.GetHandle());
@@ -216,7 +219,12 @@ static void CheckUnlockedStreamLock(bool write) {
     }
     std::thread caller([&] {
         entered = true;
-        result = write ? putc_unlocked_nid_postfix('B', &stream) : getc_unlocked_nid_postfix(&stream);
+        if (operation == 2) {
+            clearerr_unlocked_nid_postfix(&stream);
+            result = 'C';
+        } else {
+            result = operation == 1 ? putc_unlocked_nid_postfix('B', &stream) : getc_unlocked_nid_postfix(&stream);
+        }
         done = true;
     });
     const auto enteredDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
@@ -233,7 +241,7 @@ static void CheckUnlockedStreamLock(bool write) {
     release = true;
     owner.join();
     caller.join();
-    Require(completedWhileHeld && result == (write ? 'B' : 'A'));
+    Require(completedWhileHeld && result == (operation == 2 ? 'C' : operation == 1 ? 'B' : 'A'));
     stream.Close();
 }
 
@@ -542,8 +550,11 @@ int main() {
     CheckRewind();
     CheckFgetsSize();
     CheckUnlockedStreams();
-    CheckUnlockedStreamLock(false);
-    CheckUnlockedStreamLock(true);
+    CheckUnlockedStreamLock(0);
+    CheckUnlockedStreamLock(1);
+#ifndef _WIN32
+    CheckUnlockedStreamLock(2);
+#endif
     CheckTryLock();
     return CheckBinaryModes() ? 0 : 1;
 }
