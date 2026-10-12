@@ -91,4 +91,26 @@ int APS5_VABI timespec_get_nid_postfix(KernelTimespec* time, int base) {
     return base;
 }
 
+// FreeBSD 11's confstr for amd64: the LP64 environment is the only supported one.
+std::size_t APS5_VABI confstr_nid_postfix(int name, char* buffer, std::size_t length) {
+    static constexpr const char* Unsupported = "unsupported programming environment";
+    const char* value;
+    switch (name) {
+    case 1: value = "/usr/bin:/bin:/usr/sbin:/sbin"; break;
+    case 2: case 3: case 4: case 5: case 6: case 7: case 11: case 12: case 13: value = Unsupported; break;
+    case 8: case 9: case 10: value = ""; break;
+    case 14: value = "_POSIX_V6_LP64_OFF64"; break;
+    default:
+        errno = EINVAL;
+        return 0;
+    }
+    const std::size_t size = std::strlen(value) + 1;
+    if (length != 0 && buffer != nullptr) {
+        const std::size_t copied = size < length ? size - 1 : length - 1;
+        std::memcpy(buffer, value, copied);
+        buffer[copied] = '\0';
+    }
+    return size;
+}
+
 }
