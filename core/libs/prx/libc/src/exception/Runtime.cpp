@@ -400,6 +400,7 @@ void APS5_VABI __cxa_rethrow_primary_exception_nid_postfix(void* object) {
     header->type = reinterpret_cast<std::type_info*>(object);
     header->adjusted = object;
     header->terminate = terminateHandler.load();
+    header->unexpected = unexpectedHandler.load(std::memory_order_acquire);
     header->unwind.exception_class = DependentClass;
     header->unwind.exception_cleanup = Cleanup;
     __cxa_increment_exception_refcount_nid_postfix(object);
