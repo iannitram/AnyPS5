@@ -10,6 +10,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/AllocatingStrings.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/WideConversion.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Multibyte.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/WideExtras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/RuneLocale.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StringExtensions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math.cpp
@@ -492,6 +493,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_stdlib_extras COMMAND guest_stdlib_extras_tests)
     if(WIN32)
         set_tests_properties(guest_stdlib_extras PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_wide_extras_tests ${LIBS_INCLUDE_DIR}/tests/GuestWideExtras.cpp)
+    target_include_directories(guest_wide_extras_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_wide_extras_tests PRIVATE libc)
+    configure_windows_unwind(guest_wide_extras_tests)
+    add_test(NAME guest_wide_extras COMMAND guest_wide_extras_tests)
+    if(WIN32)
+        set_tests_properties(guest_wide_extras PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
