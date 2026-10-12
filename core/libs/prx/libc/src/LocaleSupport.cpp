@@ -323,8 +323,10 @@ mbstate_t* APS5_VABI _Getpwcstate_nid_postfix() {
     return &state;
 }
 
-wint_t APS5_VABI _Towctrans_nid_postfix(wint_t c, wctrans_t desc) {
-    return std::towctrans(c, desc);
+std::uint32_t APS5_VABI towctrans_nid_postfix(std::uint32_t value, int transform);
+
+std::uint32_t APS5_VABI _Towctrans_nid_postfix(std::uint32_t value, int transform) {
+    return towctrans_nid_postfix(value, transform);
 }
 
 // Locale ids and stream objects the title imports besides the ones above; the streams are zeroed

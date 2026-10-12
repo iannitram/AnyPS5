@@ -13,6 +13,7 @@ std::size_t APS5_VABI wcscspn_nid_postfix(const char16_t*, const char16_t*);
 int APS5_VABI wctomb_nid_postfix(char*, char16_t);
 int APS5_VABI wctrans_nid_postfix(const char*);
 std::uint32_t APS5_VABI towctrans_nid_postfix(std::uint32_t, int);
+std::uint32_t APS5_VABI _Towctrans_nid_postfix(std::uint32_t, int);
 std::size_t APS5_VABI wcsftime_nid_postfix(char16_t*, std::size_t, const char16_t*, const GuestTm*);
 }
 
@@ -51,6 +52,7 @@ int main() {
     const int upper = wctrans_nid_postfix("toupper");
     Require(lower == 1 && upper == 2, "wctrans values");
     Require(towctrans_nid_postfix('Q', lower) == 'q' && towctrans_nid_postfix('q', upper) == 'Q' && towctrans_nid_postfix('5', upper) == '5', "towctrans");
+    Require(_Towctrans_nid_postfix('Q', lower) == 'q' && _Towctrans_nid_postfix('q', upper) == 'Q', "_Towctrans takes the wctrans descriptors");
     errno = 0;
     Require(wctrans_nid_postfix("totitle") == 0 && errno == 22, "unknown transformation");
     errno = 0;
