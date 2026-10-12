@@ -34,6 +34,7 @@ int APS5_VABI mkstemps_nid_postfix(char*, int);
 char* APS5_VABI mkdtemp_nid_postfix(char*);
 int APS5_VABI close_nid_postfix(int);
 int* APS5_VABI __error_nid_postfix();
+std::size_t APS5_VABI confstr_nid_postfix(int, char*, std::size_t);
 }
 
 namespace {
@@ -101,6 +102,19 @@ void CheckSmall() {
     Require(arc4random_uniform_nid_postfix(0) == 0 && arc4random_uniform_nid_postfix(1) == 0, "arc4random_uniform small bounds");
 }
 
+void CheckConfstr() {
+    char buffer[64];
+    Require(confstr_nid_postfix(1, buffer, sizeof(buffer)) == 30 && std::strcmp(buffer, "/usr/bin:/bin:/usr/sbin:/sbin") == 0, "_CS_PATH");
+    Require(confstr_nid_postfix(1, nullptr, 0) == 30, "_CS_PATH size");
+    char small[5];
+    Require(confstr_nid_postfix(1, small, sizeof(small)) == 30 && std::strcmp(small, "/usr") == 0, "truncated copy");
+    Require(confstr_nid_postfix(8, buffer, sizeof(buffer)) == 1 && buffer[0] == 0, "LP64 flags");
+    Require(confstr_nid_postfix(2, buffer, sizeof(buffer)) == 36 && std::strcmp(buffer, "unsupported programming environment") == 0, "ILP32 flags");
+    Require(confstr_nid_postfix(14, buffer, sizeof(buffer)) == 21 && std::strcmp(buffer, "_POSIX_V6_LP64_OFF64") == 0, "width restricted environments");
+    *__error_nid_postfix() = 0;
+    Require(confstr_nid_postfix(99, buffer, sizeof(buffer)) == 0 && *__error_nid_postfix() == EINVAL, "unknown name");
+}
+
 void CheckTemporaries() {
     std::string pattern = "anyps5-mkstemps-XXXXXX.log";
     const int descriptor = mkstemps_nid_postfix(pattern.data(), 4);
@@ -124,6 +138,7 @@ int main() {
     CheckTime();
     CheckSmall();
     CheckTemporaries();
+    CheckConfstr();
     std::puts("guest posix misc tests passed");
     return 0;
 }
