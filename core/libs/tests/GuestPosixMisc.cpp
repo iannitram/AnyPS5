@@ -35,6 +35,9 @@ char* APS5_VABI mkdtemp_nid_postfix(char*);
 int APS5_VABI close_nid_postfix(int);
 int* APS5_VABI __error_nid_postfix();
 std::size_t APS5_VABI confstr_nid_postfix(int, char*, std::size_t);
+char* APS5_VABI getwd_nid_postfix(char*);
+char* APS5_VABI gets_nid_postfix(char*);
+char* APS5_VABI getcwd_nid_postfix(char*, std::size_t);
 }
 
 namespace {
@@ -115,6 +118,21 @@ void CheckConfstr() {
     Require(confstr_nid_postfix(99, buffer, sizeof(buffer)) == 0 && *__error_nid_postfix() == EINVAL, "unknown name");
 }
 
+void CheckLines() {
+    char cwd[1024];
+    char wd[1024];
+    Require(getcwd_nid_postfix(cwd, sizeof(cwd)) != nullptr && getwd_nid_postfix(wd) == wd && std::strcmp(cwd, wd) == 0, "getwd");
+
+    const std::string input = "anyps5-gets-" + std::to_string(std::rand());
+    { std::FILE* file = std::fopen(input.c_str(), "w"); std::fputs("first line\nlast", file); std::fclose(file); }
+    Require(std::freopen(input.c_str(), "r", stdin) != nullptr, "redirect stdin");
+    char line[64];
+    Require(gets_nid_postfix(line) == line && std::strcmp(line, "first line") == 0, "gets drops the newline");
+    Require(gets_nid_postfix(line) == line && std::strcmp(line, "last") == 0, "gets returns a last unterminated line");
+    Require(gets_nid_postfix(line) == nullptr, "gets at end of file");
+    std::filesystem::remove(input);
+}
+
 void CheckTemporaries() {
     std::string pattern = "anyps5-mkstemps-XXXXXX.log";
     const int descriptor = mkstemps_nid_postfix(pattern.data(), 4);
@@ -139,6 +157,7 @@ int main() {
     CheckSmall();
     CheckTemporaries();
     CheckConfstr();
+    CheckLines();
     std::puts("guest posix misc tests passed");
     return 0;
 }
