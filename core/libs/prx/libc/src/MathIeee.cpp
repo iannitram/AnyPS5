@@ -1,9 +1,11 @@
 #include <algorithm>
+#include <bit>
 #include <cerrno>
 #include <cfenv>
 #include <climits>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <immintrin.h>
 #include <stdexcept>
 
@@ -19,18 +21,51 @@ auto KeepErrno(F function) {
     return result;
 }
 
+bool IsNan(double x) {
+    std::uint64_t bits;
+    std::memcpy(&bits, &x, sizeof(bits));
+    return (bits & 0x7fffffffffffffffULL) > 0x7ff0000000000000ULL;
+}
+
+bool IsNan(float x) {
+    std::uint32_t bits;
+    std::memcpy(&bits, &x, sizeof(bits));
+    return (bits & 0x7fffffffU) > 0x7f800000U;
+}
+
+struct X87Bits {
+    std::uint64_t mantissa;
+    unsigned exponent;
+};
+
+X87Bits Decode(long double x) {
+    unsigned char bytes[sizeof(long double)];
+    std::memcpy(bytes, &x, sizeof(bytes));
+    X87Bits bits {};
+    std::uint16_t signAndExponent;
+    std::memcpy(&bits.mantissa, bytes, sizeof(bits.mantissa));
+    std::memcpy(&signAndExponent, bytes + 8, sizeof(signAndExponent));
+    bits.exponent = signAndExponent & 0x7fffU;
+    return bits;
+}
+
+bool IsNan(long double x) {
+    const X87Bits bits = Decode(x);
+    return bits.exponent == 0x7fffU && (bits.mantissa & ~(1ULL << 63)) != 0;
+}
+
 template<typename T>
 T Maximum(T x, T y) {
-    if (std::isnan(x)) return y;
-    if (std::isnan(y)) return x;
+    if (IsNan(x)) return y;
+    if (IsNan(y)) return x;
     if (std::signbit(x) != std::signbit(y)) return std::signbit(x) ? y : x;
     return x > y ? x : y;
 }
 
 template<typename T>
 T Minimum(T x, T y) {
-    if (std::isnan(x)) return y;
-    if (std::isnan(y)) return x;
+    if (IsNan(x)) return y;
+    if (IsNan(y)) return x;
     if (std::signbit(x) != std::signbit(y)) return std::signbit(x) ? x : y;
     return x < y ? x : y;
 }
@@ -49,6 +84,14 @@ int ExponentOf(T x) {
     return KeepErrno([x] { return std::ilogb(x); });
 }
 
+int ExponentOfX87(long double x) {
+    const X87Bits bits = Decode(x);
+    if (bits.exponent == 0x7fffU) return INT_MAX;
+    if (bits.exponent != 0) return static_cast<int>(bits.exponent) - 16383;
+    if (bits.mantissa == 0) return -INT_MAX;
+    return -16382 - std::countl_zero(bits.mantissa);
+}
+
 std::int64_t ConvertX87(long double x) {
     std::int64_t result;
     asm volatile("fistpll %0" : "=m"(result) : "t"(x) : "st");
@@ -56,10 +99,9 @@ std::int64_t ConvertX87(long double x) {
 }
 
 std::int64_t RoundToLong(long double x) {
-    const long double rounded = std::round(x);
-    if (rounded >= -0x1p63L && rounded < 0x1p63L) return static_cast<std::int64_t>(rounded);
+    if (x > static_cast<long double>(INT64_MIN) - 0.5L && x < static_cast<long double>(INT64_MAX) + 0.5L) return static_cast<std::int64_t>(std::round(x));
     std::feraiseexcept(FE_INVALID);
-    return INT64_MIN;
+    return INT64_MAX;
 }
 
 long double PartialRemainder(long double x, long double y, int* quotient) {
@@ -137,7 +179,7 @@ long double APS5_VABI nexttowardl_nid_postfix(long double x, long double y) { re
 
 int APS5_VABI ilogb_nid_postfix(double x) { return ExponentOf(x); }
 int APS5_VABI ilogbf_nid_postfix(float x) { return ExponentOf(x); }
-int APS5_VABI ilogbl_nid_postfix(long double x) { return ExponentOf(x); }
+int APS5_VABI ilogbl_nid_postfix(long double x) { return ExponentOfX87(x); }
 long double APS5_VABI logbl_nid_postfix(long double x) { return KeepErrno([=] { return std::logb(x); }); }
 
 long double APS5_VABI modfl_nid_postfix(long double x, long double* integral) {
