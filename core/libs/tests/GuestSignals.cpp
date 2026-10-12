@@ -183,11 +183,11 @@ int main() {
         Require(raise_nid_postfix(15) == 0 && received == 15);
         *__error_nid_postfix() = 0;
         current = wide;
-        Require(sigprocmask_nid_postfix(0, &wide, &current) == -1 && *__error_nid_postfix() == 22 && Equal(current, empty));
+        Require(sigprocmask_nid_postfix(0, &wide, &current) == -1 && *__error_nid_postfix() == 22 && Equal(current, wide));
         Require(sigprocmask_nid_postfix(4, nullptr, &current) == 0);
         Require(pthread_sigmask_nid_postfix(1, &wide, nullptr) == 0);
         current = empty;
-        Require(pthread_sigmask_nid_postfix(4, &wide, &current) == 22 && Equal(current, maskable));
+        Require(pthread_sigmask_nid_postfix(4, &wide, &current) == 22 && Equal(current, empty));
         Require(sigprocmask_nid_postfix(1, nullptr, &current) == 0 && Equal(current, maskable));
         Require(sigprocmask_nid_postfix(3, &empty, nullptr) == 0);
     }
