@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 
 #include "prx/libc/include/General.hpp"
@@ -382,6 +383,11 @@ extern "C" {
 
 void APS5_VABI qsort_r_nid_postfix(void* base, std::size_t count, std::size_t size, void* thunk, ThunkCompare compare) {
     if (compare == nullptr) throw std::invalid_argument("qsort_r: null comparison");
+    if (count < 2) return;
+    if (size == 0 && count < 7) return;
+    if (size == 0) throw std::invalid_argument("qsort_r: zero element size");
+    if (base == nullptr) throw std::invalid_argument("qsort_r: null base");
+    if (count > std::numeric_limits<std::size_t>::max() / size) throw std::overflow_error("qsort_r: array size overflow");
     QuickSort(static_cast<char*>(base), count, size, thunk, compare);
 }
 

@@ -81,12 +81,19 @@ int APS5_VABI sem_init_nid_postfix(void* sem, int pshared, unsigned int value) {
     return 0;
 }
 
-int APS5_VABI sem_destroy_nid_postfix(void* sem) {
+static int Destroy(void* sem) {
     auto* semaphore = Get(sem);
     if (!semaphore) return Fail(PosixThread::GUEST_EINVAL);
     delete semaphore;
     std::memset(sem, 0, sizeof(semaphore));
     return 0;
+}
+
+int APS5_VABI sem_destroy_nid_postfix(void* sem) {
+    std::lock_guard lock(namedLock);
+    for (const auto& entry : namedSemaphores)
+        if (entry.storage == sem) return Fail(PosixThread::GUEST_EINVAL);
+    return Destroy(sem);
 }
 
 int APS5_VABI sem_wait_nid_postfix(void* sem) {
@@ -208,7 +215,7 @@ int APS5_VABI sem_close_nid_postfix(void* sem) {
     for (auto entry = namedSemaphores.begin(); entry != namedSemaphores.end(); ++entry) {
         if (entry->storage != sem || entry->openCount == 0) continue;
         if (--entry->openCount == 0 && !entry->linked) {
-            sem_destroy_nid_postfix(entry->storage);
+            Destroy(entry->storage);
             namedSemaphores.erase(entry);
         }
         return 0;
@@ -226,7 +233,7 @@ int APS5_VABI sem_unlink_nid_postfix(const char* name) {
         if (!entry->linked || entry->name != name) continue;
         entry->linked = false;
         if (entry->openCount == 0) {
-            sem_destroy_nid_postfix(entry->storage);
+            Destroy(entry->storage);
             namedSemaphores.erase(entry);
         }
         return 0;
