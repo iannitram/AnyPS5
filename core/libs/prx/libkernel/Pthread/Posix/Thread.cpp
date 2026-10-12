@@ -31,6 +31,8 @@ int APS5_VABI scePthreadGetprio(Pthread thread, int* prio);
 static constexpr int GUEST_SCHED_FIFO = 1;
 static constexpr std::size_t GUEST_CPUSET_BYTES = 32;
 static constexpr int GUEST_ERANGE = 34;
+static constexpr int GUEST_EDEADLK = 11;
+static constexpr int GUEST_REALTIME_CLOCK = 0;
 
 extern "C" {
 int* APS5_VABI __error_nid_postfix();
@@ -139,6 +141,16 @@ int APS5_VABI pthread_getaffinity_np_nid_postfix(Pthread thread, std::size_t cpu
 
 int APS5_VABI pthread_join_nid_postfix(Pthread thread, void** value) {
     return PosixThread::ToErrno(scePthreadJoin(thread, value));
+}
+
+int APS5_VABI pthread_timedjoin_np_nid_postfix(Pthread thread, void** value, const KernelTimespec* abstime) {
+    if (abstime == nullptr || abstime->tv_sec < 0 || abstime->tv_nsec < 0 || abstime->tv_nsec >= 1000000000) return PosixThread::GUEST_EINVAL;
+    if (thread == nullptr) return PosixThread::GUEST_ESRCH;
+    if (thread == scePthreadSelf()) return GUEST_EDEADLK;
+    if (thread->_detached) return PosixThread::GUEST_EINVAL;
+    KernelUseconds usec = 0;
+    PosixThread::RelativeMicroseconds(GUEST_REALTIME_CLOCK, abstime, &usec);
+    return PosixThread::ToErrno(PthreadJoinUntil_nid_no_patch(thread, value, TimedWait::DeadlineNanos(usec)));
 }
 
 int APS5_VABI pthread_rename_np_nid_postfix(Pthread thread, const char* name) {
