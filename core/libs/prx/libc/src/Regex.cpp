@@ -5,12 +5,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <functional>
 #include <iterator>
+#include <limits>
 #include <new>
-#include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -49,12 +49,11 @@ constexpr int DupMax = 255;
 constexpr int Infinite = DupMax + 1;
 constexpr int Outside = 256;
 constexpr std::size_t ElementLimit = std::size_t{1} << 19;
-constexpr std::size_t NoPosition = static_cast<std::size_t>(-1);
-constexpr int MaxBackrefDepth = 3000;
 constexpr int MaxNesting = 1000;
-constexpr std::size_t StateBits = 9;
-constexpr std::size_t CountMask = 255;
-constexpr std::size_t WordUsed = 256;
+
+using Position = std::int64_t;
+constexpr Position NoPosition = std::numeric_limits<Position>::min();
+constexpr std::size_t WordUsed = std::numeric_limits<std::size_t>::max();
 
 struct GuestRegex {
     int magic;
@@ -195,12 +194,16 @@ bool InClass(std::string_view name, int c) {
     if (name == "punct") return graph && !IsAlpha(c) && !IsDigit(c);
     if (name == "space") return space;
     if (name == "upper") return IsUpper(c);
-    return c < 128 && (IsDigit(c) || (ToLower(c) >= 'a' && ToLower(c) <= 'f'));
+    if (name == "xdigit") return IsDigit(c) || (ToLower(c) >= 'a' && ToLower(c) <= 'f');
+    if (name == "number") return IsDigit(c);
+    if (name == "rune") return c < 128;
+    return false;
 }
 
 bool IsClassName(std::string_view name) {
     static constexpr std::string_view Names[] = {"alnum", "alpha", "blank", "cntrl", "digit", "graph",
-                                                 "lower", "print", "punct", "space", "upper", "xdigit"};
+                                                 "lower", "print", "punct", "space", "upper", "xdigit",
+                                                 "ideogram", "special", "phonogram", "number", "rune"};
     return std::find(std::begin(Names), std::end(Names), name) != std::end(Names);
 }
 
@@ -213,8 +216,20 @@ struct Element {
     explicit Element(Op value, int argument = 0) : op(value), arg(argument) {}
     Op op;
     int arg;
+    int entry = -1;
+    int exit = -1;
     Sequence body;
     std::vector<Sequence> branches;
+};
+
+enum class Kind : std::uint8_t { Char, Set, Bol, Eol, Bow, Eow, Open, Close, Backref, Split, PlusEnter, PlusLoop, Accept };
+
+struct Node {
+    Kind kind;
+    int arg = 0;
+    int out = -1;
+    int loop = -1;
+    std::vector<int> outs;
 };
 
 using CharacterSet = std::array<bool, 256>;
@@ -227,6 +242,12 @@ struct Program {
     bool backrefs = false;
     std::size_t lineStarts = 0;
     std::size_t lineEnds = 0;
+    std::vector<Node> nodes;
+    std::vector<std::vector<int>> predecessors;
+    std::vector<int> anchors;
+    int start = -1;
+    int accept = -1;
+    int slots = 0;
 };
 
 struct Guts {
@@ -465,7 +486,7 @@ int Parser::ParseCollatingElement(int endCharacter) {
         if (name == entry.name) return entry.code;
     }
     Require(!name.empty(), ErrIllegalSequence);
-    Require(name.size() == 1, ErrCollate);
+    Require(name.size() == 1 && name[0] != '\0', ErrCollate);
     return static_cast<unsigned char>(name[0]);
 }
 
@@ -567,8 +588,8 @@ bool Parser::ParseEreExpression(Sequence& items) {
     const int c = *next_++;
     switch (c) {
     case '(': {
-        Require(More(), ErrParen);
         const int number = static_cast<int>(++program_.groups);
+        Require(More(), ErrParen);
         EmitSimple(items, Op::Open, number);
         if (!See(')')) Append(items, ParseRe(')', Outside));
         if (number < 10) closed_[static_cast<std::size_t>(number)] = true;
@@ -798,59 +819,156 @@ Sequence Parser::ParseRe(int end1, int end2) {
     return result;
 }
 
-using Ends = std::vector<std::size_t>;
-
-void Merge(Ends& target, Ends&& source) {
-    if (source.empty()) return;
-    if (target.empty()) {
-        target = std::move(source);
-        return;
-    }
-    Ends merged;
-    merged.reserve(target.size() + source.size());
-    std::set_union(target.begin(), target.end(), source.begin(), source.end(), std::back_inserter(merged));
-    target = std::move(merged);
-}
-
-struct BackrefOverflow {};
-struct BackrefFound {};
-
-class Matcher {
+class GraphBuilder {
 public:
-    Matcher(const Program& program, const unsigned char* text, std::size_t begin, std::size_t end, int flags)
-        : program_(program), text_(text), begin_(begin), end_(end), flags_(flags), backrefs_(program.backrefs) {}
+    explicit GraphBuilder(Program& program) : program_(program) {}
 
-    bool Search(std::size_t wanted, GuestMatch* out) {
-        if (program_.backrefs) return SearchWithBackrefs(wanted, out);
-        for (std::size_t start = begin_; start <= end_; ++start) {
-            const Ends ends = SequenceEndsFrom(program_.root, 0, start, end_);
-            if (ends.empty()) continue;
-            const std::size_t last = Longest(ends);
-            Fill(start, last, wanted, out);
-            if (wanted > 1) {
-                groups_.assign(program_.groups + 1, GuestMatch{-1, -1});
-                Dissect(program_.root, 0, start, last);
-                CopyGroups(wanted, out);
+    void Run() {
+        program_.accept = Add(Kind::Accept, 0, -1);
+        program_.start = BuildSequence(program_.root, program_.accept);
+        program_.predecessors.assign(program_.nodes.size(), {});
+        for (std::size_t i = 0; i < program_.nodes.size(); ++i) {
+            const Node& node = program_.nodes[i];
+            const int index = static_cast<int>(i);
+            if (node.out >= 0) program_.predecessors[static_cast<std::size_t>(node.out)].push_back(index);
+            if (node.loop >= 0) program_.predecessors[static_cast<std::size_t>(node.loop)].push_back(index);
+            for (const int target : node.outs) program_.predecessors[static_cast<std::size_t>(target)].push_back(index);
+            if (node.kind == Kind::Bol || node.kind == Kind::Eol || node.kind == Kind::Bow || node.kind == Kind::Eow) {
+                program_.anchors.push_back(index);
             }
-            return true;
         }
-        return false;
     }
 
 private:
+    Program& program_;
+
+    int Add(Kind kind, int arg, int out) {
+        program_.nodes.push_back(Node{kind, arg, out, -1, {}});
+        return static_cast<int>(program_.nodes.size() - 1);
+    }
+
+    int AddSplit(std::vector<int> outs) {
+        const int index = Add(Kind::Split, 0, -1);
+        program_.nodes[static_cast<std::size_t>(index)].outs = std::move(outs);
+        return index;
+    }
+
+    int BuildSequence(Sequence& sequence, int next) {
+        for (std::size_t i = sequence.size(); i-- > 0;) next = BuildElement(sequence[i], next);
+        return next;
+    }
+
+    int BuildElement(Element& element, int next) {
+        element.exit = next;
+        int index = -1;
+        switch (element.op) {
+        case Op::Char: index = Add(Kind::Char, element.arg, next); break;
+        case Op::Set: index = Add(Kind::Set, element.arg, next); break;
+        case Op::Bol: index = Add(Kind::Bol, 0, next); break;
+        case Op::Eol: index = Add(Kind::Eol, 0, next); break;
+        case Op::Bow: index = Add(Kind::Bow, 0, next); break;
+        case Op::Eow: index = Add(Kind::Eow, 0, next); break;
+        case Op::Open: index = Add(Kind::Open, element.arg, next); break;
+        case Op::Close: index = Add(Kind::Close, element.arg, next); break;
+        case Op::Backref: index = Add(Kind::Backref, element.arg, next); break;
+        case Op::Quest: {
+            const int body = BuildSequence(element.body, next);
+            index = AddSplit({body, next});
+            break;
+        }
+        case Op::Plus: {
+            const int slot = program_.slots++;
+            const int loop = Add(Kind::PlusLoop, slot, next);
+            const int body = BuildSequence(element.body, loop);
+            index = Add(Kind::PlusEnter, slot, body);
+            program_.nodes[static_cast<std::size_t>(loop)].loop = index;
+            break;
+        }
+        case Op::Alt: {
+            std::vector<int> outs;
+            for (auto& branch : element.branches) outs.push_back(BuildSequence(branch, next));
+            index = AddSplit(std::move(outs));
+            break;
+        }
+        }
+        element.entry = index;
+        return index;
+    }
+};
+
+class Matcher {
+public:
+    Matcher(const Program& program, const unsigned char* text, Position begin, Position end, int flags)
+        : program_(program), nodes_(program.nodes), text_(text), begin_(begin), end_(end), flags_(flags),
+          backrefs_(program.backrefs), visited_(program.nodes.size(), 0), rank_(program.nodes.size(), 0),
+          consumed_(program.nodes.size(), 0), marked_(program.nodes.size(), 0), layer_(program.nodes.size(), 0) {}
+
+    bool Search(std::size_t wanted, GuestMatch* out) {
+        if (backrefs_) return SearchWithBackrefs(wanted, out);
+        Position start = NoPosition;
+        Position last = NoPosition;
+        if (!Leftmost(start, last)) return false;
+        Fill(start, last, wanted, out);
+        if (wanted > 1) {
+            groups_.assign(program_.groups + 1, GuestMatch{-1, -1});
+            Dissect(program_.root, 0, start, last);
+            CopyGroups(wanted, out);
+        }
+        return true;
+    }
+
+private:
+    struct Thread {
+        int node;
+        Position start;
+    };
+
+    struct Pending {
+        int node;
+        std::size_t rank;
+    };
+
+    struct Frame {
+        int node;
+        Position position;
+        int reg;
+        Position old;
+    };
+
+    struct Layer {
+        std::vector<std::uint32_t> stamp;
+        std::vector<Position> value;
+        std::vector<int> marked;
+        std::uint32_t here = 0;
+    };
+
     const Program& program_;
+    const std::vector<Node>& nodes_;
     const unsigned char* text_;
-    std::size_t begin_;
-    std::size_t end_;
+    Position begin_;
+    Position end_;
     int flags_;
     bool backrefs_;
+    std::vector<std::uint32_t> visited_;
+    std::vector<std::size_t> rank_;
+    std::vector<std::uint32_t> consumed_;
+    std::vector<std::uint32_t> marked_;
+    std::vector<std::size_t> layer_;
+    std::uint32_t generation_ = 0;
+    std::vector<Pending> pending_;
+    std::vector<int> work_;
     std::vector<GuestMatch> groups_;
-    int depth_ = 0;
+    std::vector<Position> slots_;
+    std::vector<Frame> frames_;
+    std::vector<std::pair<int, Position>> seeds_;
+    Layer top_;
+    Layer upper_;
+    Layer lower_;
 
-    static void Fill(std::size_t start, std::size_t end, std::size_t wanted, GuestMatch* out) {
+    static void Fill(Position start, Position end, std::size_t wanted, GuestMatch* out) {
         if (wanted == 0) return;
-        out[0].start = static_cast<std::int64_t>(start);
-        out[0].end = static_cast<std::int64_t>(end);
+        out[0].start = start;
+        out[0].end = end;
     }
 
     void CopyGroups(std::size_t wanted, GuestMatch* out) const {
@@ -860,12 +978,24 @@ private:
         }
     }
 
-    bool PreviousIsReal(std::size_t p) const { return !(p == 0 || (p == begin_ && !(flags_ & FlagNotBol))); }
-    bool AtEol(std::size_t p) const {
+    std::uint32_t NextGeneration() {
+        if (++generation_ == 0) {
+            std::fill(visited_.begin(), visited_.end(), 0);
+            std::fill(consumed_.begin(), consumed_.end(), 0);
+            std::fill(marked_.begin(), marked_.end(), 0);
+            generation_ = 1;
+        }
+        return generation_;
+    }
+
+    bool PreviousIsReal(Position p) const {
+        return !((p == 0 && begin_ >= 0) || (p == begin_ && !(flags_ & FlagNotBol)));
+    }
+    bool AtEol(Position p) const {
         return (p == end_ && !(flags_ & FlagNotEol)) ||
                (p < end_ && text_[p] == '\n' && (program_.flags & FlagNewline));
     }
-    bool AtBol(std::size_t p) const {
+    bool AtBol(Position p) const {
         if (backrefs_) {
             return (p == begin_ && !(flags_ & FlagNotBol)) ||
                    (p > 0 && p < end_ && text_[p - 1] == '\n' && (program_.flags & FlagNewline));
@@ -873,113 +1003,354 @@ private:
         if (!PreviousIsReal(p)) return !(flags_ & FlagNotBol);
         return text_[p - 1] == '\n' && (program_.flags & FlagNewline);
     }
-    bool AtBow(std::size_t p) const {
+    bool AtBow(Position p) const {
         if (p >= end_ || !IsWord(text_[p])) return false;
         if (backrefs_) return (p == begin_ && !(flags_ & FlagNotBol)) || (p > 0 && !IsWord(text_[p - 1]));
         return AtBol(p) || (PreviousIsReal(p) && !IsWord(text_[p - 1]));
     }
-    bool AtEow(std::size_t p) const {
+    bool AtEow(Position p) const {
         if (backrefs_) return (AtEol(p) || (p < end_ && !IsWord(text_[p]))) && p > begin_ && IsWord(text_[p - 1]);
         return PreviousIsReal(p) && IsWord(text_[p - 1]) && (AtEol(p) || (p < end_ && !IsWord(text_[p])));
     }
 
-    bool Assertion(Op op, std::size_t p) const {
-        switch (op) {
-        case Op::Bol: return AtBol(p);
-        case Op::Eol: return AtEol(p);
-        case Op::Bow: return AtBow(p);
+    bool Condition(Kind kind, Position p) const {
+        switch (kind) {
+        case Kind::Bol: return AtBol(p);
+        case Kind::Eol: return AtEol(p);
+        case Kind::Bow: return AtBow(p);
         default: return AtEow(p);
         }
     }
 
-    std::size_t Passes(std::size_t p) const {
+    bool Consumes(const Node& node, Position p) const {
+        if (node.kind == Kind::Char) return text_[p] == node.arg;
+        return node.kind == Kind::Set && program_.sets[static_cast<std::size_t>(node.arg)][text_[p]];
+    }
+
+    std::size_t Passes(Position p) const {
         return (AtBol(p) ? program_.lineStarts : 0) + (AtEol(p) ? program_.lineEnds : 0);
     }
 
-    Ends ElementEnds(const Element& element, std::size_t from, std::size_t limit) const {
-        const std::size_t p = from >> StateBits;
-        const std::size_t state = from & ((std::size_t{1} << StateBits) - 1);
-        switch (element.op) {
-        case Op::Char:
-            if (p < limit && text_[p] == element.arg) return {(p + 1) << StateBits};
-            return {};
-        case Op::Set:
-            if (p < limit && program_.sets[static_cast<std::size_t>(element.arg)][text_[p]]) return {(p + 1) << StateBits};
-            return {};
-        case Op::Bol:
-            if (!(state & WordUsed) && AtBol(p) && (state & CountMask) < std::min<std::size_t>(Passes(p), CountMask)) return {from + 1};
-            return {};
-        case Op::Eol:
-            if (!(state & WordUsed) && AtEol(p) && (state & CountMask) < std::min<std::size_t>(Passes(p), CountMask)) return {from + 1};
-            return {};
-        case Op::Bow:
-            if (!(state & WordUsed) && AtBow(p)) return {from | WordUsed};
-            return {};
-        case Op::Eow:
-            if (!(state & WordUsed) && AtEow(p)) return {from | WordUsed};
-            return {};
-        case Op::Open:
-        case Op::Close:
-            return {from};
-        case Op::Quest: {
-            Ends result = SequenceEnds(element.body, 0, from, limit);
-            Merge(result, Ends{from});
-            return result;
-        }
-        case Op::Plus: {
-            std::set<std::size_t> seen;
-            Ends pending;
-            for (const auto position : SequenceEnds(element.body, 0, from, limit)) {
-                if (seen.insert(position).second) pending.push_back(position);
-            }
-            while (!pending.empty()) {
-                const std::size_t position = pending.back();
-                pending.pop_back();
-                for (const auto reached : SequenceEnds(element.body, 0, position, limit)) {
-                    if (seen.insert(reached).second) pending.push_back(reached);
+    void Consume(int target, Position start, std::uint32_t here, std::vector<Thread>& next) {
+        const auto index = static_cast<std::size_t>(target);
+        if (consumed_[index] == here) return;
+        consumed_[index] = here;
+        next.push_back({target, start});
+    }
+
+    template <typename Accepted>
+    void Step(const std::vector<Thread>& current, Position p, Position limit, int accept, std::vector<Thread>& next,
+              Accepted&& accepted) {
+        const std::uint32_t here = NextGeneration();
+        const std::size_t passes = backrefs_ ? 0 : Passes(p);
+        bool reached = false;
+        for (const Thread& thread : current) {
+            pending_.clear();
+            pending_.push_back({thread.node, 0});
+            while (!pending_.empty()) {
+                const Pending item = pending_.back();
+                pending_.pop_back();
+                const auto index = static_cast<std::size_t>(item.node);
+                if (visited_[index] == here && rank_[index] <= item.rank) continue;
+                visited_[index] = here;
+                rank_[index] = item.rank;
+                if (item.node == accept) {
+                    if (!reached) {
+                        reached = true;
+                        accepted(thread.start);
+                    }
+                    continue;
+                }
+                const Node& node = nodes_[index];
+                switch (node.kind) {
+                case Kind::Char:
+                case Kind::Set:
+                    if (p < limit && Consumes(node, p)) Consume(node.out, thread.start, here, next);
+                    break;
+                case Kind::Backref:
+                    pending_.push_back({node.out, item.rank});
+                    if (p < limit) Consume(item.node, thread.start, here, next);
+                    break;
+                case Kind::Bol:
+                case Kind::Eol:
+                    if (!Condition(node.kind, p)) break;
+                    if (backrefs_) pending_.push_back({node.out, item.rank});
+                    else if (item.rank != WordUsed && item.rank < passes) pending_.push_back({node.out, item.rank + 1});
+                    break;
+                case Kind::Bow:
+                case Kind::Eow:
+                    if (!Condition(node.kind, p)) break;
+                    if (backrefs_) pending_.push_back({node.out, item.rank});
+                    else if (item.rank != WordUsed) pending_.push_back({node.out, WordUsed});
+                    break;
+                case Kind::Split:
+                    for (const int target : node.outs) pending_.push_back({target, item.rank});
+                    break;
+                case Kind::PlusLoop:
+                    pending_.push_back({node.loop, item.rank});
+                    pending_.push_back({node.out, item.rank});
+                    break;
+                case Kind::Accept:
+                    break;
+                case Kind::Open:
+                case Kind::Close:
+                case Kind::PlusEnter:
+                    pending_.push_back({node.out, item.rank});
+                    break;
                 }
             }
-            return Ends(seen.begin(), seen.end());
         }
-        case Op::Alt: {
-            Ends result;
-            for (const auto& branch : element.branches) Merge(result, SequenceEnds(branch, 0, from, limit));
-            return result;
+    }
+
+    bool Leftmost(Position& start, Position& last) {
+        std::vector<Thread> current;
+        std::vector<Thread> next;
+        Position best = NoPosition;
+        Position bestEnd = NoPosition;
+        for (Position p = begin_;; ++p) {
+            if (best == NoPosition) current.push_back({program_.start, p});
+            next.clear();
+            Position label = NoPosition;
+            Step(current, p, end_, program_.accept, next, [&](Position found) { label = found; });
+            if (label != NoPosition && (best == NoPosition || label <= best)) {
+                best = label;
+                bestEnd = p;
+            }
+            if (p >= end_) break;
+            if (best != NoPosition) {
+                std::erase_if(next, [&](const Thread& thread) { return thread.start > best; });
+                if (next.empty()) break;
+            }
+            current.swap(next);
         }
+        if (best == NoPosition) return false;
+        start = best;
+        last = bestEnd;
+        return true;
+    }
+
+    template <typename Visit>
+    void Walk(int entry, int accept, Position start, Position limit, Visit&& visit) {
+        std::vector<Thread> current{{entry, start}};
+        std::vector<Thread> next;
+        for (Position p = start;; ++p) {
+            next.clear();
+            Step(current, p, limit, accept, next, [&](Position) { visit(p); });
+            if (p >= limit || next.empty()) break;
+            current.swap(next);
+        }
+    }
+
+    Position Longest(const Sequence& sequence, Position start, Position limit) {
+        if (sequence.empty()) return start;
+        Position result = NoPosition;
+        Walk(sequence.front().entry, sequence.back().exit, start, limit, [&](Position p) { result = p; });
+        return result;
+    }
+
+    void Spread(int accept, Position p, std::size_t layer, std::uint32_t here, std::vector<int>& marked) {
+        while (!work_.empty()) {
+            const int node = work_.back();
+            work_.pop_back();
+            for (const int predecessor : program_.predecessors[static_cast<std::size_t>(node)]) {
+                if (predecessor == accept) continue;
+                const Node& source = nodes_[static_cast<std::size_t>(predecessor)];
+                switch (source.kind) {
+                case Kind::Char:
+                case Kind::Set:
+                case Kind::Accept:
+                    break;
+                case Kind::Bol:
+                case Kind::Eol:
+                case Kind::Bow:
+                case Kind::Eow:
+                    if (backrefs_ && Condition(source.kind, p)) Mark(predecessor, layer, here, marked);
+                    break;
+                case Kind::Open:
+                case Kind::Close:
+                case Kind::Backref:
+                case Kind::Split:
+                case Kind::PlusEnter:
+                case Kind::PlusLoop:
+                    Mark(predecessor, layer, here, marked);
+                    break;
+                }
+            }
+        }
+    }
+
+    void Mark(int node, std::size_t layer, std::uint32_t here, std::vector<int>& marked) {
+        const auto index = static_cast<std::size_t>(node);
+        if (marked_[index] == here) return;
+        marked_[index] = here;
+        layer_[index] = layer;
+        marked.push_back(node);
+        work_.push_back(node);
+    }
+
+    std::vector<char> Reaches(int entry, int accept, Position from, Position to, bool exact) {
+        std::vector<char> result(static_cast<std::size_t>(to - from + 1), 0);
+        std::vector<int> good;
+        std::vector<int> marked;
+        for (Position p = to;; --p) {
+            const std::uint32_t here = NextGeneration();
+            marked.clear();
+            work_.clear();
+            if (!exact || p == to) Mark(accept, WordUsed, here, marked);
+            if (p < to) {
+                for (const int node : good) {
+                    if (node != accept && nodes_[static_cast<std::size_t>(node)].kind == Kind::Backref) {
+                        Mark(node, WordUsed, here, marked);
+                    }
+                    for (const int predecessor : program_.predecessors[static_cast<std::size_t>(node)]) {
+                        if (predecessor != accept && Consumes(nodes_[static_cast<std::size_t>(predecessor)], p)) {
+                            Mark(predecessor, WordUsed, here, marked);
+                        }
+                    }
+                }
+            }
+            Spread(accept, p, WordUsed, here, marked);
+            if (!backrefs_) {
+                const std::size_t passes = Passes(p);
+                for (std::size_t layer = passes + 1; layer-- > 0;) {
+                    for (const int anchor : program_.anchors) {
+                        if (anchor == accept) continue;
+                        const Node& node = nodes_[static_cast<std::size_t>(anchor)];
+                        const auto target = static_cast<std::size_t>(node.out);
+                        if (marked_[target] != here || !Condition(node.kind, p)) continue;
+                        if (node.kind == Kind::Bow || node.kind == Kind::Eow) {
+                            if (layer_[target] == WordUsed) Mark(anchor, layer, here, marked);
+                        } else if (layer < passes && layer_[target] >= layer + 1) {
+                            Mark(anchor, layer, here, marked);
+                        }
+                    }
+                    Spread(accept, p, layer, here, marked);
+                }
+            }
+            if (marked_[static_cast<std::size_t>(entry)] == here) result[static_cast<std::size_t>(p - from)] = 1;
+            good.swap(marked);
+            if (p == from) break;
+        }
+        return result;
+    }
+
+    bool Epsilon(const Node& node, Position p) const {
+        switch (node.kind) {
+        case Kind::Open:
+        case Kind::Close:
+        case Kind::Backref:
+        case Kind::Split:
+        case Kind::PlusEnter:
+        case Kind::PlusLoop:
+            return true;
+        case Kind::Bol:
+        case Kind::Eol:
+        case Kind::Bow:
+        case Kind::Eow:
+            return backrefs_ && Condition(node.kind, p);
         default:
-            return {};
+            return false;
         }
     }
 
-    Ends SequenceEnds(const Sequence& sequence, std::size_t index, std::size_t from, std::size_t limit) const {
-        Ends current{from};
-        for (; index < sequence.size() && !current.empty(); ++index) {
-            Ends next;
-            for (const auto position : current) Merge(next, ElementEnds(sequence[index], position, limit));
-            current = std::move(next);
+    void FillLayer(Layer& layer, int accept, Position p) {
+        std::stable_sort(seeds_.begin(), seeds_.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+        layer.here = NextGeneration();
+        layer.marked.clear();
+        for (const auto& [seed, value] : seeds_) {
+            if (layer.stamp[static_cast<std::size_t>(seed)] == layer.here) continue;
+            layer.stamp[static_cast<std::size_t>(seed)] = layer.here;
+            layer.value[static_cast<std::size_t>(seed)] = value;
+            layer.marked.push_back(seed);
+            work_.clear();
+            work_.push_back(seed);
+            while (!work_.empty()) {
+                const int node = work_.back();
+                work_.pop_back();
+                for (const int predecessor : program_.predecessors[static_cast<std::size_t>(node)]) {
+                    const auto index = static_cast<std::size_t>(predecessor);
+                    if (predecessor == accept || layer.stamp[index] == layer.here || !Epsilon(nodes_[index], p)) continue;
+                    layer.stamp[index] = layer.here;
+                    layer.value[index] = value;
+                    layer.marked.push_back(predecessor);
+                    work_.push_back(predecessor);
+                }
+            }
         }
-        return current;
     }
 
-    Ends SequenceEndsFrom(const Sequence& sequence, std::size_t index, std::size_t position, std::size_t limit) const {
-        return SequenceEnds(sequence, index, position << StateBits, limit);
-    }
-
-    static std::size_t Longest(const Ends& ends) { return ends.empty() ? NoPosition : ends.back() >> StateBits; }
-
-    std::size_t Rest(const Sequence& sequence, std::size_t index, std::size_t start, std::size_t stop) const {
-        std::size_t limit = stop;
-        for (;;) {
-            const std::size_t rest = Longest(ElementEnds(sequence[index], start << StateBits, limit));
-            if (rest == NoPosition) return start;
-            const std::size_t tail = Longest(SequenceEndsFrom(sequence, index + 1, rest, stop));
-            if (tail == stop || rest == start) return rest;
-            limit = rest - 1;
+    std::vector<Position> LongestFrom(int entry, int accept, Position from, Position to) {
+        for (Layer* layer : {&top_, &upper_, &lower_}) {
+            layer->stamp.assign(nodes_.size(), 0);
+            layer->value.assign(nodes_.size(), NoPosition);
         }
+        std::vector<Position> result(static_cast<std::size_t>(to - from + 1), NoPosition);
+        std::vector<std::pair<int, Position>> base;
+        std::vector<std::pair<int, Position>> previous;
+        for (Position p = to;; --p) {
+            base.clear();
+            base.push_back({accept, p});
+            if (p < to) {
+                for (const auto& [node, value] : previous) {
+                    if (node != accept && nodes_[static_cast<std::size_t>(node)].kind == Kind::Backref) base.push_back({node, value});
+                    for (const int predecessor : program_.predecessors[static_cast<std::size_t>(node)]) {
+                        if (predecessor != accept && Consumes(nodes_[static_cast<std::size_t>(predecessor)], p)) {
+                            base.push_back({predecessor, value});
+                        }
+                    }
+                }
+            }
+            seeds_ = base;
+            FillLayer(top_, accept, p);
+            Layer* final = &top_;
+            if (!backrefs_) {
+                const std::size_t passes = Passes(p);
+                for (std::size_t layer = passes;; --layer) {
+                    seeds_ = base;
+                    for (const int anchor : program_.anchors) {
+                        if (anchor == accept) continue;
+                        const Node& node = nodes_[static_cast<std::size_t>(anchor)];
+                        const auto target = static_cast<std::size_t>(node.out);
+                        if (!Condition(node.kind, p)) continue;
+                        if (node.kind == Kind::Bow || node.kind == Kind::Eow) {
+                            if (top_.stamp[target] == top_.here) seeds_.push_back({anchor, top_.value[target]});
+                        } else if (layer < passes && upper_.stamp[target] == upper_.here) {
+                            seeds_.push_back({anchor, upper_.value[target]});
+                        }
+                    }
+                    FillLayer(lower_, accept, p);
+                    std::swap(upper_, lower_);
+                    if (layer == 0) break;
+                }
+                final = &upper_;
+            }
+            previous.clear();
+            for (const int node : final->marked) previous.push_back({node, final->value[static_cast<std::size_t>(node)]});
+            if (final->stamp[static_cast<std::size_t>(entry)] == final->here) {
+                result[static_cast<std::size_t>(p - from)] = final->value[static_cast<std::size_t>(entry)];
+            }
+            if (p == from) break;
+        }
+        return result;
     }
 
-    std::size_t Dissect(const Sequence& sequence, std::size_t index, std::size_t start, std::size_t stop) {
-        std::size_t position = start;
+    Position Rest(const Sequence& sequence, std::size_t index, Position start, Position stop) {
+        const Element& element = sequence[index];
+        std::vector<Position> ends;
+        Walk(element.entry, element.exit, start, stop, [&](Position p) { ends.push_back(p); });
+        if (ends.empty()) return start;
+        const bool last = index + 1 == sequence.size();
+        std::vector<char> tail;
+        if (!last) tail = Reaches(sequence[index + 1].entry, sequence.back().exit, start, stop, true);
+        for (auto it = ends.rbegin(); it != ends.rend(); ++it) {
+            const Position rest = *it;
+            if (rest == start || (last ? rest == stop : tail[static_cast<std::size_t>(rest - start)] != 0)) return rest;
+        }
+        return start;
+    }
+
+    void Dissect(const Sequence& sequence, std::size_t index, Position start, Position stop) {
+        Position position = start;
         for (; index < sequence.size(); ++index) {
             const Element& element = sequence[index];
             switch (element.op) {
@@ -988,24 +1359,26 @@ private:
                 ++position;
                 break;
             case Op::Open:
-                groups_[static_cast<std::size_t>(element.arg)].start = static_cast<std::int64_t>(position);
+                groups_[static_cast<std::size_t>(element.arg)].start = position;
                 break;
             case Op::Close:
-                groups_[static_cast<std::size_t>(element.arg)].end = static_cast<std::int64_t>(position);
+                groups_[static_cast<std::size_t>(element.arg)].end = position;
                 break;
             case Op::Quest: {
-                const std::size_t rest = Rest(sequence, index, position, stop);
-                if (Longest(SequenceEndsFrom(element.body, 0, position, rest)) != NoPosition) Dissect(element.body, 0, position, rest);
+                const Position rest = Rest(sequence, index, position, stop);
+                if (Longest(element.body, position, rest) != NoPosition) Dissect(element.body, 0, position, rest);
                 position = rest;
                 break;
             }
             case Op::Plus: {
-                const std::size_t rest = Rest(sequence, index, position, stop);
-                std::size_t innerStart = position;
-                std::size_t previous = innerStart;
-                std::size_t innerEnd;
+                const Position rest = Rest(sequence, index, position, stop);
+                Position innerStart = position;
+                Position previous = innerStart;
+                Position innerEnd = NoPosition;
+                const std::vector<Position> longest =
+                    LongestFrom(element.body.front().entry, element.body.back().exit, position, rest);
                 for (;;) {
-                    innerEnd = Longest(SequenceEndsFrom(element.body, 0, innerStart, rest));
+                    innerEnd = longest[static_cast<std::size_t>(innerStart - position)];
                     if (innerEnd == NoPosition || innerEnd == innerStart) break;
                     previous = innerStart;
                     innerStart = innerEnd;
@@ -1019,9 +1392,9 @@ private:
                 break;
             }
             case Op::Alt: {
-                const std::size_t rest = Rest(sequence, index, position, stop);
+                const Position rest = Rest(sequence, index, position, stop);
                 for (const auto& branch : element.branches) {
-                    if (Longest(SequenceEndsFrom(branch, 0, position, rest)) == rest) {
+                    if (Longest(branch, position, rest) == rest) {
                         Dissect(branch, 0, position, rest);
                         break;
                     }
@@ -1033,107 +1406,118 @@ private:
                 break;
             }
         }
-        return position;
     }
 
-    using Continue = std::function<void(std::size_t)>;
+    void Restore(const Frame& frame) {
+        const auto reg = static_cast<std::size_t>(frame.reg);
+        if (frame.node == -1) groups_[reg].start = frame.old;
+        else if (frame.node == -2) groups_[reg].end = frame.old;
+        else slots_[reg] = frame.old;
+    }
 
-    struct DepthGuard {
-        int& depth;
-        explicit DepthGuard(int& value) : depth(value) {
-            if (++depth > MaxBackrefDepth) {
-                --depth;
-                throw BackrefOverflow{};
+    bool Backtrack(Position start, Position& bestEnd, std::vector<GuestMatch>& best) {
+        frames_.clear();
+        frames_.push_back({program_.start, start, 0, 0});
+        while (!frames_.empty()) {
+            const Frame frame = frames_.back();
+            frames_.pop_back();
+            if (frame.node < 0) {
+                Restore(frame);
+                continue;
             }
-        }
-        ~DepthGuard() { --depth; }
-    };
-
-    void Run(const Sequence& sequence, std::size_t index, std::size_t position, const Continue& next) {
-        DepthGuard guard(depth_);
-        for (; index < sequence.size(); ++index) {
-            const Element& element = sequence[index];
-            switch (element.op) {
-            case Op::Char:
-                if (position >= end_ || text_[position] != element.arg) return;
-                ++position;
-                break;
-            case Op::Set:
-                if (position >= end_ || !program_.sets[static_cast<std::size_t>(element.arg)][text_[position]]) return;
-                ++position;
-                break;
-            case Op::Bol:
-            case Op::Eol:
-            case Op::Bow:
-            case Op::Eow:
-                if (!Assertion(element.op, position)) return;
-                break;
-            case Op::Open: {
-                auto& group = groups_[static_cast<std::size_t>(element.arg)];
-                const auto saved = group.start;
-                group.start = static_cast<std::int64_t>(position);
-                Run(sequence, index + 1, position, next);
-                group.start = saved;
-                return;
-            }
-            case Op::Close: {
-                auto& group = groups_[static_cast<std::size_t>(element.arg)];
-                const auto saved = group.end;
-                group.end = static_cast<std::int64_t>(position);
-                Run(sequence, index + 1, position, next);
-                group.end = saved;
-                return;
-            }
-            case Op::Backref: {
-                const auto& group = groups_[static_cast<std::size_t>(element.arg)];
-                if (group.end == -1 || group.end < group.start) return;
-                const std::size_t length = static_cast<std::size_t>(group.end - group.start);
-                if (length > end_ - position) return;
-                if (std::memcmp(text_ + position, text_ + group.start, length) != 0) return;
-                position += length;
-                break;
-            }
-            case Op::Quest:
-                Run(element.body, 0, position, [&](std::size_t reached) { Run(sequence, index + 1, reached, next); });
-                Run(sequence, index + 1, position, next);
-                return;
-            case Op::Plus:
-                Iterate(element, sequence, index, position, next);
-                return;
-            case Op::Alt:
-                for (const auto& branch : element.branches) {
-                    Run(branch, 0, position, [&](std::size_t reached) { Run(sequence, index + 1, reached, next); });
+            int index = frame.node;
+            Position position = frame.position;
+            for (bool alive = true; alive;) {
+                const Node& node = nodes_[static_cast<std::size_t>(index)];
+                switch (node.kind) {
+                case Kind::Char:
+                case Kind::Set:
+                    if (position >= end_ || !Consumes(node, position)) {
+                        alive = false;
+                        break;
+                    }
+                    ++position;
+                    index = node.out;
+                    break;
+                case Kind::Bol:
+                case Kind::Eol:
+                case Kind::Bow:
+                case Kind::Eow:
+                    if (!Condition(node.kind, position)) alive = false;
+                    else index = node.out;
+                    break;
+                case Kind::Open: {
+                    auto& value = groups_[static_cast<std::size_t>(node.arg)].start;
+                    frames_.push_back({-1, 0, node.arg, value});
+                    value = position;
+                    index = node.out;
+                    break;
                 }
-                return;
+                case Kind::Close: {
+                    auto& value = groups_[static_cast<std::size_t>(node.arg)].end;
+                    frames_.push_back({-2, 0, node.arg, value});
+                    value = position;
+                    index = node.out;
+                    break;
+                }
+                case Kind::PlusEnter: {
+                    auto& value = slots_[static_cast<std::size_t>(node.arg)];
+                    frames_.push_back({-3, 0, node.arg, value});
+                    value = position;
+                    index = node.out;
+                    break;
+                }
+                case Kind::Backref: {
+                    const GuestMatch& group = groups_[static_cast<std::size_t>(node.arg)];
+                    if (group.end == -1 || group.end < group.start) {
+                        alive = false;
+                        break;
+                    }
+                    const Position length = group.end - group.start;
+                    if (length > end_ - position ||
+                        std::memcmp(text_ + position, text_ + group.start, static_cast<std::size_t>(length)) != 0) {
+                        alive = false;
+                        break;
+                    }
+                    position += length;
+                    index = node.out;
+                    break;
+                }
+                case Kind::Split:
+                    for (std::size_t i = node.outs.size(); i-- > 1;) frames_.push_back({node.outs[i], position, 0, 0});
+                    index = node.outs[0];
+                    break;
+                case Kind::PlusLoop:
+                    if (position > slots_[static_cast<std::size_t>(node.arg)]) {
+                        frames_.push_back({node.out, position, 0, 0});
+                        index = node.loop;
+                    } else {
+                        index = node.out;
+                    }
+                    break;
+                case Kind::Accept:
+                    if (bestEnd == NoPosition || position > bestEnd) {
+                        bestEnd = position;
+                        best = groups_;
+                    }
+                    if (position == end_) return true;
+                    alive = false;
+                    break;
+                }
             }
         }
-        next(position);
-    }
-
-    void Iterate(const Element& element, const Sequence& sequence, std::size_t index, std::size_t position, const Continue& next) {
-        Run(element.body, 0, position, [&](std::size_t reached) {
-            if (reached > position) Iterate(element, sequence, index, reached, next);
-            Run(sequence, index + 1, reached, next);
-        });
+        return bestEnd != NoPosition;
     }
 
     bool SearchWithBackrefs(std::size_t wanted, GuestMatch* out) {
-        for (std::size_t start = begin_; start <= end_; ++start) {
+        const std::vector<char> viable = Reaches(program_.start, program_.accept, begin_, end_, false);
+        std::vector<GuestMatch> best;
+        for (Position start = begin_; start <= end_; ++start) {
+            if (viable[static_cast<std::size_t>(start - begin_)] == 0) continue;
             groups_.assign(program_.groups + 1, GuestMatch{-1, -1});
-            std::size_t bestEnd = NoPosition;
-            std::vector<GuestMatch> best;
-            try {
-                Run(program_.root, 0, start, [&](std::size_t reached) {
-                    if (bestEnd == NoPosition || reached > bestEnd) {
-                        bestEnd = reached;
-                        best = groups_;
-                    }
-                    if (reached == end_) throw BackrefFound{};
-                });
-            } catch (const BackrefFound&) {
-            }
-            depth_ = 0;
-            if (bestEnd == NoPosition) continue;
+            slots_.assign(static_cast<std::size_t>(program_.slots), NoPosition);
+            Position bestEnd = NoPosition;
+            if (!Backtrack(start, bestEnd, best)) continue;
             groups_ = std::move(best);
             Fill(start, bestEnd, wanted, out);
             CopyGroups(wanted, out);
@@ -1160,6 +1544,7 @@ int Compile(GuestRegex* regex, const char* pattern, int flags) {
     int error = 0;
     try {
         parser.Run();
+        GraphBuilder(guts->program).Run();
     } catch (const Failure& failure) {
         error = failure.code;
     } catch (const std::bad_alloc&) {
@@ -1225,15 +1610,13 @@ int APS5_VABI regexec_nid_postfix(const GuestRegex* regex, const char* string, s
         start = 0;
         stop = static_cast<std::int64_t>(std::strlen(string));
     }
-    if (stop < start || start < 0) return ErrInvalidArgument;
+    if (stop < start) return ErrInvalidArgument;
     const std::size_t wanted = std::min(nmatch, guts->program.groups + 1);
-    std::vector<GuestMatch> found(wanted == 0 ? 1 : wanted);
+    std::vector<GuestMatch> found;
     try {
-        Matcher matcher(guts->program, reinterpret_cast<const unsigned char*>(string), static_cast<std::size_t>(start),
-                        static_cast<std::size_t>(stop), flags);
+        found.resize(wanted == 0 ? 1 : wanted);
+        Matcher matcher(guts->program, reinterpret_cast<const unsigned char*>(string), start, stop, flags);
         if (!matcher.Search(wanted, found.data())) return ErrNoMatch;
-    } catch (const BackrefOverflow&) {
-        return ErrSpace;
     } catch (const std::bad_alloc&) {
         return ErrSpace;
     }
