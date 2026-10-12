@@ -98,7 +98,6 @@ long double APS5_VABI floorl_nid_postfix(long double x) { return std::floor(x); 
 float APS5_VABI truncf_nid_postfix(float x) { return std::trunc(x); }
 long double APS5_VABI roundl_nid_postfix(long double x) { return std::round(x); }
 double APS5_VABI nearbyint_nid_postfix(double x) { return std::nearbyint(x); }
-float APS5_VABI nearbyintf_nid_postfix(float x) { return std::nearbyint(x); }
 long double APS5_VABI nearbyintl_nid_postfix(long double x) { return std::nearbyint(x); }
 double APS5_VABI rint_nid_postfix(double x) { return std::rint(x); }
 float APS5_VABI rintf_nid_postfix(float x) { return std::rint(x); }
