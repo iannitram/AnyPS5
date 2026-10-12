@@ -35,6 +35,18 @@ bool HasGuestWideFormat(const char* format) {
     }
     return false;
 }
+
+bool HasGuestWideScan(const char* format) {
+    if (format == nullptr) return false;
+    while ((format = std::strchr(format, '%')) != nullptr) {
+        ++format;
+        if (*format == '%') { ++format; continue; }
+        while (*format && std::strchr("*0123456789", *format)) ++format;
+        if (*format == 'S' || *format == 'C' || (*format == 'l' && (format[1] == 's' || format[1] == 'c' || format[1] == '['))) return true;
+        if (*format) ++format;
+    }
+    return false;
+}
 #endif
 
 std::string HostLength(const std::string& length, char conversion) {
@@ -235,6 +247,7 @@ int APS5_VABI vfscanf_nid_postfix(FileStream* stream, const char* format, VaList
 #ifdef _WIN32
     const int result = LibcDetail::ScanFileWindows_nid_no_patch(native, format, args);
 #else
+    if (HasGuestWideScan(format)) NotImplemented_nid_no_patch("vfscanf: wide conversions into the guest's 16-bit wchar_t");
     std::va_list copy;
     va_copy(copy, *reinterpret_cast<std::va_list*>(args));
     const int result = std::vfscanf(native, format, copy);
