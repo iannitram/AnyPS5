@@ -29,9 +29,7 @@ extern "C" _Unwind_Reason_Code APS5_VABI __gxx_personality_v0_nid_postfix(
         if (!landing) return _URC_CONTINUE_UNWIND;
         bool cleanup = !action, matched = false;
         std::intptr_t selector = 0;
-        void* adjusted = header ? static_cast<void*>(Primary(header) + 1) : nullptr;
-        if (header && std::strcmp(Kind(Primary(header)->type), "N10__cxxabiv119__pointer_type_infoE") == 0)
-            std::memcpy(&adjusted, adjusted, sizeof(adjusted));
+        void* adjusted = header ? ThrownObject(Primary(header)) : nullptr;
         if (action) {
             const Byte* record = actionsBegin + action - 1;
             for (unsigned steps = 0; steps < 4096; ++steps) {
@@ -46,14 +44,24 @@ extern "C" _Unwind_Reason_Code APS5_VABI __gxx_personality_v0_nid_postfix(
                     if (!caught || (header && Match(caught, Primary(header)->type, candidate))) {
                         matched = true; selector = filter; adjusted = candidate; break;
                     }
-                } else if (filter < 0) return (actions & _UA_SEARCH_PHASE) ? _URC_FATAL_PHASE1_ERROR : _URC_FATAL_PHASE2_ERROR;
+                } else if (filter < 0 && !(actions & _UA_FORCE_UNWIND)) {
+                    if (!typeTable) return (actions & _UA_SEARCH_PHASE) ? _URC_FATAL_PHASE1_ERROR : _URC_FATAL_PHASE2_ERROR;
+                    if (!header || !SpecAllows(filter, typeTable, typeEncoding, context->dataBase, context->region, context->textBase, Primary(header)->type, adjusted)) {
+                        matched = true; selector = filter; break;
+                    }
+                }
                 if (!next) break;
                 record = nextField + next;
             }
         }
         if (actions & _UA_SEARCH_PHASE) {
             if (!matched) return _URC_CONTINUE_UNWIND;
-            if (header) { header->adjusted = adjusted; header->selector = static_cast<int>(selector); }
+            if (header) {
+                header->adjusted = adjusted;
+                header->selector = static_cast<int>(selector);
+                header->lsda = reinterpret_cast<const Byte*>(context->lsda);
+                header->dataBase = context->dataBase;
+            }
             return _URC_HANDLER_FOUND;
         }
         if (actions & _UA_HANDLER_FRAME) {

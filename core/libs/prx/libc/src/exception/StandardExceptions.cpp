@@ -82,6 +82,7 @@ const char* PlainWhat(const ExceptionObject* object) {
     if (std::strcmp(name, "St9exception") == 0) return "std::exception";
     if (std::strcmp(name, "St8bad_cast") == 0) return "std::bad_cast";
     if (std::strcmp(name, "St10bad_typeid") == 0) return "std::bad_typeid";
+    if (std::strcmp(name, "St13bad_exception") == 0) return "std::bad_exception";
     if (std::strcmp(name, "St9bad_alloc") == 0) return "std::bad_alloc";
     if (std::strcmp(name, "St20bad_array_new_length") == 0) return "std::bad_array_new_length";
     if (std::strcmp(name, "St17bad_function_call") == 0) return "std::bad_function_call";
@@ -158,6 +159,15 @@ void APS5_VABI _ZNSt10bad_typeidD0Ev_nid_postfix(LibcException::ExceptionObject*
 const char* APS5_VABI _ZNKSt10bad_typeid4whatEv_nid_postfix(const LibcException::ExceptionObject* self) { return LibcException::PlainWhat(self); }
 void APS5_VABI _ZNSt10bad_typeidC1Ev_nid_postfix(LibcException::ExceptionObject* self) { self->vtable = &_ZTVSt10bad_typeid_nid_postfix.destroy; }
 void APS5_VABI _ZNSt10bad_typeidC2Ev_nid_postfix(LibcException::ExceptionObject* self) { self->vtable = &_ZTVSt10bad_typeid_nid_postfix.destroy; }
+
+LibcException::TypeRecord _ZTISt13bad_exception_nid_postfix {LibcException::SingleTypeVtable + 2, "St13bad_exception", &_ZTISt9exception_nid_postfix};
+LibcException::ExceptionVtable _ZTVSt13bad_exception_nid_postfix {0, &_ZTISt13bad_exception_nid_postfix, LibcException::GuestDestroyPlain_nid_no_patch, LibcException::GuestDeletePlain_nid_no_patch, LibcException::GuestPlainWhat_nid_no_patch};
+void APS5_VABI _ZNSt13bad_exceptionD1Ev_nid_postfix(LibcException::ExceptionObject* self) { LibcException::DestroyPlain(self); }
+void APS5_VABI _ZNSt13bad_exceptionD2Ev_nid_postfix(LibcException::ExceptionObject* self) { LibcException::DestroyPlain(self); }
+void APS5_VABI _ZNSt13bad_exceptionD0Ev_nid_postfix(LibcException::ExceptionObject* self) { LibcException::DeletePlain(self); }
+const char* APS5_VABI _ZNKSt13bad_exception4whatEv_nid_postfix(const LibcException::ExceptionObject* self) { return LibcException::PlainWhat(self); }
+void APS5_VABI _ZNSt13bad_exceptionC1Ev_nid_postfix(LibcException::ExceptionObject* self) { self->vtable = &_ZTVSt13bad_exception_nid_postfix.destroy; }
+void APS5_VABI _ZNSt13bad_exceptionC2Ev_nid_postfix(LibcException::ExceptionObject* self) { self->vtable = &_ZTVSt13bad_exception_nid_postfix.destroy; }
 
 LibcException::TypeRecord _ZTISt9bad_alloc_nid_postfix {LibcException::SingleTypeVtable + 2, "St9bad_alloc", &_ZTISt9exception_nid_postfix};
 LibcException::ExceptionVtable _ZTVSt9bad_alloc_nid_postfix {0, &_ZTISt9bad_alloc_nid_postfix, LibcException::GuestDestroyPlain_nid_no_patch, LibcException::GuestDeletePlain_nid_no_patch, LibcException::GuestPlainWhat_nid_no_patch};
@@ -316,5 +326,53 @@ const char* APS5_VABI _ZNKSt8ios_base7failure4whatEv_nid_postfix(const LibcExcep
     object->code = code;
     __cxa_throw_nid_postfix(object, reinterpret_cast<std::type_info*>(&_ZTISt11regex_error_nid_postfix),
         reinterpret_cast<decltype(LibcException::Header::destructor)>(LibcException::DestroyGuestMessage_nid_no_patch));
+}
+}
+
+extern "C" {
+[[noreturn]] void APS5_VABI __cxa_call_unexpected_nid_postfix(void* argument) {
+    using namespace LibcException;
+    auto* unwind = static_cast<_Unwind_Exception*>(argument);
+    if (!unwind) Terminate();
+    __cxa_begin_catch_nid_postfix(unwind);
+    const bool native = Native(unwind->exception_class);
+    Header* old = native ? FromUnwind(unwind) : nullptr;
+    auto unexpected = native ? old->unexpected : unexpectedHandler.load(std::memory_order_acquire);
+    auto terminate = native ? old->terminate : terminateHandler.load(std::memory_order_acquire);
+    const int filter = native ? old->selector : 0;
+    const LibcUnwind::Byte* lsda = native ? old->lsda : nullptr;
+    const LibcUnwind::Word dataBase = native ? old->dataBase : 0;
+    try {
+        InvokeUnexpected(unexpected);
+    } catch (...) {
+        if (native && lsda) {
+            const LibcUnwind::Byte* p = lsda;
+            const LibcUnwind::Byte landingEncoding = *p++;
+            LibcUnwind::Encoded(p, landingEncoding, dataBase);
+            const LibcUnwind::Byte typeEncoding = *p++;
+            if (typeEncoding == 255) InvokeTerminate(terminate);
+            const LibcUnwind::Word typeOffset = LibcUnwind::Uleb(p);
+            const LibcUnwind::Byte* typeTable = p + typeOffset;
+            Header* current = globals.caught;
+            if (!current) InvokeTerminate(terminate);
+            if (Native(current->unwind.exception_class) && current != old) {
+                Header* primary = Primary(current);
+                if (SpecAllows(filter, typeTable, typeEncoding, dataBase, 0, 0, primary->type, ThrownObject(primary))) {
+                    current->handlers = -current->handlers;
+                    ++globals.uncaught;
+                    __cxa_end_catch_nid_postfix();
+                    __cxa_end_catch_nid_postfix();
+                    __cxa_begin_catch_nid_postfix(&current->unwind);
+                    throw;
+                }
+            }
+            void* badException = nullptr;
+            if (SpecAllows(filter, typeTable, typeEncoding, dataBase, 0, 0, reinterpret_cast<const std::type_info*>(&_ZTISt13bad_exception_nid_postfix), &badException)) {
+                __cxa_end_catch_nid_postfix();
+                ThrowPlain(_ZTVSt13bad_exception_nid_postfix);
+            }
+        }
+    }
+    InvokeTerminate(terminate);
 }
 }
