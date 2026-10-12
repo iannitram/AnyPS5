@@ -96,6 +96,7 @@ void CheckTimedJoin() {
     KernelTimespec invalid{0, 1000000000};
     Require(pthread_timedjoin_np_nid_postfix(thread, &value, &invalid) == 22 && pthread_timedjoin_np_nid_postfix(thread, &value, nullptr) == 22, "invalid timeout");
     Require(pthread_timedjoin_np_nid_postfix(pthread_self_nid_postfix(), &value, &soon) == 11, "self join deadlocks");
+    Require(pthread_timedjoin_np_nid_postfix(nullptr, &value, &soon) == 22, "a null thread is EINVAL, as join_common checks");
     release = true;
     KernelTimespec later = In(5000);
     Require(pthread_timedjoin_np_nid_postfix(thread, &value, &later) == 0 && value == &token, "timed join returns the value");
