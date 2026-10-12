@@ -6,6 +6,8 @@
 #include <cstdarg>
 #include <cstring>
 #include <stdexcept>
+#include <map>
+#include <mutex>
 #include <string>
 
 #include "SceTypes.hpp"
@@ -200,6 +202,10 @@ std::u16string FormatWide(const char16_t* format, VaList* source, bool secure = 
 
 extern "C" {
 
+extern FileStream* __stdinp_nid_postfix;
+extern FileStream* __stdoutp_nid_postfix;
+std::int32_t APS5_VABI fgetwc_nid_postfix(FileStream* stream);
+
 int APS5_VABI vswprintf_nid_postfix(char16_t* buffer, std::size_t size, const char16_t* format, VaList* args) {
     if (buffer == nullptr || size == 0) { errno = 22; return -1; }
     try {
@@ -284,6 +290,79 @@ int APS5_VABI fputws_nid_postfix(const char16_t* str, FileStream* stream) {
         errno = 22;
         return -1;
     }
+}
+
+int APS5_VABI vfwprintf_nid_postfix(FileStream* stream, const char16_t* format, VaList* args) {
+    if (stream == nullptr || format == nullptr) { errno = 22; return -1; }
+    try {
+        const std::u16string text = FormatWide(format, args);
+        const std::string bytes = ToUtf8(text);
+        auto* native = GetNativeStream(stream);
+        const bool written = std::fwrite(bytes.data(), 1, bytes.size(), native) == bytes.size();
+        stream->SyncStatus();
+        return written ? static_cast<int>(text.size()) : -1;
+    } catch (const std::exception&) {
+        errno = 22;
+        return -1;
+    }
+}
+
+int APS5_VABI fwprintf_nid_postfix(FileStream* stream, const char16_t* format, ...) {
+    APS5_VA_BEGIN(format);
+    const int result = vfwprintf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
+    APS5_VA_END();
+    return result;
+}
+
+int APS5_VABI vwprintf_nid_postfix(const char16_t* format, VaList* args) {
+    if (format == nullptr) { errno = 22; return -1; }
+    try {
+        const std::u16string text = FormatWide(format, args);
+        const std::string bytes = ToUtf8(text);
+        return std::fwrite(bytes.data(), 1, bytes.size(), stdout) == bytes.size() ? static_cast<int>(text.size()) : -1;
+    } catch (const std::exception&) {
+        errno = 22;
+        return -1;
+    }
+}
+
+int APS5_VABI putwc_nid_postfix(char16_t value, FileStream* stream) { return fputwc_nid_postfix(value, stream); }
+
+int APS5_VABI putwchar_nid_postfix(char16_t value) { return fputwc_nid_postfix(value, __stdoutp_nid_postfix); }
+
+std::int32_t APS5_VABI getwc_nid_postfix(FileStream* stream) { return fgetwc_nid_postfix(stream); }
+
+std::int32_t APS5_VABI getwchar_nid_postfix(void) { return fgetwc_nid_postfix(__stdinp_nid_postfix); }
+
+char16_t* APS5_VABI fgetws_nid_postfix(char16_t* buffer, int size, FileStream* stream) {
+    if (buffer == nullptr || stream == nullptr) throw std::invalid_argument("fgetws: null buffer or stream");
+    if (size <= 0) {
+        errno = 22;
+        return nullptr;
+    }
+    int count = 0;
+    while (count < size - 1) {
+        const std::int32_t value = fgetwc_nid_postfix(stream);
+        if (value == -1) break;
+        buffer[count++] = static_cast<char16_t>(value);
+        if (value == u'\n') break;
+    }
+    if (count == 0 && size > 1) return nullptr;
+    buffer[count] = 0;
+    return buffer;
+}
+
+// FreeBSD 11 keeps the orientation in the FILE; the guest FileStream has no field for it.
+int APS5_VABI fwide_nid_postfix(FileStream* stream, int mode) {
+    if (stream == nullptr) throw std::invalid_argument("fwide: null stream");
+    static std::mutex lock;
+    static std::map<FileStream*, int> orientations;
+    if (mode > 0) mode = 1;
+    else if (mode < 0) mode = -1;
+    std::lock_guard guard(lock);
+    int& orientation = orientations[stream];
+    if (orientation == 0 && mode != 0) orientation = mode;
+    return orientation;
 }
 
 }
