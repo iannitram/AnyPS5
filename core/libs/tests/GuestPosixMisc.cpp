@@ -68,12 +68,20 @@ void CheckTime() {
     Require(asctime_r_nid_postfix(&odd, buffer) == nullptr && *__error_nid_postfix() == 84, "five-digit year overflows");
     odd = utc;
     odd.tm_year = 900 - 1900;
-    Require(std::strcmp(asctime_r_nid_postfix(&odd, buffer), "Sun Sep  9 01:46:40 900 \n") == 0, "short year is padded");
+    Require(std::strcmp(asctime_r_nid_postfix(&odd, buffer), "Sun Sep  9 01:46:40 0900\n") == 0, "a short year has strftime's four digits");
+    odd.tm_year = -1900;
+    Require(std::strcmp(asctime_r_nid_postfix(&odd, buffer), "Sun Sep  9 01:46:40 0000\n") == 0, "year zero");
+    odd.tm_year = -1905;
+    Require(std::strcmp(asctime_r_nid_postfix(&odd, buffer), "Sun Sep  9 01:46:40 -005\n") == 0, "a small negative year, as _yconv writes it");
+    const std::int64_t huge = INT64_MAX;
+    *__error_nid_postfix() = 0;
+    Require(gmtime_r_nid_postfix(&huge, &utc) == nullptr && *__error_nid_postfix() == 0, "an unrepresentable time leaves errno alone, as tzcode's timesub does");
     Require(std::strcmp(asctime_r_nid_postfix(nullptr, buffer), "??? ??? ?? ??:??:?? ????\n") == 0 && *__error_nid_postfix() == EINVAL, "null tm");
 
     KernelTimespec now{};
     Require(timespec_get_nid_postfix(&now, 1) == 1 && now.tv_sec > 1600000000 && now.tv_nsec >= 0 && now.tv_nsec < 1000000000, "timespec_get");
     Require(timespec_get_nid_postfix(&now, 2) == 0, "unknown base");
+    Require(timespec_get_nid_postfix(nullptr, 1) == 0 && *__error_nid_postfix() == 14, "a null time fails as clock_gettime does");
 }
 
 void CheckSmall() {
@@ -130,6 +138,7 @@ void CheckLines() {
     Require(gets_nid_postfix(line) == line && std::strcmp(line, "first line") == 0, "gets drops the newline");
     Require(gets_nid_postfix(line) == line && std::strcmp(line, "last") == 0, "gets returns a last unterminated line");
     Require(gets_nid_postfix(line) == nullptr, "gets at end of file");
+    std::fclose(stdin);
     std::filesystem::remove(input);
 }
 
@@ -142,6 +151,10 @@ void CheckTemporaries() {
     std::filesystem::remove(pattern);
     std::string bad = "short";
     Require(mkstemps_nid_postfix(bad.data(), 9) == -1 && *__error_nid_postfix() == 22, "suffix longer than the template");
+    std::string whole = "abc.log";
+    Require(mkstemps_nid_postfix(whole.data(), 7) == -1 && *__error_nid_postfix() == 22 && !std::filesystem::exists(whole), "a suffix as long as the template is EINVAL, as _gettemp checks");
+    std::string slash = "anyps5-XXXXXX/x";
+    Require(mkstemps_nid_postfix(slash.data(), 2) == -1 && *__error_nid_postfix() == 22, "a suffix with a slash is EINVAL");
 
     std::string directory = "anyps5-mkdtemp-XXXXXX";
     Require(mkdtemp_nid_postfix(directory.data()) == directory.data() && std::filesystem::is_directory(directory), "mkdtemp");
