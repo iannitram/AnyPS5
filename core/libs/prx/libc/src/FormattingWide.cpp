@@ -200,6 +200,12 @@ std::u16string FormatWide(const char16_t* format, VaList* source, bool secure = 
 
 extern "C" {
 
+extern FileStream* __stdinp_nid_postfix;
+extern FileStream* __stdoutp_nid_postfix;
+void APS5_VABI flockfile_nid_postfix(FileStream* stream);
+void APS5_VABI funlockfile_nid_postfix(FileStream* stream);
+std::int32_t APS5_VABI fgetwc_nid_postfix(FileStream* stream);
+
 int APS5_VABI vswprintf_nid_postfix(char16_t* buffer, std::size_t size, const char16_t* format, VaList* args) {
     if (buffer == nullptr || size == 0) { errno = 22; return -1; }
     try {
@@ -260,6 +266,7 @@ int APS5_VABI wprintf_nid_postfix(const char16_t* format, ...) {
 int APS5_VABI fputwc_nid_postfix(char16_t value, FileStream* stream) {
     if (stream == nullptr) { errno = 22; return -1; }
     try {
+        stream->Orient(1);
         const std::string bytes = ToUtf8(std::u16string(1, value));
         auto* native = GetNativeStream(stream);
         if (std::fwrite(bytes.data(), 1, bytes.size(), native) != bytes.size()) throw std::runtime_error("stream write failed");
@@ -274,6 +281,7 @@ int APS5_VABI fputwc_nid_postfix(char16_t value, FileStream* stream) {
 int APS5_VABI fputws_nid_postfix(const char16_t* str, FileStream* stream) {
     if (str == nullptr || stream == nullptr) { errno = 22; return -1; }
     try {
+        stream->Orient(1);
         const std::u16string text(str);
         const std::string bytes = ToUtf8(text);
         auto* native = GetNativeStream(stream);
@@ -284,6 +292,70 @@ int APS5_VABI fputws_nid_postfix(const char16_t* str, FileStream* stream) {
         errno = 22;
         return -1;
     }
+}
+
+int APS5_VABI vfwprintf_nid_postfix(FileStream* stream, const char16_t* format, VaList* args) {
+    if (stream == nullptr || format == nullptr) { errno = 22; return -1; }
+    stream->Orient(1);
+    const std::u16string text = FormatWide(format, args);
+    try {
+        const std::string bytes = ToUtf8(text);
+        auto* native = GetNativeStream(stream);
+        const bool written = std::fwrite(bytes.data(), 1, bytes.size(), native) == bytes.size();
+        stream->SyncStatus();
+        return written ? static_cast<int>(text.size()) : -1;
+    } catch (const std::exception&) {
+        errno = 22;
+        return -1;
+    }
+}
+
+int APS5_VABI fwprintf_nid_postfix(FileStream* stream, const char16_t* format, ...) {
+    APS5_VA_BEGIN(format);
+    const int result = vfwprintf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
+    APS5_VA_END();
+    return result;
+}
+
+int APS5_VABI vwprintf_nid_postfix(const char16_t* format, VaList* args) {
+    return vfwprintf_nid_postfix(__stdoutp_nid_postfix, format, args);
+}
+
+int APS5_VABI putwc_nid_postfix(char16_t value, FileStream* stream) { return fputwc_nid_postfix(value, stream); }
+
+int APS5_VABI putwchar_nid_postfix(char16_t value) { return fputwc_nid_postfix(value, __stdoutp_nid_postfix); }
+
+std::int32_t APS5_VABI getwc_nid_postfix(FileStream* stream) { return fgetwc_nid_postfix(stream); }
+
+std::int32_t APS5_VABI getwchar_nid_postfix(void) { return fgetwc_nid_postfix(__stdinp_nid_postfix); }
+
+char16_t* APS5_VABI fgetws_nid_postfix(char16_t* buffer, int size, FileStream* stream) {
+    if (buffer == nullptr || stream == nullptr) throw std::invalid_argument("fgetws: null buffer or stream");
+    if (size <= 0) {
+        errno = 22;
+        return nullptr;
+    }
+    flockfile_nid_postfix(stream);
+    struct Unlock {
+        FileStream* stream;
+        ~Unlock() { funlockfile_nid_postfix(stream); }
+    } unlock{stream};
+    int count = 0;
+    while (count < size - 1) {
+        const std::int32_t value = fgetwc_nid_postfix(stream);
+        if (value == -1) break;
+        buffer[count++] = static_cast<char16_t>(value);
+        if (value == u'\n') break;
+    }
+    if (count == 0 && size > 1) return nullptr;
+    buffer[count] = 0;
+    return buffer;
+}
+
+int APS5_VABI fwide_nid_postfix(FileStream* stream, int mode) {
+    if (stream == nullptr) throw std::invalid_argument("fwide: null stream");
+    if (mode != 0) stream->Orient(mode > 0 ? 1 : -1);
+    return stream->Orientation();
 }
 
 }

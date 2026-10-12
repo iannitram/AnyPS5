@@ -1,5 +1,6 @@
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <cerrno>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -12,6 +13,8 @@ extern "C" {
 std::uint64_t APS5_VABI _WStoul_nid_postfix(const char16_t*, char16_t**, int);
 int APS5_VABI _Iswctype_nid_postfix(std::uint32_t, std::uint64_t);
 int APS5_VABI swscanf_s_nid_postfix(const char16_t*, const char16_t*, ...);
+int APS5_VABI swscanf_nid_postfix(const char16_t*, const char16_t*, ...);
+int APS5_VABI vswscanf_nid_postfix(const char16_t*, const char16_t*, void*);
 int APS5_VABI iswalnum_nid_postfix(std::uint32_t);
 int APS5_VABI iswalpha_nid_postfix(std::uint32_t);
 int APS5_VABI iswcntrl_nid_postfix(std::uint32_t);
@@ -155,9 +158,45 @@ static void CheckScan() {
     Require(Throws([&] { swscanf_s_nid_postfix(u"Ā", u"%s", narrow, std::size_t{4}); }), "unconvertible narrow %s throws");
 }
 
+static int APS5_VABI CallVswscanf(const char16_t* buffer, const char16_t* format, ...) {
+#ifdef _WIN32
+    __builtin_sysv_va_list args;
+    __builtin_sysv_va_start(args, format);
+    const int result = vswscanf_nid_postfix(buffer, format, args);
+    __builtin_sysv_va_end(args);
+#else
+    std::va_list args;
+    va_start(args, format);
+    const int result = vswscanf_nid_postfix(buffer, format, args);
+    va_end(args);
+#endif
+    return result;
+}
+
+static void CheckScanWithoutSizes() {
+    int first = 0;
+    char16_t text[16] = {};
+    char narrow[16] = {};
+    Require(swscanf_nid_postfix(u"42 word", u"%d %ls", &first, text) == 2 && first == 42 && std::u16string(text) == u"word", "swscanf %ls takes no size");
+    Require(Throws([&] { swscanf_nid_postfix(u"abc", u"%[a-c]", narrow); }), "swscanf scanset range throws");
+    Require(swscanf_nid_postfix(u"xyz7", u"%3c%d", narrow, &first) == 2 && std::memcmp(narrow, "xyz", 3) == 0 && first == 7, "swscanf %c");
+    Require(swscanf_nid_postfix(u"cab12", u"%l[abc]%n", text, &first) == 1 && std::u16string(text) == u"cab" && first == 3, "swscanf %l[ and %n");
+    Require(swscanf_nid_postfix(u"", u"%d", &first) == -1, "swscanf input failure");
+    char16_t shortItem[4] = {u'?', u'?', u'?', u'?'};
+    Require(swscanf_nid_postfix(u"ab", u"%3lc", shortItem) == 1 && shortItem[0] == u'a' && shortItem[1] == u'b' && shortItem[2] == u'?', "swscanf %c stores a short item, as FreeBSD's convert_wchar does");
+    Require(swscanf_nid_postfix(u" %", u"%%") == -1, "swscanf %% does not skip space, as FreeBSD's vfwscanf does");
+    Require(swscanf_nid_postfix(u"%5", u"%%%d", &first) == 1 && first == 5, "swscanf %% matches a percent sign");
+    Require(swscanf_nid_postfix(u"x", u"%d", &first) == 0, "swscanf matching failure");
+    Require(Throws([&] { swscanf_nid_postfix(u"5", u"%d", static_cast<int*>(nullptr)); }), "swscanf null pointer throws");
+    double real = 0;
+    Require(CallVswscanf(u"3.5 9", u"%lf%d", &real, &first) == 2 && real == 3.5 && first == 9, "vswscanf");
+    Require(swscanf_s_nid_postfix(u"hello", u"%ls", text, std::size_t{3}) == 0, "swscanf_s still checks sizes");
+}
+
 int main() {
     CheckStoul();
     CheckClassification();
     CheckScan();
+    CheckScanWithoutSizes();
     return failures == 0 ? 0 : 1;
 }
