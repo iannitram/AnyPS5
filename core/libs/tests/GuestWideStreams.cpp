@@ -79,9 +79,13 @@ int main() {
     Require(fgetws_nid_postfix(buffer, 32, &reader) == nullptr, "fgetws at end of file");
     Require(fgetws_nid_postfix(buffer, 0, &reader) == nullptr && errno == 22, "fgetws size 0");
 
-    Require(fwide_nid_postfix(&reader, 0) == 0, "no orientation");
-    Require(fwide_nid_postfix(&reader, 5) == 1 && fwide_nid_postfix(&reader, -3) == 1 && fwide_nid_postfix(&reader, 0) == 1, "wide orientation sticks");
-    Require(fwide_nid_postfix(&stream, -1) == -1 && fwide_nid_postfix(&stream, 1) == -1, "byte orientation sticks");
+    Require(fwide_nid_postfix(&reader, 0) == 1 && fwide_nid_postfix(&reader, -3) == 1, "fgetwc orients the stream wide, as FreeBSD's ORIENT does");
+    Require(fwide_nid_postfix(&stream, 0) == 1, "fwprintf orients the stream wide");
+    std::FILE* unoriented = std::tmpfile();
+    Require(unoriented != nullptr, "tmpfile");
+    FileStream fresh(unoriented);
+    Require(fwide_nid_postfix(&fresh, 0) == 0, "no orientation");
+    Require(fwide_nid_postfix(&fresh, -5) == -1 && fwide_nid_postfix(&fresh, 1) == -1 && fwide_nid_postfix(&fresh, 0) == -1, "byte orientation sticks");
 
     bool threw = false;
     try {
@@ -90,6 +94,14 @@ int main() {
         threw = true;
     }
     Require(threw, "null buffer throws");
+    threw = false;
+    try {
+        fwprintf_nid_postfix(&fresh, u"%1$d|", 5);
+    } catch (const std::exception&) {
+        threw = true;
+    }
+    Require(threw, "an unsupported conversion throws instead of failing silently");
+    std::fclose(unoriented);
     std::puts("guest wide stream tests passed");
     return 0;
 }
