@@ -34,6 +34,7 @@ int APS5_VABI sigignore_nid_postfix(int);
 std::uintptr_t APS5_VABI sigset_nid_postfix(int, std::uintptr_t);
 int APS5_VABI siginterrupt_nid_postfix(int, int);
 int APS5_VABI sigpending_nid_postfix(SignalSet*);
+int APS5_VABI raise_nid_postfix(int);
 }
 
 namespace {
@@ -54,6 +55,15 @@ std::uint32_t Mask() {
     SignalSet set{};
     _sigprocmask_nid_postfix(1, nullptr, &set);
     return set.bits[0];
+}
+
+volatile int caught = 0;
+void APS5_VABI Catch(int value) { caught = value; }
+
+SignalSet Pending() {
+    SignalSet set{};
+    sigpending_nid_postfix(&set);
+    return set;
 }
 
 SignalSet FullMask() {
@@ -115,6 +125,21 @@ int main() {
     SignalSet pending{{1, 2, 3, 4}};
     Require(sigpending_nid_postfix(&pending) == 0 && pending.bits[0] == 0 && pending.bits[3] == 0, "nothing is pending");
     Require(sigpending_nid_postfix(nullptr) == -1 && *__error_nid_postfix() == 14, "null set");
+
+    constexpr int Terminate = 15;
+    const SignalSet terminate{{1u << (Terminate - 1), 0, 0, 0}};
+    signal_nid_postfix(Terminate, Catch);
+    caught = 0;
+    Require(_sigprocmask_nid_postfix(1, &terminate, nullptr) == 0 && raise_nid_postfix(Terminate) == 0 && caught == 0, "a blocked signal is not delivered");
+    Require(Pending().bits[0] == terminate.bits[0], "a blocked signal stays pending");
+    Require(_sigprocmask_nid_postfix(2, &terminate, nullptr) == 0 && caught == Terminate, "unblocking delivers the pending signal");
+    Require(Pending().bits[0] == 0, "a delivered signal is no longer pending");
+    caught = 0;
+    Require(_sigprocmask_nid_postfix(1, &terminate, nullptr) == 0 && raise_nid_postfix(Terminate) == 0, "raise while blocked");
+    signal_nid_postfix(Terminate, reinterpret_cast<Handler>(std::uintptr_t{1}));
+    Require(Pending().bits[0] == 0, "ignoring a signal discards it");
+    Require(_sigprocmask_nid_postfix(2, &terminate, nullptr) == 0 && caught == 0, "a discarded signal is not delivered");
+    signal_nid_postfix(Terminate, nullptr);
 
     sigsetmask_nid_postfix(original);
     std::puts("guest signal compatibility tests passed");

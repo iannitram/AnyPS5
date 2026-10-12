@@ -1,6 +1,5 @@
 #include <atomic>
 #include <cstdint>
-#include <cstring>
 
 #include "prx/libc/include/General.hpp"
 #include "prx/libkernel/System/include/SignalMask.hpp"
@@ -142,7 +141,7 @@ int APS5_VABI sigpending_nid_postfix(SignalSet* set) {
         *__error_nid_postfix() = 14;
         return -1;
     }
-    std::memset(set, 0, sizeof(*set));
+    *set = PendingGuestSignals();
     return 0;
 }
 
