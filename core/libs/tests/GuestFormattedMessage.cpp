@@ -31,6 +31,9 @@ int main() {
     Require(fmtmsg_nid_postfix(0x0100, nullptr, 0, nullptr, nullptr, nullptr) == 0, "empty message");
     Require(setenv_nid_postfix("MSGVERB", "severity:text", 1) == 0, "MSGVERB");
     Require(fmtmsg_nid_postfix(0x0100, "UX:cat", 4, "subset", "act", "tag") == 0, "MSGVERB subset");
+    const std::string longText(40, 'a');
+    Require(setenv_nid_postfix("MSGVERB", "text:text:text", 1) == 0, "repeated MSGVERB");
+    Require(fmtmsg_nid_postfix(0x0100, nullptr, 0, longText.c_str(), nullptr, nullptr) == 0, "repeated components");
     Require(setenv_nid_postfix("MSGVERB", "bogus", 1) == 0, "invalid MSGVERB");
     Require(fmtmsg_nid_postfix(0x0100, "L", 3, "back to default", nullptr, nullptr) == 0, "invalid MSGVERB uses the default");
     Require(fmtmsg_nid_postfix(0x0200, "L", 1, "console", nullptr, nullptr) == 2, "no console");
@@ -44,7 +47,8 @@ int main() {
     const std::string expected =
         "UX:cat: ERROR: invalid syntax\nTO FIX: refer to manual UX:cat:001\n"
         "text only\n"
-        "INFO: subset\n"
+        "INFO: subset\n" +
+        std::string(40, 'a') + ": " + std::string(29, 'a') +
         "L: WARNING: back to default\n";
     if (text.str() != expected) std::fprintf(stdout, "%s", text.str().c_str());
     Require(text.str() == expected, "output");
