@@ -240,6 +240,13 @@ __attribute__((noinline)) static void APS5_VABI RunChecks() {
     Require(libc_printf_nid_postfix("%d %d %d %d %d %d %d\n", 1, 22, 333, 4444, 55555, 666666, 7777777) == 35);
     Require(PrintList("vprintf: %d\n", 42) == 12);
     Require(FormatListS(buffer, sizeof(buffer), "%d-%s", 42, "x") == 4 && std::strcmp(buffer, "42-x") == 0);
+    std::memset(buffer, 'x', sizeof(buffer));
+    Require(FormatListS(buffer, 0, "%d", 1) < 0 && buffer[0] == 'x');
+    Require(FormatListS(nullptr, sizeof(buffer), "%d", 1) < 0);
+    Require(FormatListS(buffer, sizeof(buffer), nullptr) < 0 && buffer[0] == 0);
+    std::memset(buffer, 'x', sizeof(buffer));
+    Require(FormatListS(buffer, SIZE_MAX, "%d", 1) < 0 && buffer[0] == 'x');
+    Require(FormatListS(buffer, 3, "%d", 12345) == 5 && std::strcmp(buffer, "12") == 0);
     int scanNum = 0;
     char scanWord[8] = {};
     Require(ScanListS("123 test", "%d %s", &scanNum, scanWord, 8u) == 2 && scanNum == 123 && std::strcmp(scanWord, "test") == 0);
