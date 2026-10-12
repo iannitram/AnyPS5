@@ -38,7 +38,22 @@ constexpr int SaRestart = 0x2;
 constexpr int SaSiginfo = 0x40;
 std::atomic<GuestHandler> handlers[MaxSignal + 1]{};
 static_assert(std::atomic<GuestHandler>::is_always_lock_free);
-thread_local GuestSignalSet threadMask{};
+struct AtomicSignalSet {
+    std::atomic<std::uint32_t> bits[4]{};
+    GuestSignalSet Load() const {
+        GuestSignalSet set{};
+        for (int word = 0; word < 4; ++word) set.bits[word] = bits[word].load(std::memory_order_relaxed);
+        return set;
+    }
+    void Store(const GuestSignalSet& set) {
+        for (int word = 0; word < 4; ++word) bits[word].store(set.bits[word], std::memory_order_relaxed);
+    }
+    bool Contains(int guest) const {
+        return (bits[(guest - 1) / 32].load(std::memory_order_relaxed) & (1u << ((guest - 1) % 32))) != 0;
+    }
+};
+static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
+thread_local AtomicSignalSet threadMask;
 std::mutex registration;
 GuestSigaction dispositions[MaxSignal + 1]{};
 int NativeSignal(int guest) {
@@ -61,7 +76,7 @@ void Dispatch(int native) {
     // Preserve the guest's persistent registration across CRT delivery.
     std::signal(native, Dispatch);
 #endif
-    if ((threadMask.bits[(guest - 1) / 32] & (1u << ((guest - 1) % 32))) != 0) return;
+    if (threadMask.Contains(guest)) return;
     const auto callback = handlers[guest].load();
     if (reinterpret_cast<std::uintptr_t>(callback) > 1) callback(guest);
 }
@@ -136,31 +151,33 @@ GuestSignalSet Maskable(GuestSignalSet set) {
 }
 
 int ChangeSignalMask(int how, const GuestSignalSet* set, GuestSignalSet* previousSet) {
-    const GuestSignalSet requested = set != nullptr ? *set : GuestSignalSet{};
-    if (previousSet != nullptr) *previousSet = threadMask;
-    if (set == nullptr) return 0;
-    GuestSignalSet next = threadMask;
-    switch (how) {
-        case 1:
-            for (int word = 0; word < 4; ++word) next.bits[word] |= Maskable(requested).bits[word];
-            break;
-        case 2:
-            for (int word = 0; word < 4; ++word) next.bits[word] &= ~requested.bits[word];
-            break;
-        case 3: next = Maskable(requested); break;
-        default: return 22;
+    const GuestSignalSet current = threadMask.Load();
+    if (set != nullptr) {
+        const GuestSignalSet requested = *set;
+        GuestSignalSet next = current;
+        switch (how) {
+            case 1:
+                for (int word = 0; word < 4; ++word) next.bits[word] |= Maskable(requested).bits[word];
+                break;
+            case 2:
+                for (int word = 0; word < 4; ++word) next.bits[word] &= ~requested.bits[word];
+                break;
+            case 3: next = Maskable(requested); break;
+            default: return 22;
+        }
+        threadMask.Store(next);
     }
-    threadMask = next;
+    if (previousSet != nullptr) *previousSet = current;
     return 0;
 }
 }
 
 GuestSignalSet CurrentGuestSignalMask() {
-    return threadMask;
+    return threadMask.Load();
 }
 
 void SetCurrentGuestSignalMask(const GuestSignalSet& mask) {
-    threadMask = Maskable(mask);
+    threadMask.Store(Maskable(mask));
 }
 
 extern "C" unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int seconds) {
