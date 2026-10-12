@@ -49,6 +49,11 @@ int APS5_VABI pthread_mutex_destroy_nid_postfix(PthreadMutex* mutex) {
 }
 
 int APS5_VABI pthread_mutex_init_nid_postfix(PthreadMutex* mutex, const PthreadMutexattr* attr) {
+    if (attr && *attr) {
+        const auto type = static_cast<std::uint32_t>((*attr)->type);
+        if (type < static_cast<std::uint32_t>(MutexType::ErrorCheck) || type > static_cast<std::uint32_t>(MutexType::Adaptive)) return POSIX_EINVAL;
+        if ((*attr)->protocol < 0 || (*attr)->protocol > POSIX_PRIO_PROTECT) return POSIX_EINVAL;
+    }
     const int result = scePthreadMutexInit(mutex, attr, nullptr);
     if (result == 0 && (!attr || !*attr)) (*mutex)->_type = MutexType::ErrorCheck;
     if (result == 0 && attr && *attr) {

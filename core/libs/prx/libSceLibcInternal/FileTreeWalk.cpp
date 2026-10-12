@@ -15,7 +15,6 @@ struct GuestFtsEntry;
 
 using EntryCompare = int (APS5_VABI *)(const GuestFtsEntry* const*, const GuestFtsEntry* const*);
 
-// FreeBSD 11 FTS and FTSENT, with its 32-bit ino_t and dev_t and 16-bit nlink_t.
 struct GuestFts {
     GuestFtsEntry* current;
     GuestFtsEntry* children;
@@ -147,7 +146,6 @@ std::size_t AppendOffset(const GuestFtsEntry* entry) {
     return entry->path[entry->pathLength - 1] == '/' ? entry->pathLength - 1 : entry->pathLength;
 }
 
-// The FTSENT, its stat buffer (unless FTS_NOSTAT) and its name share one guest allocation.
 GuestFtsEntry* Allocate(GuestFts* fts, const char* name, std::size_t nameLength) {
     struct EntryWithStatus {
         GuestFtsEntry entry;
@@ -284,7 +282,6 @@ void Load(GuestFts* fts, GuestFtsEntry* entry) {
     fts->device = entry->device;
 }
 
-// The walk never changes directory: every access path is the full path, as with FTS_NOCHDIR.
 GuestFtsEntry* Build(GuestFts* fts, int type) {
     GuestFtsEntry* current = fts->current;
     void* directory = opendir_nid_postfix(current->accessPath);
@@ -302,7 +299,6 @@ GuestFtsEntry* Build(GuestFts* fts, int type) {
         links = 0;
         noStat = false;
     } else if (IsSet(fts, NoStat) && IsSet(fts, Physical)) {
-        // FreeBSD trusts link counts only on UFS-like file systems; guest ones are not.
         links = -1;
         noStat = true;
     } else {
@@ -352,6 +348,7 @@ GuestFtsEntry* Build(GuestFts* fts, int type) {
 
         entry->level = level;
         entry->parent = fts->current;
+        entry->path = fts->path;
         entry->pathLength = length + nameLength;
         if (links == 0 || (noStat && item->type != TypeDirectoryEntry && item->type != TypeUnknown)) {
             entry->accessPath = entry->path;
@@ -396,8 +393,6 @@ GuestFts* APS5_VABI fts_open_nid_postfix(char* const* arguments, int options, En
     auto* fts = static_cast<GuestFts*>(calloc_nid_postfix(1, sizeof(GuestFts)));
     if (fts == nullptr) return nullptr;
     fts->compare = compare;
-    // The guest has no directory descriptors to return through, so every walk runs as FTS_NOCHDIR,
-    // as FreeBSD does when it cannot open ".".
     fts->options = options | NoChdir;
     fts->rootDescriptor = -1;
 
@@ -555,6 +550,7 @@ GuestFtsEntry* APS5_VABI fts_children_nid_postfix(GuestFts* fts, int instruction
         return nullptr;
     }
     GuestFtsEntry* entry = fts->current;
+    if (entry == nullptr) throw std::invalid_argument("fts_children: finished stream");
     errno = 0;
     if (IsSet(fts, Stop)) return nullptr;
     if (entry->info == InfoInit) return entry->link;
@@ -587,9 +583,18 @@ int APS5_VABI fts_close_nid_postfix(GuestFts* fts) {
     return 0;
 }
 
-void* APS5_VABI fts_get_clientptr_nid_postfix(GuestFts* fts) { return fts->clientPointer; }
-GuestFts* APS5_VABI fts_get_stream_nid_postfix(GuestFtsEntry* entry) { return entry->fts; }
-void APS5_VABI fts_set_clientptr_nid_postfix(GuestFts* fts, void* pointer) { fts->clientPointer = pointer; }
+void* APS5_VABI fts_get_clientptr_nid_postfix(GuestFts* fts) {
+    if (fts == nullptr) throw std::invalid_argument("fts_get_clientptr: null stream");
+    return fts->clientPointer;
+}
+GuestFts* APS5_VABI fts_get_stream_nid_postfix(GuestFtsEntry* entry) {
+    if (entry == nullptr) throw std::invalid_argument("fts_get_stream: null entry");
+    return entry->fts;
+}
+void APS5_VABI fts_set_clientptr_nid_postfix(GuestFts* fts, void* pointer) {
+    if (fts == nullptr) throw std::invalid_argument("fts_set_clientptr: null stream");
+    fts->clientPointer = pointer;
+}
 
 using NftwCallback = int (APS5_VABI *)(const char*, const FileStat*, int, GuestFtw*);
 using FtwCallback = int (APS5_VABI *)(const char*, const FileStat*, int);

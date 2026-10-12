@@ -33,7 +33,8 @@ int main() {
     const std::int64_t expected = (std::int64_t{'P'} << 24) | ((status.st_dev & 0xff) << 16) | (status.st_ino & 0xffff);
     Require(ftok_nid_postfix(name.c_str(), 'P') == expected, "key layout");
     Require(ftok_nid_postfix(name.c_str(), 'P') == ftok_nid_postfix(name.c_str(), 'P'), "stable key");
-    Require(ftok_nid_postfix(name.c_str(), 0x80) < 0, "high id bit sign-extends as an int");
+    const std::int64_t high = (std::int64_t{0x80} << 24) | ((status.st_dev & 0xff) << 16) | (status.st_ino & 0xffff);
+    Require(ftok_nid_postfix(name.c_str(), 0x80) == high && high > 0, "a high id gives a positive key, as ftok.c shifts an unsigned int");
     *__error_nid_postfix() = 0;
     Require(ftok_nid_postfix("anyps5-ftok-missing", 1) == -1 && *__error_nid_postfix() == 2, "missing path");
     std::filesystem::remove(name);

@@ -5,11 +5,12 @@
 
 namespace {
 
-// FreeBSD 11 falls back to these when /etc/shells cannot be read; the console has no /etc.
-constexpr const char* DefaultShells[] = {"/bin/sh", "/bin/csh", nullptr};
+char BourneShell[] = "/bin/sh";
+char CShell[] = "/bin/csh";
+char* DefaultShells[] = {BourneShell, CShell, nullptr};
 
 std::mutex shellsLock;
-const char* const* cursor = nullptr;
+char* const* cursor = nullptr;
 
 }
 
@@ -18,9 +19,9 @@ extern "C" {
 char* APS5_VABI getusershell_nid_postfix(void) {
     std::lock_guard lock(shellsLock);
     if (cursor == nullptr) cursor = DefaultShells;
-    const char* shell = *cursor;
+    char* shell = *cursor;
     if (shell != nullptr) ++cursor;
-    return const_cast<char*>(shell);
+    return shell;
 }
 
 void APS5_VABI setusershell_nid_postfix(void) {
