@@ -110,7 +110,11 @@ void CheckConversions() {
     Require(time.tm_hour == 12 && time.tm_gmtoff == 3600 && std::strcmp(time.tm_zone, "   ") == 0, "timeoff keeps the offset time");
 
     errno = 0;
-    Require(timegm_nid_postfix(nullptr) == -1 && errno == EINVAL, "null time");
+    Require(timegm_nid_postfix(nullptr) == -1 && errno == 22, "null time");
+    errno = 0;
+    Require(timeoff_nid_postfix(nullptr, 60) == -1 && errno == 22, "timeoff null time");
+    errno = 0;
+    Require(timelocal_nid_postfix(nullptr) == -1 && errno == 22, "timelocal null time");
 
     time = {};
     time.tm_year = 124;

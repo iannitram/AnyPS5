@@ -1,3 +1,4 @@
+#include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -26,6 +27,9 @@ int APS5_VABI getopt_long_nid_postfix(int, char* const*, const char*, const Opti
 int APS5_VABI getopt_long_only_nid_postfix(int, char* const*, const char*, const Option*, int*);
 int APS5_VABI setenv_nid_postfix(const char*, const char*, int);
 int APS5_VABI unsetenv_nid_postfix(const char*);
+extern FileStream* __stderrp_nid_postfix;
+void APS5_VABI err_set_file_nid_postfix(void*);
+const char* APS5_VABI getprogname_nid_postfix();
 }
 
 namespace {
@@ -174,6 +178,45 @@ void CheckReset() {
     Require(getopt_long_nid_postfix(a.count(), a.data(), "ab", nullptr, nullptr) == 'a', "optind 0 restarts");
 }
 
+std::string Drain(std::FILE* file) {
+    std::fflush(file);
+    std::rewind(file);
+    std::string text;
+    char buffer[256];
+    std::size_t count;
+    while ((count = std::fread(buffer, 1, sizeof(buffer), file)) > 0) text.append(buffer, count);
+    std::rewind(file);
+    return text;
+}
+
+void CheckMessages() {
+    const std::string name = getprogname_nid_postfix();
+    std::FILE* errorFile = std::tmpfile();
+    std::FILE* standardFile = std::tmpfile();
+    Require(errorFile != nullptr && standardFile != nullptr, "tmpfile");
+    FileStream errorStream(errorFile);
+    FileStream standardStream(standardFile);
+    err_set_file_nid_postfix(&errorStream);
+    FileStream* savedStandardError = __stderrp_nid_postfix;
+    __stderrp_nid_postfix = &standardStream;
+
+    const Option options[] = {{"alpha", 0, nullptr, 'a'}, {nullptr, 0, nullptr, 0}};
+    Arguments longForm {"prog", "--bogus"};
+    Reset(true);
+    Require(getopt_long_nid_postfix(longForm.count(), longForm.data(), "a", options, nullptr) == '?', "unknown long option");
+    Require(Drain(errorFile) == name + ": unrecognized option `--bogus'\n", "getopt_long warns through the err_set_file stream");
+
+    Arguments shortForm {"prog", "-z"};
+    Reset(true);
+    Require(getopt_nid_postfix(shortForm.count(), shortForm.data(), "a") == '?', "unknown short option");
+    Require(Drain(standardFile) == name + ": illegal option -- z\n", "getopt writes to the guest stderr");
+
+    __stderrp_nid_postfix = savedStandardError;
+    err_set_file_nid_postfix(nullptr);
+    std::fclose(errorFile);
+    std::fclose(standardFile);
+}
+
 }
 
 int main() {
@@ -182,6 +225,7 @@ int main() {
     CheckOrdering();
     CheckLongOnly();
     CheckReset();
+    CheckMessages();
     std::puts("guest getopt tests passed");
     return 0;
 }

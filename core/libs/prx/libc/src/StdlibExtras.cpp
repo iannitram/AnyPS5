@@ -104,7 +104,7 @@ char* APS5_VABI l64a_nid_postfix(std::int64_t value) {
 }
 
 int APS5_VABI getsubopt_nid_postfix(char** option, char* const* tokens, char** value) {
-    if (tokens == nullptr || value == nullptr) throw std::invalid_argument("getsubopt: null tokens or value");
+    if (value == nullptr) throw std::invalid_argument("getsubopt: null value");
     suboptarg_nid_postfix = *value = nullptr;
     if (!option || !*option) return -1;
     char* p;
@@ -125,6 +125,7 @@ int APS5_VABI getsubopt_nid_postfix(char** option, char* const* tokens, char** v
         for (; *p && (*p == ',' || *p == ' ' || *p == '\t'); ++p) {}
     }
     *option = p;
+    if (tokens == nullptr) throw std::invalid_argument("getsubopt: null tokens");
     for (int count = 0; *tokens; ++tokens, ++count)
         if (std::strcmp(suboptarg_nid_postfix, *tokens) == 0) return count;
     return -1;

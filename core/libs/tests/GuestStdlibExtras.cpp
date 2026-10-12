@@ -96,6 +96,7 @@ void CheckSubOptions() {
     Require(getsubopt_nid_postfix(&cursor, tokens, &value) == -1 && suboptarg_nid_postfix == nullptr && *cursor == '\0', "end");
     char* empty = nullptr;
     Require(getsubopt_nid_postfix(&empty, tokens, &value) == -1, "null option string");
+    Require(getsubopt_nid_postfix(&empty, nullptr, &value) == -1 && value == nullptr, "a null option string returns before reading the tokens");
 }
 
 }
