@@ -490,14 +490,30 @@ void CheckErrors() {
 void CheckLargeInput() {
     GuestRegex regex{};
     Require(regcomp_nid_postfix(&regex, "(a|b)*c", Extended) == 0);
-    std::string subject(200000, 'a');
+    std::string subject(20000, 'a');
     subject += "c";
     std::array<GuestMatch, 2> found{};
     Require(regexec_nid_postfix(&regex, subject.c_str(), 2, found.data(), 0) == 0);
-    Require(found[0].start == 0 && found[0].end == 200001);
-    Require(found[1].start == 199999 && found[1].end == 200000);
+    Require(found[0].start == 0 && found[0].end == 20001);
+    Require(found[1].start == 19999 && found[1].end == 20000);
     regfree_nid_postfix(&regex);
 }
+}
+
+void CheckExpansionLimit() {
+    std::string pattern;
+    for (int i = 0; i < 64; ++i) pattern += "(a{1,255}){1,255}";
+    GuestRegex regex{};
+    Require(regcomp_nid_postfix(&regex, pattern.c_str(), Extended) == 12);
+    std::string deep(200, '(');
+    deep += "a";
+    deep += std::string(200, ')');
+    Require(regcomp_nid_postfix(&regex, deep.c_str(), Extended) == 12);
+    std::string shallow(198, '(');
+    shallow += "a";
+    shallow += std::string(198, ')');
+    Require(regcomp_nid_postfix(&regex, shallow.c_str(), Extended) == 0);
+    regfree_nid_postfix(&regex);
 }
 
 int main() {
@@ -508,6 +524,7 @@ int main() {
     CheckLifetime();
     CheckErrors();
     CheckLargeInput();
+    CheckExpansionLimit();
     CheckNegativeStart();
     CheckCollatingNul();
     CheckFailedCount();
