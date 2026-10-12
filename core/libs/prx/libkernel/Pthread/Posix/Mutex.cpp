@@ -52,6 +52,10 @@ int APS5_VABI pthread_mutex_destroy_nid_postfix(PthreadMutex* mutex) {
 int APS5_VABI pthread_mutex_init_nid_postfix(PthreadMutex* mutex, const PthreadMutexattr* attr) {
     const int result = scePthreadMutexInit(mutex, attr, nullptr);
     if (result == 0 && (!attr || !*attr)) (*mutex)->_type = MutexType::ErrorCheck;
+    if (result == 0 && attr && *attr) {
+        (*mutex)->_protocol = (*attr)->protocol;
+        (*mutex)->_ceiling = (*attr)->ceiling;
+    }
     return PosixThread::ToErrno(result);
 }
 
