@@ -13,6 +13,8 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/RuneLocale.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StringExtensions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatingEnvironment.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Time.cpp
@@ -48,6 +50,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Threads.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/exception/Exports.cpp
 )
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp TARGET_DIRECTORY libc PROPERTIES COMPILE_OPTIONS -frounding-math)
 
 target_include_directories(libc PRIVATE
         ${LIBS_INCLUDE_DIR}
@@ -421,6 +424,24 @@ if(BUILD_TESTING)
     add_test(NAME guest_wcsrtombs COMMAND guest_wcsrtombs_tests)
     if(WIN32)
         set_tests_properties(guest_wcsrtombs PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_floating_environment_tests ${LIBS_INCLUDE_DIR}/tests/GuestFloatingEnvironment.cpp)
+    target_include_directories(guest_floating_environment_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_floating_environment_tests PRIVATE libc)
+    configure_windows_unwind(guest_floating_environment_tests)
+    add_test(NAME guest_floating_environment COMMAND guest_floating_environment_tests)
+    if(WIN32)
+        set_tests_properties(guest_floating_environment PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_math_ieee_tests ${LIBS_INCLUDE_DIR}/tests/GuestMathIeee.cpp)
+    target_include_directories(guest_math_ieee_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_math_ieee_tests PRIVATE libc)
+    configure_windows_unwind(guest_math_ieee_tests)
+    add_test(NAME guest_math_ieee COMMAND guest_math_ieee_tests)
+    if(WIN32)
+        set_tests_properties(guest_math_ieee PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
