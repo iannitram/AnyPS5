@@ -113,6 +113,7 @@ struct AlarmState {
     std::optional<std::chrono::steady_clock::time_point> deadline;
     std::chrono::microseconds interval{0};
     bool threadStarted = false;
+    std::uintptr_t handler = 0;
 };
 
 AlarmState& Alarms() {
@@ -120,12 +121,7 @@ AlarmState& Alarms() {
     return *state;
 }
 
-void ExpireAlarm() {
-    std::uintptr_t handler = 0;
-    {
-        std::lock_guard lock(registration);
-        handler = dispositions[GuestSigalrm].handler;
-    }
+void ExpireAlarm(std::uintptr_t handler) {
     if (handler == 1) return;
     if (handler == 0) {
         std::fprintf(stderr, "SIGALRM: the alarm expired with the default disposition; the process terminates\n");
@@ -135,11 +131,13 @@ void ExpireAlarm() {
     throw std::runtime_error("alarm: delivering SIGALRM to a guest handler is not implemented");
 }
 
-void RequireDeliverableAlarm(int guest, std::uintptr_t handler) {
-    if (guest != GuestSigalrm || handler <= 1) return;
+std::unique_lock<std::mutex> RequireDeliverableAlarm(int guest, std::uintptr_t handler) {
+    if (guest != GuestSigalrm) return {};
     auto& alarms = Alarms();
-    std::lock_guard lock(alarms.lock);
-    if (alarms.deadline) NotImplemented_nid_no_patch("sigaction: delivering SIGALRM from an armed timer to a guest handler");
+    std::unique_lock lock(alarms.lock);
+    if (handler > 1 && alarms.deadline) NotImplemented_nid_no_patch("sigaction: delivering SIGALRM from an armed timer to a guest handler");
+    alarms.handler = handler;
+    return lock;
 }
 
 void RunAlarms() {
@@ -160,8 +158,9 @@ void RunAlarms() {
         } else {
             alarms.deadline.reset();
         }
+        const auto handler = alarms.handler;
         lock.unlock();
-        ExpireAlarm();
+        ExpireAlarm(handler);
         lock.lock();
     }
 }
@@ -276,10 +275,8 @@ extern "C" int APS5_VABI setitimer_nid_postfix(int which, const GuestItimerval* 
         *__error_nid_postfix() = 22;
         return -1;
     }
-    if (arming) {
-        std::lock_guard lock(registration);
-        if (dispositions[GuestSigalrm].handler > 1) NotImplemented_nid_no_patch("setitimer: delivering SIGALRM to a guest handler");
-    }
+    std::lock_guard held(registration);
+    if (arming && dispositions[GuestSigalrm].handler > 1) NotImplemented_nid_no_patch("setitimer: delivering SIGALRM to a guest handler");
     GuestItimerval previous{};
     auto& alarms = Alarms();
     {
@@ -342,7 +339,7 @@ GuestHandler APS5_VABI signal_nid_postfix(int guest, GuestHandler handler) {
     const auto invalid = reinterpret_cast<GuestHandler>(static_cast<std::uintptr_t>(-1));
     if (guest < 1 || guest > MaxSignal || ((guest == GuestSigkill || guest == GuestSigstop) && handler != nullptr)) { *__error_nid_postfix() = 22; return invalid; }
     std::lock_guard lock(registration);
-    RequireDeliverableAlarm(guest, reinterpret_cast<std::uintptr_t>(handler));
+    auto alarmHeld = RequireDeliverableAlarm(guest, reinterpret_cast<std::uintptr_t>(handler));
     const GuestSigaction action{reinterpret_cast<std::uintptr_t>(handler), SignalInterrupts_nid_no_patch(guest) ? 0 : SaRestart, {}};
     if (!Install(guest, action)) { *__error_nid_postfix() = 22; return invalid; }
     const auto previous = reinterpret_cast<GuestHandler>(dispositions[guest].handler);
@@ -355,7 +352,7 @@ int APS5_VABI sigaction_nid_postfix(int guest, const GuestSigaction* action, Gue
     std::lock_guard lock(registration);
     const GuestSigaction old = dispositions[guest];
     if (action) {
-        RequireDeliverableAlarm(guest, action->handler);
+        auto alarmHeld = RequireDeliverableAlarm(guest, action->handler);
         if (!Install(guest, *action)) { *__error_nid_postfix() = 22; return -1; }
         dispositions[guest] = *action;
     }
