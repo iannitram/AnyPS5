@@ -315,6 +315,9 @@ static int dirNameSearch(const SaveDataDirNameSearchCond* cond, SaveDataDirNameS
         if (result->params != nullptr) {
             result->params[i] = sortByParam ? matches[i].param : load_param(matches[i].path);
         }
+        if (result->infos != nullptr) {
+            result->infos[i] = SaveDataSearchInfo{SAVE_DATA_BLOCKS_MAX, SAVE_DATA_BLOCKS_MAX, {}};
+        }
     }
     result->hit_num = static_cast<std::uint32_t>(matches.size());
     result->set_num = set;
@@ -803,4 +806,16 @@ int APS5_VABI sceSaveDataCancel() {
     NotImplemented_nid_no_patch(__func__);
     return 0;
 }
+
+int APS5_VABI sceSaveDataDirNameSearch2() {
+    NotImplemented_nid_no_patch(__func__);
+    return 0;
+}
+
+APS5_EXPORT("RvID8BVeg+g", sceSaveDataUnknown_RvID8BVeg);
+int APS5_VABI sceSaveDataUnknown_RvID8BVeg() {
+    NotImplemented_nid_no_patch("RvID8BVeg+g");
+    return 0;
+}
+
 }
