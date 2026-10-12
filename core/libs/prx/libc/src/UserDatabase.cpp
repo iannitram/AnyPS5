@@ -86,7 +86,7 @@ int APS5_VABI getgrent_r_nid_postfix(GuestGroup*, char*, std::size_t, GuestGroup
 GuestGroup* APS5_VABI getgrnam_nid_postfix(const char*) { return UnavailableEntry<GuestGroup>(); }
 GuestGroup* APS5_VABI getgrgid_nid_postfix(std::uint32_t) { return UnavailableEntry<GuestGroup>(); }
 GuestGroup* APS5_VABI getgrent_nid_postfix(void) { return UnavailableEntry<GuestGroup>(); }
-void APS5_VABI setgrent_nid_postfix(void) {}
+int APS5_VABI setgrent_nid_postfix(void) { return 1; }
 void APS5_VABI endgrent_nid_postfix(void) {}
 
 int APS5_VABI getgrouplist_nid_postfix(const char* user, std::uint32_t group, std::uint32_t* groups, int* count) {
@@ -97,7 +97,6 @@ int APS5_VABI getgrouplist_nid_postfix(const char* user, std::uint32_t group, st
         groups[0] = group;
     }
     *count = 1;
-    errno = GuestNoEntry;
     return maximum < 1 ? -1 : 0;
 }
 
