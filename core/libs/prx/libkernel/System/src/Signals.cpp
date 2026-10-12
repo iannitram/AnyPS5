@@ -47,9 +47,17 @@ struct AtomicSignalSet {
     bool Contains(int guest) const {
         return (bits[(guest - 1) / 32].load(std::memory_order_relaxed) & (1u << ((guest - 1) % 32))) != 0;
     }
+    void Add(int guest) {
+        bits[(guest - 1) / 32].fetch_or(1u << ((guest - 1) % 32), std::memory_order_relaxed);
+    }
+    bool Take(int guest) {
+        const std::uint32_t bit = 1u << ((guest - 1) % 32);
+        return (bits[(guest - 1) / 32].fetch_and(~bit, std::memory_order_relaxed) & bit) != 0;
+    }
 };
 static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
 thread_local AtomicSignalSet threadMask;
+AtomicSignalSet pending;
 std::mutex registration;
 GuestSigaction dispositions[MaxSignal + 1]{};
 int NativeSignal(int guest) {
@@ -72,7 +80,10 @@ void Dispatch(int native) {
     // Preserve the guest's persistent registration across CRT delivery.
     std::signal(native, Dispatch);
 #endif
-    if (threadMask.Contains(guest)) return;
+    if (threadMask.Contains(guest)) {
+        pending.Add(guest);
+        return;
+    }
     const auto callback = handlers[guest].load();
     if (reinterpret_cast<std::uintptr_t>(callback) > 1) callback(guest);
 }
@@ -82,6 +93,7 @@ bool Delivered(const GuestSigaction& action) {
 bool Install(int guest, const GuestSigaction& action) {
     const int native = NativeSignal(guest);
     if (!native) return true;
+    if (action.handler == 1) pending.Take(guest);
     const auto previous = handlers[guest].exchange(Delivered(action) ? reinterpret_cast<GuestHandler>(action.handler) : nullptr);
     auto hostHandler = action.handler == 1 ? SIG_IGN : Delivered(action) ? Dispatch : SIG_DFL;
     if (std::signal(native, hostHandler) == SIG_ERR) {
@@ -146,6 +158,11 @@ GuestSignalSet Maskable(GuestSignalSet set) {
     return set;
 }
 
+void DeliverUnblocked() {
+    for (int guest : {2, 4, 6, 8, 11, 15})
+        if (!threadMask.Contains(guest) && pending.Take(guest)) std::raise(NativeSignal(guest));
+}
+
 int ChangeSignalMask(int how, const GuestSignalSet* set, GuestSignalSet* previousSet) {
     const GuestSignalSet current = threadMask.Load();
     if (set != nullptr) {
@@ -164,6 +181,7 @@ int ChangeSignalMask(int how, const GuestSignalSet* set, GuestSignalSet* previou
         threadMask.Store(next);
     }
     if (previousSet != nullptr) *previousSet = current;
+    if (set != nullptr) DeliverUnblocked();
     return 0;
 }
 }
@@ -174,6 +192,11 @@ GuestSignalSet CurrentGuestSignalMask() {
 
 void SetCurrentGuestSignalMask(const GuestSignalSet& mask) {
     threadMask.Store(Maskable(mask));
+    DeliverUnblocked();
+}
+
+GuestSignalSet PendingGuestSignals() {
+    return pending.Load();
 }
 
 extern "C" unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int seconds) {
