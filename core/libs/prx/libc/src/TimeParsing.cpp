@@ -86,9 +86,11 @@ std::int64_t FloorDivide(std::int64_t value, std::int64_t divisor) {
     return value / divisor - ((value % divisor != 0) && ((value < 0) != (divisor < 0)));
 }
 
+constexpr int GuestInvalidArgument = 22;
+
 std::int64_t UniversalTime(GuestTm* time, std::int64_t offset) {
     if (time == nullptr) {
-        errno = EINVAL;
+        errno = GuestInvalidArgument;
         return -1;
     }
     time->tm_isdst = 0;
@@ -451,7 +453,11 @@ std::int64_t APS5_VABI timeoff_nid_postfix(GuestTm* time, std::int64_t offset) {
 }
 
 std::int64_t APS5_VABI timelocal_nid_postfix(GuestTm* time) {
-    if (time != nullptr) time->tm_isdst = -1;
+    if (time == nullptr) {
+        errno = GuestInvalidArgument;
+        return -1;
+    }
+    time->tm_isdst = -1;
     return mktime_nid_postfix(time);
 }
 
