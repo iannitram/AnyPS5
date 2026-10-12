@@ -115,6 +115,12 @@ const CompileCase CompileCases[] = {
     {"[[:", 1, 7, -1},
     {"[a", 16, 0, 0},
     {"a", 17, 16, -1},
+    {"[[:number:]]", 1, 0, 0},
+    {"[[:rune:]]", 1, 0, 0},
+    {"[[:ideogram:]]", 1, 0, 0},
+    {"[[:special:]]", 1, 0, 0},
+    {"[[:phonogram:]]", 1, 0, 0},
+    {"[[:numbers:]]", 1, 4, -1},
 };
 
 const ExecCase ExecCases[] = {
@@ -204,6 +210,16 @@ const ExecCase ExecCases[] = {
     {"a\\.b", 1, "axb a.b", 0, 1, 0, {{4, 7}}},
     {"\\*", 1, "a*", 0, 1, 0, {{1, 2}}},
     {"\\(", 1, "a(", 0, 1, 0, {{1, 2}}},
+    {"[[:number:]]+", 1, "a59b", 0, 1, 0, {{1, 3}}},
+    {"[[:rune:]]+", 1, "ab\xe9", 0, 1, 0, {{0, 2}}},
+    {"[^[:rune:]]", 1, "a\xe9", 0, 1, 0, {{1, 2}}},
+    {"[[:special:][:ideogram:][:phonogram:]]", 1, "a1 _", 0, 1, 1, {}},
+    {"[[:digit:][:special:]]", 1, "a1", 0, 1, 0, {{1, 2}}},
+    {"(a|ab)(c|bcd)(d*)", 1, "xabcdd", 0, 4, 0, {{1, 6}, {1, 3}, {3, 4}, {4, 6}}},
+    {"(.*)(a*)b", 1, "aaab", 0, 3, 0, {{0, 4}, {0, 3}, {3, 3}}},
+    {"(a|a*b)+", 1, "aaab", 0, 2, 0, {{0, 4}, {0, 4}}},
+    {"((a*)*b)*", 1, "aabab", 0, 3, 0, {{0, 5}, {3, 5}, {4, 4}}},
+    {"\\(.\\)\\1\\(.\\)*", 0, "xaab", 0, 3, 0, {{1, 4}, {1, 2}, {3, 4}}},
 };
 
 const ErrorCase ErrorCases[] = {
@@ -304,6 +320,103 @@ void CheckStartEnd() {
     regfree_nid_postfix(&regex);
 }
 
+bool Shifted(const char* pattern, int flags, const char* buffer, std::int64_t shift, std::int64_t start, std::int64_t end,
+             int expectedResult, const GuestMatch* expected, std::size_t wanted) {
+    GuestRegex regex{};
+    Require(regcomp_nid_postfix(&regex, pattern, flags) == 0);
+    std::array<GuestMatch, 2> found{GuestMatch{start, end}, GuestMatch{-7, -7}};
+    const int result = regexec_nid_postfix(&regex, buffer + shift, wanted, found.data(), StartEnd);
+    regfree_nid_postfix(&regex);
+    if (result != expectedResult) return false;
+    for (std::size_t i = 0; result == 0 && i < wanted; ++i) {
+        if (found[i].start != expected[i].start || found[i].end != expected[i].end) return false;
+    }
+    return true;
+}
+
+void CheckNegativeStart() {
+    const GuestMatch prefix[] = {{-1, 1}};
+    Require(Shifted("xa", Extended, "xxab", 2, -2, 2, 0, prefix, 1));
+    const GuestMatch group[] = {{-1, 0}, {-1, 0}};
+    Require(Shifted("(b)", Extended, "abc", 2, -2, 1, 0, group, 2));
+    const GuestMatch before[] = {{-1, 0}};
+    Require(Shifted("x", Extended, "xab", 1, -1, 0, 0, before, 1));
+    Require(Shifted("x", Extended, "xab", 1, -1, -1, 1, nullptr, 0));
+    Require(Shifted("b", Extended, "abc", 2, -1, -2, 16, nullptr, 0));
+}
+
+void CheckCollatingNul() {
+    const char symbol[] = "[[.\0.]]";
+    GuestRegex regex{};
+    regex.end = symbol + sizeof(symbol) - 1;
+    Require(regcomp_nid_postfix(&regex, symbol, Extended | PendFlag) == 3);
+    const char equivalence[] = "[[=\0=]]";
+    GuestRegex other{};
+    other.end = equivalence + sizeof(equivalence) - 1;
+    Require(regcomp_nid_postfix(&other, equivalence, Extended | PendFlag) == 3);
+}
+
+void CheckFailedCount() {
+    GuestRegex regex{};
+    Require(regcomp_nid_postfix(&regex, "a(", Extended) == 8);
+    Require(regex.subexpressions == 1);
+    GuestRegex nested{};
+    Require(regcomp_nid_postfix(&nested, "((", Extended) == 8);
+    Require(nested.subexpressions == 2);
+    GuestRegex basic{};
+    Require(regcomp_nid_postfix(&basic, "a\\(", 0) == 8);
+    Require(basic.subexpressions == 1);
+}
+
+void CheckManyAnchors() {
+    GuestRegex starts{};
+    Require(regcomp_nid_postfix(&starts, std::string(256, '^').c_str(), Extended) == 0);
+    GuestMatch found{-7, -7};
+    Require(regexec_nid_postfix(&starts, "", 1, &found, 0) == 0);
+    Require(found.start == 0 && found.end == 0);
+    regfree_nid_postfix(&starts);
+    GuestRegex ends{};
+    Require(regcomp_nid_postfix(&ends, std::string(300, '$').c_str(), Extended) == 0);
+    Require(regexec_nid_postfix(&ends, "x", 1, &found, 0) == 0);
+    Require(found.start == 1 && found.end == 1);
+    regfree_nid_postfix(&ends);
+}
+
+struct LongCase {
+    const char* pattern;
+    int flags;
+    std::size_t repeat;
+    const char* tail;
+    std::size_t wanted;
+    int result;
+    GuestMatch expected[2];
+};
+
+const LongCase LongCases[] = {
+    {".*x", 1, 20000, "", 1, 1, {}},
+    {"a*[bc]", 1, 16000, "", 1, 1, {}},
+    {"(a|b)*c", 1, 3000, "", 2, 1, {}},
+    {"(a*)*$", 1, 3000, "b", 2, 0, {{3001, 3001}, {3001, 3001}}},
+    {"(.*)x", 1, 20000, "x", 2, 0, {{0, 20001}, {0, 20000}}},
+    {"((((((((((((((((a)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*)*", 1, 3, "", 2, 0, {{0, 3}, {3, 3}}},
+    {"\\(a*\\)*\\1[bc]", 0, 24, "", 2, 1, {}},
+    {"\\(.\\)\\1.*", 0, 5000, "", 2, 0, {{0, 5000}, {0, 1}}},
+};
+
+void CheckLongSubjects() {
+    for (const auto& item : LongCases) {
+        GuestRegex regex{};
+        Require(regcomp_nid_postfix(&regex, item.pattern, item.flags) == 0);
+        const std::string subject = std::string(item.repeat, 'a') + item.tail;
+        std::array<GuestMatch, 2> found{GuestMatch{-7, -7}, GuestMatch{-7, -7}};
+        Require(regexec_nid_postfix(&regex, subject.c_str(), item.wanted, found.data(), 0) == item.result);
+        for (std::size_t i = 0; item.result == 0 && i < item.wanted; ++i) {
+            Require(found[i].start == item.expected[i].start && found[i].end == item.expected[i].end);
+        }
+        regfree_nid_postfix(&regex);
+    }
+}
+
 void CheckPatternEnd() {
     const char* pattern = "abczz";
     GuestRegex regex{};
@@ -395,5 +508,10 @@ int main() {
     CheckLifetime();
     CheckErrors();
     CheckLargeInput();
+    CheckNegativeStart();
+    CheckCollatingNul();
+    CheckFailedCount();
+    CheckManyAnchors();
+    CheckLongSubjects();
     return 0;
 }
