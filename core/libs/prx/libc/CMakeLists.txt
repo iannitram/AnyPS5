@@ -20,6 +20,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Time.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/TimeParsing.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/FileAndHeap.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StdioExtras.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/StandardStreams.cpp
@@ -472,6 +473,15 @@ if(BUILD_TESTING)
     add_test(NAME guest_getline COMMAND guest_getline_tests)
     if(WIN32)
         set_tests_properties(guest_getline PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_time_parsing_tests ${LIBS_INCLUDE_DIR}/tests/GuestTimeParsing.cpp)
+    target_include_directories(guest_time_parsing_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_time_parsing_tests PRIVATE libc)
+    configure_windows_unwind(guest_time_parsing_tests)
+    add_test(NAME guest_time_parsing COMMAND guest_time_parsing_tests)
+    if(WIN32)
+        set_tests_properties(guest_time_parsing PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wcsrtombs_s_tests ${LIBS_INCLUDE_DIR}/tests/GuestWcsrtombsS.cpp)
