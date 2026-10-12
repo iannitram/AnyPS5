@@ -63,6 +63,7 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Errors.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Syslog.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/RealPath.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Regex.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/CxxAbiSupport.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Threads.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/exception/Exports.cpp
@@ -268,6 +269,16 @@ if(BUILD_TESTING)
     set_tests_properties(guest_realpath PROPERTIES TIMEOUT 20)
     if(WIN32)
         set_tests_properties(guest_realpath PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+    add_test_executable(guest_regex_tests ${LIBS_INCLUDE_DIR}/tests/GuestRegex.cpp)
+    target_include_directories(guest_regex_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_regex_tests PRIVATE libc)
+    configure_windows_unwind(guest_regex_tests)
+    add_test(NAME guest_regex COMMAND guest_regex_tests)
+    set_tests_properties(guest_regex PROPERTIES TIMEOUT 20)
+    if(WIN32)
+        set_tests_properties(guest_regex PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_path_case_tests ${LIBS_INCLUDE_DIR}/tests/GuestPathCase.cpp)
