@@ -409,7 +409,7 @@ int APS5_VABI vsnprintf_nid_postfix(char* str, size_t size, const char* format, 
 static bool SnprintfSArgumentsValid(char* buffer, size_t size, const char* format) {
     constexpr size_t RsizeMax = SIZE_MAX >> 1;
     if (buffer != nullptr && format != nullptr && size != 0 && size <= RsizeMax) return true;
-    if (buffer != nullptr && size != 0 && size <= RsizeMax) buffer[0] = 0;
+    if (buffer != nullptr && size != 0 && size < RsizeMax) buffer[0] = 0;
     return false;
 }
 

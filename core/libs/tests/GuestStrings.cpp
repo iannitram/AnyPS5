@@ -100,6 +100,8 @@ static void CheckBoundsCheckedFunctions() {
     Require(snprintf_s_nid_postfix(formatted, 0, "%d", 1) < 0 && formatted[0] == 'x');
     Require(snprintf_s_nid_postfix(nullptr, 4, "%d", 1) < 0);
     Require(snprintf_s_nid_postfix(formatted, sizeof(formatted), nullptr) < 0 && formatted[0] == 0);
+    formatted[0] = 'x';
+    Require(snprintf_s_nid_postfix(formatted, SIZE_MAX >> 1, nullptr) < 0 && formatted[0] == 'x');
 }
 
 static void CheckSscanfS() {
