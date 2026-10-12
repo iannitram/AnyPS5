@@ -356,6 +356,11 @@ char* APS5_VABI ether_ntoa_nid_postfix(const GuestEtherAddress* address) {
 FileStream* APS5_VABI fopen_nid_postfix(const char* filename, const char* mode);
 int APS5_VABI fclose_nid_postfix(FileStream* stream);
 char* APS5_VABI fgets_nid_postfix(char* buffer, int size, FileStream* stream);
+int APS5_VABI ether_line_nid_postfix(const char* line, GuestEtherAddress* address, char* hostname);
+
+}
+
+namespace {
 
 template<typename Match>
 int SearchEthers(Match match) {
@@ -374,6 +379,10 @@ int SearchEthers(Match match) {
     fclose_nid_postfix(file);
     return 1;
 }
+
+}
+
+extern "C" {
 
 int APS5_VABI ether_ntohost_nid_postfix(char* hostname, const GuestEtherAddress* address) {
     if (hostname == nullptr || address == nullptr) throw std::invalid_argument("ether_ntohost: null argument");
