@@ -909,11 +909,6 @@ int APS5_VABI _Cnd_init_with_name_nid_postfix(void** handle, const char*) {
     return _Cnd_init_nid_postfix(handle);
 }
 
-int APS5_VABI _ZTVN10__cxxabiv120__function_type_infoE_nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
-}
-
 int APS5_VABI _ZTVSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE_nid_postfix(void) {
     NotImplemented_nid_no_patch(__func__);
     return 0;
@@ -925,11 +920,6 @@ int APS5_VABI _ZNKSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE3get
 }
 
 int APS5_VABI _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
-}
-
-int APS5_VABI _ZTVN10__cxxabiv119__pointer_type_infoE_nid_postfix(void) {
     NotImplemented_nid_no_patch(__func__);
     return 0;
 }
@@ -963,11 +953,6 @@ int APS5_VABI _Thrd_sleep_nid_postfix(const Xtime* target, Xtime*) {
 int APS5_VABI wcstombs_s_nid_postfix(std::size_t* result, char* destination, std::size_t capacity, const std::uint16_t* source, std::size_t limit) {
     std::array<std::uint64_t, 16> state{};
     return wcsrtombs_s_nid_postfix(result, destination, capacity, &source, limit, state.data());
-}
-
-int APS5_VABI __cxa_call_unexpected_nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
 }
 
 APS5_EXPORT("0hlfW1O4Aa4", sceAmprLocaleconv);
