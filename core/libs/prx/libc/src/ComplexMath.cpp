@@ -19,9 +19,10 @@ TComplex Make(TFloat real, TFloat imaginary) {
 
 template<typename F>
 auto KeepErrno(F function) {
-    const int saved = errno;
+    volatile int& hostErrno = errno;
+    const int saved = hostErrno;
     auto result = function();
-    errno = saved;
+    hostErrno = saved;
     return result;
 }
 
