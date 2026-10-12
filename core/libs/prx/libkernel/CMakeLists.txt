@@ -36,6 +36,7 @@ add_library(libkernel SHARED EXCLUDE_FROM_ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Once.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Tsd.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Sem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/MessageQueue.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Pthread/Posix/Spinlock.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Socket/src/Socket.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Socket/src/Udp.cpp
@@ -52,11 +53,13 @@ add_library(libkernel SHARED EXCLUDE_FROM_ALL
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Sanitizer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Rtld.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Process.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SharedMemorySegments.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Sandbox.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SystemConfiguration.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SoftwareVersion.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Signals.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SignalSets.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/System/src/SignalCompatibility.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/Notification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/System/src/UserContext.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/Time/Time.cpp
@@ -116,6 +119,16 @@ if(BUILD_TESTING)
     add_test(NAME guest_posix_sem_post COMMAND guest_posix_sem_tests post)
     if(WIN32)
         set_tests_properties(guest_posix_sem_init guest_posix_sem_post PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
+    add_test_executable(guest_message_queue_tests ${LIBS_INCLUDE_DIR}/tests/GuestMessageQueue.cpp)
+    target_include_directories(guest_message_queue_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_message_queue_tests PRIVATE libkernel libc)
+    configure_windows_unwind(guest_message_queue_tests)
+    add_test(NAME guest_message_queue COMMAND guest_message_queue_tests)
+    set_tests_properties(guest_message_queue PROPERTIES TIMEOUT 20)
+    if(WIN32)
+        set_tests_properties(guest_message_queue PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
     endif()
     add_test_executable(guest_process_time_tests ${LIBS_INCLUDE_DIR}/tests/GuestProcessTime.cpp)
@@ -583,6 +596,25 @@ if(BUILD_TESTING)
     set_tests_properties(guest_kill PROPERTIES TIMEOUT 20)
     if(WIN32)
         set_tests_properties(guest_kill PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
+    add_test_executable(guest_signal_compatibility_tests ${LIBS_INCLUDE_DIR}/tests/GuestSignalCompatibility.cpp)
+    target_include_directories(guest_signal_compatibility_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_signal_compatibility_tests PRIVATE libkernel libc)
+    configure_windows_unwind(guest_signal_compatibility_tests)
+    add_test(NAME guest_signal_compatibility COMMAND guest_signal_compatibility_tests)
+    if(WIN32)
+        set_tests_properties(guest_signal_compatibility PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
+    endif()
+    add_test_executable(guest_shared_memory_segments_tests ${LIBS_INCLUDE_DIR}/tests/GuestSharedMemorySegments.cpp)
+    target_include_directories(guest_shared_memory_segments_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_shared_memory_segments_tests PRIVATE libkernel libc)
+    configure_windows_unwind(guest_shared_memory_segments_tests)
+    add_test(NAME guest_shared_memory_segments COMMAND guest_shared_memory_segments_tests)
+    set_tests_properties(guest_shared_memory_segments PROPERTIES TIMEOUT 20)
+    if(WIN32)
+        set_tests_properties(guest_shared_memory_segments PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libkernel>")
     endif()
     add_test_executable(guest_signal_set_tests ${LIBS_INCLUDE_DIR}/tests/GuestSignalSets.cpp)
