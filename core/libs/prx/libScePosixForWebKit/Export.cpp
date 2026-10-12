@@ -180,4 +180,14 @@ std::uint32_t APS5_VABI arc4random_nid_postfix() {
     return value;
 }
 
+std::uint32_t APS5_VABI arc4random_uniform_nid_postfix(std::uint32_t upper) {
+    if (upper < 2) return 0;
+    const std::uint32_t minimum = (0u - upper) % upper;
+    std::uint32_t value;
+    do {
+        value = arc4random_nid_postfix();
+    } while (value < minimum);
+    return value % upper;
+}
+
 }
