@@ -178,8 +178,8 @@ int main() {
         GuestSignalSet hostThread{{1, 1, 1, 1}};
         std::thread([&] { Require(sigprocmask_nid_postfix(1, nullptr, &hostThread) == 0); }).join();
         Require(Equal(hostThread, empty));
-        Require(pthread_sigmask_nid_postfix(3, &empty, nullptr) == 0);
         received = 0;
+        Require(pthread_sigmask_nid_postfix(3, &empty, nullptr) == 0 && received == 0);
         Require(raise_nid_postfix(15) == 0 && received == 15);
         *__error_nid_postfix() = 0;
         current = wide;
