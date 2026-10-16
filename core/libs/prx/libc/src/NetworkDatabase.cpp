@@ -45,7 +45,6 @@ int APS5_VABI getservbyport_r_nid_postfix(int, const char*, GuestServiceEntry*, 
 }
 
 int APS5_VABI getservent_r_nid_postfix(GuestServiceEntry*, char*, std::size_t, GuestServiceEntry** result) { return UnavailableKeepingErrno(result); }
-GuestServiceEntry* APS5_VABI getservbyname_nid_postfix(const char*, const char*) { return UnavailableEntry<GuestServiceEntry>(); }
 GuestServiceEntry* APS5_VABI getservbyport_nid_postfix(int, const char*) { return UnavailableEntry<GuestServiceEntry>(); }
 GuestServiceEntry* APS5_VABI getservent_nid_postfix(void) { return UnavailableEntry<GuestServiceEntry>(); }
 void APS5_VABI setservent_nid_postfix(int) {}

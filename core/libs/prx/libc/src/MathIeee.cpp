@@ -157,7 +157,6 @@ double APS5_VABI fmax_nid_postfix(double x, double y) { return Maximum(x, y); }
 float APS5_VABI fmaxf_nid_postfix(float x, float y) { return Maximum(x, y); }
 long double APS5_VABI fmaxl_nid_postfix(long double x, long double y) { return Maximum(x, y); }
 double APS5_VABI fmin_nid_postfix(double x, double y) { return Minimum(x, y); }
-float APS5_VABI fminf_nid_postfix(float x, float y) { return Minimum(x, y); }
 long double APS5_VABI fminl_nid_postfix(long double x, long double y) { return Minimum(x, y); }
 double APS5_VABI fdim_nid_postfix(double x, double y) { return PositiveDifference(x, y); }
 float APS5_VABI fdimf_nid_postfix(float x, float y) { return PositiveDifference(x, y); }
