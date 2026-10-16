@@ -10,7 +10,6 @@ extern "C" {
 int APS5_VABI getservbyname_r_nid_postfix(const char*, const char*, void*, char*, std::size_t, void**);
 int APS5_VABI getservbyport_r_nid_postfix(int, const char*, void*, char*, std::size_t, void**);
 int APS5_VABI getservent_r_nid_postfix(void*, char*, std::size_t, void**);
-void* APS5_VABI getservbyname_nid_postfix(const char*, const char*);
 void* APS5_VABI getservbyport_nid_postfix(int, const char*);
 void* APS5_VABI getservent_nid_postfix(void);
 void APS5_VABI setservent_nid_postfix(int);
@@ -52,7 +51,6 @@ int main() {
     Require(getservent_r_nid_postfix(entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getservent_r");
     setservent_nid_postfix(1);
     errno = 0;
-    Require(getservbyname_nid_postfix("http", nullptr) == nullptr && errno == ENOENT, "getservbyname");
     Require(getservbyport_nid_postfix(80, "udp") == nullptr && getservent_nid_postfix() == nullptr, "service lookups");
     endservent_nid_postfix();
 

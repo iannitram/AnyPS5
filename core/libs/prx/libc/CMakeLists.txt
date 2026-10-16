@@ -31,7 +31,6 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/UserShells.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/PosixMisc.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/NetworkAddress.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/Spawn.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathClassification.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Random.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/HostEntropy.cpp
@@ -582,12 +581,12 @@ if(BUILD_TESTING)
     endif()
     add_test_executable(guest_math_ieee_tests ${LIBS_INCLUDE_DIR}/tests/GuestMathIeee.cpp)
     target_include_directories(guest_math_ieee_tests PRIVATE ${LIBS_INCLUDE_DIR})
-    target_link_libraries(guest_math_ieee_tests PRIVATE libc)
+    target_link_libraries(guest_math_ieee_tests PRIVATE libc libSceLibcInternal)
     configure_windows_unwind(guest_math_ieee_tests)
     add_test(NAME guest_math_ieee COMMAND guest_math_ieee_tests)
     if(WIN32)
         set_tests_properties(guest_math_ieee PROPERTIES ENVIRONMENT_MODIFICATION
-            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>;$<TARGET_FILE_DIR:libSceLibcInternal>")
     endif()
     add_test_executable(guest_search_tables_tests ${LIBS_INCLUDE_DIR}/tests/GuestSearchTables.cpp)
     target_include_directories(guest_search_tables_tests PRIVATE ${LIBS_INCLUDE_DIR})
@@ -677,15 +676,6 @@ if(BUILD_TESTING)
     add_test(NAME guest_stream_scanning COMMAND guest_stream_scanning_tests)
     if(WIN32)
         set_tests_properties(guest_stream_scanning PROPERTIES ENVIRONMENT_MODIFICATION
-            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
-    endif()
-    add_test_executable(guest_spawn_tests ${LIBS_INCLUDE_DIR}/tests/GuestSpawn.cpp)
-    target_include_directories(guest_spawn_tests PRIVATE ${LIBS_INCLUDE_DIR})
-    target_link_libraries(guest_spawn_tests PRIVATE libc)
-    configure_windows_unwind(guest_spawn_tests)
-    add_test(NAME guest_spawn COMMAND guest_spawn_tests)
-    if(WIN32)
-        set_tests_properties(guest_spawn PROPERTIES ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
     endif()
     add_test_executable(guest_wide_streams_tests ${LIBS_INCLUDE_DIR}/tests/GuestWideStreams.cpp)
