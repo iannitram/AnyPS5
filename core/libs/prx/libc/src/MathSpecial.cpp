@@ -47,7 +47,6 @@ extern "C" {
 int signgam_nid_postfix = 0;
 
 double APS5_VABI erf_nid_postfix(double x) { return KeepErrno([&] { return std::erf(x); }); }
-float APS5_VABI erff_nid_postfix(float x) { return KeepErrno([&] { return std::erf(x); }); }
 long double APS5_VABI erfl_nid_postfix(long double x) { return KeepErrno([&] { return std::erf(x); }); }
 double APS5_VABI erfc_nid_postfix(double x) { return KeepErrno([&] { return std::erfc(x); }); }
 float APS5_VABI erfcf_nid_postfix(float x) { return KeepErrno([&] { return std::erfc(x); }); }
@@ -67,7 +66,6 @@ float APS5_VABI lgammaf_r_nid_postfix(float x, int* sign) {
     return KeepErrno([&] { return std::lgamma(x); });
 }
 
-double APS5_VABI lgamma_nid_postfix(double x) { return lgamma_r_nid_postfix(x, &signgam_nid_postfix); }
 float APS5_VABI lgammaf_nid_postfix(float x) { return lgammaf_r_nid_postfix(x, &signgam_nid_postfix); }
 
 long double APS5_VABI lgammal_nid_postfix(long double x) {
@@ -91,13 +89,9 @@ float APS5_VABI y0f_nid_postfix(float x) { return KeepErrno([&] { return static_
 float APS5_VABI y1f_nid_postfix(float x) { return KeepErrno([&] { return static_cast<float>(HostY1(x)); }); }
 float APS5_VABI ynf_nid_postfix(int n, float x) { return KeepErrno([&] { return static_cast<float>(HostYn(n, x)); }); }
 
-float APS5_VABI sinhf_nid_postfix(float x) { return KeepErrno([&] { return std::sinh(x); }); }
-float APS5_VABI atanhf_nid_postfix(float x) { return KeepErrno([&] { return std::atanh(x); }); }
-float APS5_VABI expm1f_nid_postfix(float x) { return KeepErrno([&] { return std::expm1(x); }); }
 long double APS5_VABI acoshl_nid_postfix(long double x) { return KeepErrno([&] { return std::acosh(x); }); }
 long double APS5_VABI asinhl_nid_postfix(long double x) { return KeepErrno([&] { return std::asinh(x); }); }
 long double APS5_VABI atanhl_nid_postfix(long double x) { return KeepErrno([&] { return std::atanh(x); }); }
-long double APS5_VABI asinl_nid_postfix(long double x) { return KeepErrno([&] { return std::asin(x); }); }
 long double APS5_VABI atan2l_nid_postfix(long double y, long double x) { return KeepErrno([&] { return std::atan2(y, x); }); }
 long double APS5_VABI cbrtl_nid_postfix(long double x) { return KeepErrno([&] { return std::cbrt(x); }); }
 long double APS5_VABI expm1l_nid_postfix(long double x) { return KeepErrno([&] { return std::expm1(x); }); }

@@ -66,15 +66,7 @@ T Scale(T x, T exponent, T limit) {
 
 extern "C" {
 
-int APS5_VABI isinf_nid_postfix(double x) {
-    const auto bits = std::bit_cast<std::uint64_t>(x);
-    return (bits & 0x7fffffffffffffffull) == 0x7ff0000000000000ull;
-}
 
-int APS5_VABI isnan_nid_postfix(double x) {
-    const auto bits = std::bit_cast<std::uint64_t>(x);
-    return (bits & 0x7fffffffffffffffull) > 0x7ff0000000000000ull;
-}
 
 int APS5_VABI finite_nid_postfix(double x) {
     const auto high = static_cast<std::uint32_t>(std::bit_cast<std::uint64_t>(x) >> 32);
@@ -96,9 +88,6 @@ int APS5_VABI __isnanl_nid_postfix(long double x) {
     return bits.exponent == 0x7fff && (bits.mantissa & ~IntegerBit) != 0;
 }
 
-int APS5_VABI __isfinitel_nid_postfix(long double x) {
-    return Decode(x).exponent != 0x7fff;
-}
 
 int APS5_VABI __isnormall_nid_postfix(long double x) {
     const unsigned exponent = Decode(x).exponent;

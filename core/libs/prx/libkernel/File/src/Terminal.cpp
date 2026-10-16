@@ -9,6 +9,7 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -30,14 +31,6 @@ constexpr int SetFlush = 2;
 constexpr int SetSoft = 0x10;
 constexpr int InternetFamily = 2;
 constexpr int OutOfRange = 34;
-
-constexpr int FlushInput = 1;
-constexpr int FlushOutput = 2;
-constexpr int FlushBoth = 3;
-constexpr int SuspendOutput = 1;
-constexpr int RestartOutput = 2;
-constexpr int SuspendInput = 3;
-constexpr int RestartInput = 4;
 
 constexpr std::uint32_t IgnoreBreak = 0x00000001;
 constexpr std::uint32_t BreakInterrupt = 0x00000002;
@@ -79,6 +72,12 @@ struct GuestTermios {
     std::uint32_t outputSpeed;
 };
 static_assert(sizeof(GuestTermios) == 44);
+constexpr int InputQueue = 1;
+constexpr int OutputQueue = 2;
+constexpr int BothQueues = 3;
+constexpr int OutputOff = 1;
+constexpr int InputOn = 4;
+constexpr int StandardStreams = 3;
 
 int Fail(int error) {
     *__error_nid_postfix() = error;
@@ -87,24 +86,33 @@ int Fail(int error) {
 
 #ifdef _WIN32
 void IgnoreInvalidParameter(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, std::uintptr_t) {}
-bool HostOpen(int descriptor) {
+HANDLE HostHandle(int descriptor) {
     const auto previous = _set_thread_local_invalid_parameter_handler(IgnoreInvalidParameter);
     const auto handle = ::_get_osfhandle(descriptor);
     _set_thread_local_invalid_parameter_handler(previous);
-    return reinterpret_cast<HANDLE>(handle) != INVALID_HANDLE_VALUE;
+    return reinterpret_cast<HANDLE>(handle);
 }
+bool HostOpen(int descriptor) { return HostHandle(descriptor) != INVALID_HANDLE_VALUE; }
+bool HostPipe(int descriptor) { return ::GetFileType(HostHandle(descriptor)) == FILE_TYPE_PIPE; }
 #else
 bool HostOpen(int descriptor) { return ::fcntl(descriptor, F_GETFD) != -1; }
+bool HostPipe(int descriptor) {
+    struct stat status{};
+    return ::fstat(descriptor, &status) == 0 && S_ISFIFO(status.st_mode);
+}
 #endif
 
 int TerminalError(int descriptor) {
-    if (descriptor >= GuestSockets::FirstDescriptor) {
-        const int family = GuestSockets::Family(descriptor);
-        if (family < 0) return BadDescriptor;
-        return family == InternetFamily ? AddressNotAvailable : OperationNotSupported;
-    }
+    const int family = GuestSockets::Family(descriptor);
+    if (family >= 0) return family == InternetFamily ? AddressNotAvailable : OperationNotSupported;
     if (descriptor < 0 || !HostOpen(descriptor)) return BadDescriptor;
     return NotTerminal;
+}
+
+int ProcessGroupError(int descriptor, const char* pipeMessage) {
+    const int error = TerminalError(descriptor);
+    if (error == NotTerminal && descriptor >= StandardStreams && HostPipe(descriptor)) throw std::runtime_error(pipeMessage);
+    return error;
 }
 }
 
@@ -122,20 +130,32 @@ int APS5_VABI tcsetattr_nid_postfix(int descriptor, int action, const void* attr
     return Fail(TerminalError(descriptor));
 }
 
+int APS5_VABI tcsendbreak_nid_postfix(int descriptor, int duration) {
+    static_cast<void>(duration);
+    return Fail(TerminalError(descriptor));
+}
+
 int APS5_VABI tcdrain_nid_postfix(int descriptor) { return Fail(TerminalError(descriptor)); }
-int APS5_VABI tcsendbreak_nid_postfix(int descriptor, int) { return Fail(TerminalError(descriptor)); }
-int APS5_VABI tcgetpgrp_nid_postfix(int descriptor) { return Fail(TerminalError(descriptor)); }
+
 int APS5_VABI tcgetsid_nid_postfix(int descriptor) { return Fail(TerminalError(descriptor)); }
-int APS5_VABI tcsetpgrp_nid_postfix(int descriptor, int) { return Fail(TerminalError(descriptor)); }
 
 int APS5_VABI tcflush_nid_postfix(int descriptor, int queue) {
-    if (queue != FlushInput && queue != FlushOutput && queue != FlushBoth) return Fail(InvalidArgument);
+    if (queue != InputQueue && queue != OutputQueue && queue != BothQueues) return Fail(InvalidArgument);
     return Fail(TerminalError(descriptor));
 }
 
 int APS5_VABI tcflow_nid_postfix(int descriptor, int action) {
-    if (action != SuspendOutput && action != RestartOutput && action != SuspendInput && action != RestartInput) return Fail(InvalidArgument);
+    if (action < OutputOff || action > InputOn) return Fail(InvalidArgument);
     return Fail(TerminalError(descriptor));
+}
+
+int APS5_VABI tcgetpgrp_nid_postfix(int descriptor) {
+    return Fail(ProcessGroupError(descriptor, "tcgetpgrp: the SIGIO owner of a pipe is not supported"));
+}
+
+int APS5_VABI tcsetpgrp_nid_postfix(int descriptor, int group) {
+    static_cast<void>(group);
+    return Fail(ProcessGroupError(descriptor, "tcsetpgrp: the SIGIO owner of a pipe is not supported"));
 }
 
 std::uint32_t APS5_VABI cfgetispeed_nid_postfix(const GuestTermios* attributes) { return attributes->inputSpeed; }

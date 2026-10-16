@@ -2,7 +2,16 @@
 #include <cstdint>
 
 #include "prx/libc/include/General.hpp"
-#include "prx/libkernel/System/include/SignalMask.hpp"
+
+struct GuestSignalSet {
+    std::uint32_t bits[4];
+};
+
+struct GuestSigaction {
+    std::uintptr_t handler;
+    int flags;
+    GuestSignalSet mask;
+};
 
 namespace {
 
@@ -137,15 +146,6 @@ int APS5_VABI siginterrupt_nid_postfix(int signal, int flag) {
     return sigaction_nid_postfix(signal, &action, nullptr);
 }
 
-int APS5_VABI sigpending_nid_postfix(SignalSet* set) {
-    if (set == nullptr) {
-        *__error_nid_postfix() = 14;
-        return -1;
-    }
-    *set = PendingGuestSignals();
-    return 0;
-}
-
 int APS5_VABI sigqueue_nid_postfix(int pid, int signal, void* value) {
     (void)value;
     if (signal < 0 || signal > MaxSignal || pid <= 0) {
@@ -153,20 +153,6 @@ int APS5_VABI sigqueue_nid_postfix(int pid, int signal, void* value) {
         return -1;
     }
     return kill_nid_postfix(pid, signal);
-}
-
-int APS5_VABI killpg_nid_postfix(int group, int signal) {
-    if (group == 1) {
-        *__error_nid_postfix() = 3;
-        return -1;
-    }
-    return kill_nid_postfix(-group, signal);
-}
-
-int APS5_VABI sigsuspend_nid_postfix(const SignalSet* mask) {
-    (void)mask;
-    NotImplemented_nid_no_patch("sigsuspend: waiting for a delivered signal");
-    return -1;
 }
 
 int APS5_VABI sigpause_nid_postfix(int mask) {
