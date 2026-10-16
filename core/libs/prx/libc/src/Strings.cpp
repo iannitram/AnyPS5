@@ -392,6 +392,10 @@ char* APS5_VABI strnstr_nid_postfix(const char* haystack, const char* needle, si
 }
 
 unsigned long long APS5_VABI _Stoull_nid_postfix(const char* str, char** endptr, int base) {
+    if (base < 0 || base == 1 || base > 36) {
+        if (endptr != nullptr) *endptr = const_cast<char*>(str);
+        return 0;
+    }
     if (StopAtPrefixLetter_nid_no_patch(str, endptr, base)) return 0;
     return std::strtoull(str, endptr, base);
 }
@@ -533,7 +537,10 @@ unsigned long long APS5_VABI wcstoull_nid_postfix(const char16_t* str, char16_t*
 }
 
 std::uint64_t APS5_VABI _WStoul_nid_postfix(const char16_t* str, char16_t** endptr, int base) {
-    if (base < 0 || base == 1 || base > 36) throw std::invalid_argument("_WStoul: unsupported base " + std::to_string(base));
+    if (base < 0 || base == 1 || base > 36) {
+        if (endptr != nullptr) *endptr = const_cast<char16_t*>(str);
+        return 0;
+    }
     return wcstoul_nid_postfix(str, endptr, base);
 }
 
