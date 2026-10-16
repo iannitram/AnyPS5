@@ -212,6 +212,30 @@ std::filesystem::path Resolve(WorkingDirectory& state, const char* path, bool mo
     }
     return HostPath(state, guest.lexically_normal(), module);
 }
+std::optional<std::filesystem::path> GuestDirectory(WorkingDirectory& state, const std::filesystem::path& host) {
+    const auto canonical = std::filesystem::weakly_canonical(host);
+    const auto inside = [](const std::filesystem::path& relative) { return !relative.empty() && *relative.begin() != ".."; };
+    std::optional<std::filesystem::path> guest;
+    std::ptrdiff_t depth = -1;
+    {
+        auto& aliases = Aliases();
+        std::lock_guard lock(aliases.mutex);
+        for (const auto& [prefix, mounted] : aliases.entries) {
+            std::error_code error;
+            const auto mount = std::filesystem::weakly_canonical(std::filesystem::path(mounted), error);
+            if (error) continue;
+            const auto relative = canonical.lexically_relative(mount);
+            const auto mountDepth = std::distance(mount.begin(), mount.end());
+            if (!inside(relative) || mountDepth <= depth) continue;
+            guest = std::filesystem::path("/") / prefix / relative;
+            depth = mountDepth;
+        }
+    }
+    if (guest) return guest->lexically_normal();
+    const auto relative = canonical.lexically_relative(state.root);
+    if (!inside(relative)) return std::nullopt;
+    return (std::filesystem::path("/") / relative).lexically_normal();
+}
 #ifdef _WIN32
 using WriteMark = FILETIME;
 WriteMark Now() {
@@ -436,6 +460,18 @@ extern "C" std::filesystem::path ResolvePathOrRelinkedModule_nid_no_patch(const 
     auto& state = Directories();
     std::lock_guard lock(state.mutex);
     return Resolve(state, path, true);
+}
+
+extern "C" std::filesystem::path ResolvePathAt_nid_no_patch(const std::filesystem::path& directory, const char* path, bool module) {
+    if (!path) { APS5_INVALID_ARG_EX; }
+    auto& state = Directories();
+    std::lock_guard lock(state.mutex);
+    const auto guest = GuestDirectory(state, directory);
+    if (!guest) throw std::runtime_error("Directory outside the guest file system: " + directory.string());
+    std::string text = guest->generic_string();
+    if (text.back() != '/') text += '/';
+    text += path;
+    return Resolve(state, text.c_str(), module);
 }
 
 extern "C" std::filesystem::path RelinkedModulePath_nid_no_patch(const std::filesystem::path& path) {

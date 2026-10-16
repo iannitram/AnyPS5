@@ -1,5 +1,6 @@
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include "prx/libkernel/File/include/FileFlags.hpp"
+#include "prx/libc/include/General.hpp"
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -464,6 +465,42 @@ int main() {
     Require(fchmodat_nid_postfix(base, "loop/x", 0600, 0) == -1 && Error() == 62);
     Require(fchmodat_nid_postfix(base, longName.c_str(), 0600, 0) == -1 && Error() == 63);
 #endif
+    std::filesystem::create_directory(root / "Mixed");
+    std::ofstream(root / "Mixed" / "Inner.TXT").put('y');
+    const int folded = openat_nid_postfix(base, "mixed/inner.txt", SCE_KERNEL_O_RDONLY);
+    Require(folded >= 0 && sceKernelRead(folded, &byte, 1) == 1 && byte == 'y');
+    Require(sceKernelClose(folded) == 0);
+    Require(readlinkat_nid_postfix(base, "MIXED/inner.txt", buffer, sizeof(buffer)) == -1 && Error() == 22);
+    Require(mkdirat_nid_postfix(base, "MIXED/made", 0700) == 0 && std::filesystem::is_directory(root / "Mixed" / "made"));
+    Require(fchmodat_nid_postfix(base, "mixed/INNER.txt", 0644, 0) == 0);
+    Require(renameat_nid_postfix(base, "mixed/INNER.txt", base, "Mixed/moved.txt") == 0);
+    Require(std::filesystem::is_regular_file(root / "Mixed" / "moved.txt"));
+    Require(unlinkat_nid_postfix(base, "MIXED/MOVED.TXT", 0) == 0 && !std::filesystem::exists(root / "Mixed" / "moved.txt"));
+    Require(unlinkat_nid_postfix(base, "mixed/MADE", 0x800) == 0 && !std::filesystem::exists(root / "Mixed" / "made"));
+    const int rootDirectory = sceKernelOpen("/", SCE_KERNEL_O_RDONLY | SCE_KERNEL_O_DIRECTORY, 0);
+    Require(rootDirectory >= 0);
+    const auto aboveRoot = "../../" + root.filename().string() + "/file.txt";
+    const int clamped = openat_nid_postfix(rootDirectory, aboveRoot.c_str(), SCE_KERNEL_O_RDONLY);
+    Require(clamped >= 0 && sceKernelRead(clamped, &byte, 1) == 1 && byte == 'x');
+    Require(sceKernelClose(clamped) == 0);
+    Require(sceKernelClose(rootDirectory) == 0);
+    const auto mount = std::filesystem::temp_directory_path() / (root.filename().string() + "-mount");
+    std::filesystem::create_directories(mount / "Data");
+    std::ofstream(mount / "Data" / "Item.bin").put('z');
+    AddPathAlias_nid_no_patch("/anyps5-kernel-sys-mount", mount.string().c_str());
+    const int mounted = sceKernelOpen("/anyps5-kernel-sys-mount/data", SCE_KERNEL_O_RDONLY | SCE_KERNEL_O_DIRECTORY, 0);
+    Require(mounted >= 0);
+    const int aliased = openat_nid_postfix(mounted, "ITEM.BIN", SCE_KERNEL_O_RDONLY);
+    Require(aliased >= 0 && sceKernelRead(aliased, &byte, 1) == 1 && byte == 'z');
+    Require(sceKernelClose(aliased) == 0);
+    const auto outOfMount = "../../" + root.filename().string() + "/file.txt";
+    const int back = openat_nid_postfix(mounted, outOfMount.c_str(), SCE_KERNEL_O_RDONLY);
+    Require(back >= 0 && sceKernelRead(back, &byte, 1) == 1 && byte == 'x');
+    Require(sceKernelClose(back) == 0);
+    Require(mkdirat_nid_postfix(mounted, "../Made", 0700) == 0 && std::filesystem::is_directory(mount / "Made"));
+    Require(sceKernelClose(mounted) == 0);
+    RemovePathAlias_nid_no_patch("/anyps5-kernel-sys-mount");
+    std::filesystem::remove_all(mount);
     Require(sceKernelClose(base) == 0);
 #ifndef _WIN32
     if (created == 0) {
