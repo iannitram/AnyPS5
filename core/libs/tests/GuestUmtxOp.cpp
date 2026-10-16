@@ -22,6 +22,7 @@ static constexpr int UMTX_OP_WAIT_UINT_PRIVATE = 15;
 static constexpr int UMTX_OP_WAKE_PRIVATE = 16;
 static constexpr int UMTX_OP_NWAKE_PRIVATE = 21;
 static constexpr int UMTX_OP_SEM2_WAIT = 23;
+static constexpr int UMTX_OP_SEM2_WAKE = 24;
 static constexpr int UMTX_OP_MAX = 27;
 static constexpr std::uint32_t UMTX_ABSTIME = 1;
 static constexpr int CLOCK_MONOTONIC_ID = 4;
@@ -288,10 +289,81 @@ static void RejectsBadObjectsAndOperations() {
     try { Umtx(&value, UMTX_OP_MUTEX_LOCK, 0); }
     catch (const std::runtime_error&) { threw = true; }
     Require(threw);
-    threw = false;
-    try { Umtx(&value, UMTX_OP_SEM2_WAIT, 0); }
-    catch (const std::runtime_error&) { threw = true; }
-    Require(threw);
+}
+
+struct Semaphore2 {
+    std::uint32_t count;
+    std::uint32_t flags;
+};
+
+static constexpr std::uint32_t USEM_HAS_WAITERS = 0x80000000U;
+
+static std::uint32_t CountOf(Semaphore2& semaphore) { return std::atomic_ref<std::uint32_t>(semaphore.count).load(); }
+
+static void AwaitWaitersFlag(Semaphore2& semaphore) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (CountOf(semaphore) != USEM_HAS_WAITERS) {
+        Require(std::chrono::steady_clock::now() < deadline);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+static void Semaphore2WaitsForACountAndWakesOneWaiter() {
+    Semaphore2 semaphore{2, 0};
+    KernelTimespec none{0, 0};
+    Require(Umtx(&semaphore, UMTX_OP_SEM2_WAIT, 0, SizeOf(sizeof(none)), &none) == 0);
+    Require(CountOf(semaphore) == 2);
+    semaphore.count = USEM_HAS_WAITERS | 1;
+    Require(Umtx(&semaphore, UMTX_OP_SEM2_WAIT, 0) == 0);
+
+    semaphore.count = 0;
+    Require(FailsWith(Umtx(&semaphore, UMTX_OP_SEM2_WAIT, 0, SizeOf(sizeof(none)), &none), GUEST_ETIMEDOUT));
+    Require(CountOf(semaphore) == USEM_HAS_WAITERS);
+    Require(Umtx(&semaphore, UMTX_OP_SEM2_WAKE, 0) == 0);
+    Require(CountOf(semaphore) == USEM_HAS_WAITERS);
+
+    semaphore.count = 0;
+    std::atomic<int> returned{0};
+    std::vector<std::thread> waiters;
+    for (int index = 0; index < 2; ++index) {
+        waiters.emplace_back([&] {
+            KernelTimespec failsafe = FailsafeTimeout();
+            Require(Umtx(&semaphore, UMTX_OP_SEM2_WAIT, 0, SizeOf(sizeof(failsafe)), &failsafe) == 0);
+            ++returned;
+        });
+    }
+    AwaitWaitersFlag(semaphore);
+    std::this_thread::sleep_for(SETTLE);
+    Require(returned.load() == 0);
+    std::atomic_ref<std::uint32_t>(semaphore.count).fetch_add(1);
+    Require(Umtx(&semaphore, UMTX_OP_SEM2_WAKE, 0) == 0);
+    AwaitCount(returned, 1);
+    Require(CountOf(semaphore) == (USEM_HAS_WAITERS | 1));
+    Require(Umtx(&semaphore, UMTX_OP_SEM2_WAKE, 0) == 0);
+    AwaitCount(returned, 2);
+    Require(CountOf(semaphore) == 1);
+    for (auto& waiter : waiters) waiter.join();
+}
+
+static void Semaphore2IgnoresPlainWakes() {
+    Semaphore2 semaphore{0, 0};
+    std::atomic<int> result{-2};
+    std::thread waiter([&] {
+        KernelTimespec brief{0, 300000000};
+        result = Umtx(&semaphore, UMTX_OP_SEM2_WAIT, 0, SizeOf(sizeof(brief)), &brief) == 0 ? 0 : *__error_nid_postfix();
+    });
+    AwaitWaitersFlag(semaphore);
+    Require(Umtx(&semaphore, UMTX_OP_WAKE, INT_MAX) == 0);
+    waiter.join();
+    Require(result.load() == GUEST_ETIMEDOUT);
+}
+
+static void Semaphore2RejectsANullObject() {
+    Require(FailsWith(Umtx(nullptr, UMTX_OP_SEM2_WAIT, 0), GUEST_EFAULT));
+    Require(FailsWith(Umtx(nullptr, UMTX_OP_SEM2_WAKE, 0), GUEST_EFAULT));
+    Semaphore2 semaphore{0, 0};
+    KernelTimespec negative{-1, 0};
+    Require(FailsWith(Umtx(&semaphore, UMTX_OP_SEM2_WAIT, 0, SizeOf(sizeof(negative)), &negative), GUEST_EINVAL));
 }
 
 int main() {
@@ -305,4 +377,7 @@ int main() {
     NwakeWakesEveryWaiterOnEachListedAddress();
     NwakeReadsOnlyTheCountedEntries();
     RejectsBadObjectsAndOperations();
+    Semaphore2WaitsForACountAndWakesOneWaiter();
+    Semaphore2IgnoresPlainWakes();
+    Semaphore2RejectsANullObject();
 }
