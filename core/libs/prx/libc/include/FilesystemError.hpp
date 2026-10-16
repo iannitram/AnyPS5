@@ -35,4 +35,14 @@ inline int ResolvePathError_nid_no_patch(const char* path, std::filesystem::path
     }
 }
 
+inline int ResolvePathAtError_nid_no_patch(const std::filesystem::path& directory, const char* path, std::filesystem::path& resolved, bool module = false) {
+    try {
+        resolved = ResolvePathAt_nid_no_patch(directory, path, module);
+        return 0;
+    } catch (const std::filesystem::filesystem_error& error) {
+        if (error.code() == std::errc::illegal_byte_sequence) return 2;
+        return FilesystemError(error.code());
+    }
+}
+
 #endif
