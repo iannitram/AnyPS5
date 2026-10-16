@@ -107,6 +107,8 @@ int MutexOperations::Timedlock(PthreadMutex* mutex, const KernelTimespec* abstim
 
 extern "C" {
 
+int APS5_VABI sched_get_priority_max_nid_postfix(int policy);
+
 int APS5_VABI scePthreadMutexattrInit(PthreadMutexattr* attr) {
     if (!attr)
         throw std::invalid_argument("Mutex attribute pointer is null");
@@ -140,8 +142,11 @@ int APS5_VABI scePthreadMutexattrSetprotocol(PthreadMutexattr* attr, int protoco
         return SCE_KERNEL_ERROR_EINVAL;
     constexpr int PrioNone = 0;
     constexpr int PrioProtect = 2;
+    constexpr int SchedRoundRobin = 3;
     if (protocol < PrioNone || protocol > PrioProtect)
         return SCE_KERNEL_ERROR_EINVAL;
+    (*attr)->protocol = protocol;
+    (*attr)->ceiling = sched_get_priority_max_nid_postfix(SchedRoundRobin);
     return 0;
 }
 
