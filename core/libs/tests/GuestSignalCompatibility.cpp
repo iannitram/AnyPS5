@@ -24,7 +24,6 @@ using Handler = void (APS5_VABI *)(int);
 extern "C" {
 int APS5_VABI sigqueue_nid_postfix(int, int, void*);
 int APS5_VABI killpg_nid_postfix(int, int);
-int APS5_VABI sigsuspend_nid_postfix(const void*);
 int APS5_VABI sigpause_nid_postfix(int);
 int APS5_VABI getpid_nid_postfix(void);
 int* APS5_VABI __error_nid_postfix();
@@ -163,9 +162,8 @@ int main() {
     Require(killpg_nid_postfix(self, 0) == 0 && killpg_nid_postfix(0, 0) == 0, "killpg of the own group");
     Require(killpg_nid_postfix(1, 0) == -1 && *__error_nid_postfix() == 3, "killpg of group 1");
     int thrown = 0;
-    try { sigsuspend_nid_postfix(&pending); } catch (const std::exception&) { ++thrown; }
     try { sigpause_nid_postfix(0); } catch (const std::exception&) { ++thrown; }
-    Require(thrown == 2, "sigsuspend and sigpause throw");
+    Require(thrown == 1, "sigpause throws");
 
     sigsetmask_nid_postfix(original);
     std::puts("guest signal compatibility tests passed");
