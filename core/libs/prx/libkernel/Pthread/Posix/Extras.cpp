@@ -64,18 +64,7 @@ int APS5_VABI pthread_mutexattr_getprotocol_nid_postfix(const PthreadMutexattr* 
     return 0;
 }
 
-int APS5_VABI pthread_mutexattr_getpshared_nid_postfix(const PthreadMutexattr* attr, int* shared) {
-    if (attr == nullptr || *attr == nullptr) return PosixThread::GUEST_EINVAL;
-    if (shared == nullptr) throw std::invalid_argument("pthread_mutexattr_getpshared: null pshared");
-    *shared = (*attr)->pshared;
-    return 0;
-}
 
-int APS5_VABI pthread_mutexattr_setpshared_nid_postfix(PthreadMutexattr* attr, int shared) {
-    if (attr == nullptr || *attr == nullptr || !ValidShared(shared)) return PosixThread::GUEST_EINVAL;
-    (*attr)->pshared = shared;
-    return 0;
-}
 
 int APS5_VABI pthread_mutexattr_setkind_np_nid_postfix(PthreadMutexattr* attr, int kind) {
     if (attr == nullptr || *attr == nullptr) {
@@ -140,17 +129,7 @@ int APS5_VABI pthread_rwlockattr_setpshared_nid_postfix(PthreadRwlockattr* attr,
     return 0;
 }
 
-int APS5_VABI pthread_getconcurrency_nid_postfix(void) {
-    std::lock_guard lock(forkLock);
-    return concurrency;
-}
 
-int APS5_VABI pthread_setconcurrency_nid_postfix(int level) {
-    if (level < 0) return PosixThread::GUEST_EINVAL;
-    std::lock_guard lock(forkLock);
-    concurrency = level;
-    return 0;
-}
 
 int APS5_VABI pthread_atfork_nid_postfix(ForkHandler prepare, ForkHandler parent, ForkHandler child) {
     std::lock_guard lock(forkLock);
@@ -200,15 +179,5 @@ int APS5_VABI pthread_attr_setaffinity_np_nid_postfix(PthreadAttr* attr, std::si
     return PosixThread::ToErrno(scePthreadAttrSetaffinity(attr, mask));
 }
 
-int APS5_VABI pthread_setaffinity_np_nid_postfix(Pthread thread, std::size_t size, const void* cpuset) {
-    if (thread == nullptr) return PosixThread::GUEST_ESRCH;
-    if (size != CpusetBytes) return OutOfRange;
-    if (cpuset == nullptr) return PosixThread::GUEST_EFAULT;
-    if (!ZeroFrom(cpuset, sizeof(KernelCpumask), size)) return PosixThread::GUEST_EINVAL;
-    KernelCpumask mask = 0;
-    std::memcpy(&mask, cpuset, sizeof(mask));
-    if (mask == 0) return Deadlock;
-    return PosixThread::ToErrno(scePthreadSetaffinity(thread, mask));
-}
 
 }
