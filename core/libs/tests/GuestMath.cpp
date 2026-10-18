@@ -563,6 +563,13 @@ static void CheckIntegerConversions() {
     Require(*__error_nid_postfix() == 13);
     Require(_Stoul_nid_postfix("18446744073709551615", nullptr, 10) == UINT64_MAX);
     Require(_Stoul_nid_postfix("-1", nullptr, 10) == UINT64_MAX && *__error_nid_postfix() == 13);
+    for (const int base : {-1, 1, 37}) {
+        const char text[] = " 12";
+        char* end = nullptr;
+        Require(_Stoul_nid_postfix(text, &end, base) == 0 && end == text);
+        Require(_Stoull_nid_postfix(text, &end, base) == 0 && end == text);
+        Require(*__error_nid_postfix() == 13);
+    }
     *__error_nid_postfix() = 0;
 }
 
