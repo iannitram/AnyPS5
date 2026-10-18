@@ -12,6 +12,7 @@ int APS5_VABI scePthreadMutexInit(PthreadMutex* mutex, const PthreadMutexattr* a
 int APS5_VABI scePthreadMutexDestroy(PthreadMutex* mutex);
 int APS5_VABI scePthreadMutexLock(PthreadMutex* mutex);
 int APS5_VABI scePthreadMutexUnlock(PthreadMutex* mutex);
+int APS5_VABI pthread_mutexattr_getprioceiling_nid_postfix(const PthreadMutexattr* attr, int* prioceiling);
 }
 
 static constexpr int SCE_OK = 0;
@@ -27,6 +28,12 @@ int main() {
     for (int type : {1, 2, 3, 4}) Require(scePthreadMutexattrSettype(&attr, type) == SCE_OK);
     for (int protocol : {-1, 3}) Require(scePthreadMutexattrSetprotocol(&attr, protocol) == SCE_KERNEL_ERROR_EINVAL);
     for (int protocol : {0, 1, 2}) Require(scePthreadMutexattrSetprotocol(&attr, protocol) == SCE_OK);
+    int ceiling = -1;
+    Require(pthread_mutexattr_getprioceiling_nid_postfix(&attr, &ceiling) == 0 && ceiling == 767);
+    Require(scePthreadMutexattrSetprotocol(&attr, 3) == SCE_KERNEL_ERROR_EINVAL);
+    Require(pthread_mutexattr_getprioceiling_nid_postfix(&attr, &ceiling) == 0);
+    Require(scePthreadMutexattrSetprotocol(&attr, 1) == SCE_OK);
+    Require(pthread_mutexattr_getprioceiling_nid_postfix(&attr, &ceiling) == 22);
 
     PthreadMutexattr unset = nullptr;
     Require(scePthreadMutexattrSettype(&unset, 1) == SCE_KERNEL_ERROR_EINVAL);
