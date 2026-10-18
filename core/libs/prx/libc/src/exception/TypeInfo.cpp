@@ -13,6 +13,8 @@ void APS5_VABI DeleteTypeInfo(std::type_info*) {
 }
 
 bool APS5_VABI IsPointerTypeInfo(const std::type_info*) { return false; }
+bool APS5_VABI IsPointerTypeInfoTrue(const std::type_info*) { return true; }
+bool APS5_VABI IsFunctionTypeInfoTrue(const std::type_info*) { return true; }
 
 bool APS5_VABI IsTypeInfoKind(const std::type_info*) { return true; }
 
@@ -67,4 +69,19 @@ extern "C" {
 LibcException::TypeInfoVtable _ZTVN10__cxxabiv117__class_type_infoE_nid_postfix {0, &typeid(__cxxabiv1::__class_type_info)};
 LibcException::TypeInfoVtable _ZTVN10__cxxabiv120__si_class_type_infoE_nid_postfix {0, &typeid(__cxxabiv1::__si_class_type_info)};
 LibcException::TypeInfoVtable _ZTVN10__cxxabiv121__vmi_class_type_infoE_nid_postfix {0, &typeid(__cxxabiv1::__vmi_class_type_info)};
+LibcException::TypeInfoVtable _ZTVN10__cxxabiv119__pointer_type_infoE_nid_postfix {
+    0,
+    &typeid(__cxxabiv1::__pointer_type_info),
+    LibcException::DestroyTypeInfo,
+    LibcException::DeleteTypeInfo,
+    LibcException::IsPointerTypeInfoTrue
+};
+LibcException::TypeInfoVtable _ZTVN10__cxxabiv120__function_type_infoE_nid_postfix {
+    0,
+    &typeid(__cxxabiv1::__function_type_info),
+    LibcException::DestroyTypeInfo,
+    LibcException::DeleteTypeInfo,
+    LibcException::IsPointerTypeInfo,
+    LibcException::IsFunctionTypeInfoTrue
+};
 }

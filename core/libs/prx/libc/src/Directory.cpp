@@ -1,6 +1,7 @@
 #include "prx/libc/include/GuestDirectory.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/FilesystemError.hpp"
+#include "prx/libc/include/AppArchive.hpp"
 #include <dirent.h>
 #include <cerrno>
 #include <cstring>
@@ -79,6 +80,8 @@ struct Directory {
     GuestDirectoryEntry entry{};
     std::int64_t position = 0;
     std::mutex mutex;
+    int descriptor = -1;
+    int (APS5_VABI* closeDescriptor)(int) = nullptr;
     ~Directory() { if (native) CloseNative(native); }
 };
 std::uint8_t DirectoryType(const std::filesystem::path& path) {
@@ -94,23 +97,7 @@ std::uint8_t DirectoryType(const std::filesystem::path& path) {
     default: return 0;
     }
 }
-}
-
-extern "C" {
-void* APS5_VABI opendir_nid_postfix(const char* path) {
-    if (!path) { errno = 14; return nullptr; }
-    if (!*path) { errno = 2; return nullptr; }
-    try {
-        auto directory = std::make_unique<Directory>();
-        if (const int error = ResolvePathError_nid_no_patch(path, directory->path)) { errno = error; return nullptr; }
-        directory->native = OpenNative(directory->path);
-        if (!directory->native) { errno = DirectoryError(errno); return nullptr; }
-        return directory.release();
-    } catch (const std::bad_alloc&) { errno = 12; return nullptr; }
-      catch (const std::filesystem::filesystem_error&) { errno = 5; return nullptr; }
-}
-
-static GuestDirectoryEntry* ReadEntry(Directory& directory) {
+GuestDirectoryEntry* ReadEntry(Directory& directory) {
     const int savedError = errno;
     errno = 0;
     std::filesystem::path component;
@@ -136,6 +123,22 @@ static GuestDirectoryEntry* ReadEntry(Directory& directory) {
     } catch (const std::bad_alloc&) { errno = 12; return nullptr; }
       catch (const std::filesystem::filesystem_error&) { errno = 5; return nullptr; }
 }
+}
+
+extern "C" {
+void* APS5_VABI opendir_nid_postfix(const char* path) {
+    if (!path) { errno = 14; return nullptr; }
+    if (!*path) { errno = 2; return nullptr; }
+    try {
+        auto directory = std::make_unique<Directory>();
+        if (const int error = ResolvePathError_nid_no_patch(path, directory->path)) { errno = error; return nullptr; }
+        AppArchiveRefuseMergedListing_nid_no_patch(directory->path, path);
+        directory->native = OpenNative(directory->path);
+        if (!directory->native) { errno = DirectoryError(errno); return nullptr; }
+        return directory.release();
+    } catch (const std::bad_alloc&) { errno = 12; return nullptr; }
+      catch (const std::filesystem::filesystem_error&) { errno = 5; return nullptr; }
+}
 
 GuestDirectoryEntry* APS5_VABI readdir_nid_postfix(void* handle) {
     if (!handle) { errno = 9; return nullptr; }
@@ -144,12 +147,31 @@ GuestDirectoryEntry* APS5_VABI readdir_nid_postfix(void* handle) {
     return ReadEntry(directory);
 }
 
+int APS5_VABI readdir_r_nid_postfix(void* handle, GuestDirectoryEntry* entry, GuestDirectoryEntry** result) {
+    if (!handle) return 9;
+    if (!entry || !result) throw std::invalid_argument("readdir_r: null entry or result");
+    auto& directory = *static_cast<Directory*>(handle);
+    const int savedError = errno;
+    errno = 0;
+    GuestDirectoryEntry* next = nullptr;
+    {
+        std::lock_guard lock(directory.mutex);
+        next = ReadEntry(directory);
+        if (next) std::memcpy(entry, next, next->recordLength);
+    }
+    if (!next && errno) return errno;
+    errno = savedError;
+    *result = next ? entry : nullptr;
+    return 0;
+}
+
 int APS5_VABI closedir_nid_postfix(void* handle) {
     if (!handle) { errno = 9; return -1; }
     std::unique_ptr<Directory> directory(static_cast<Directory*>(handle));
-    const int result = CloseNative(directory->native);
+    int result = CloseNative(directory->native);
     directory->native = nullptr;
     if (result) errno = DirectoryError(errno);
+    if (directory->closeDescriptor && directory->closeDescriptor(directory->descriptor) != 0) result = -1;
     return result;
 }
 
@@ -159,24 +181,6 @@ void APS5_VABI rewinddir_nid_postfix(void* handle) {
     std::lock_guard lock(directory.mutex);
     RewindNative(directory.native);
     directory.position = 0;
-}
-
-int APS5_VABI readdir_r_nid_postfix(void* handle, GuestDirectoryEntry* entry, GuestDirectoryEntry** result) {
-    if (entry == nullptr || result == nullptr) throw std::invalid_argument("readdir_r: null entry or result");
-    if (!handle) { errno = 9; return 9; }
-    auto& directory = *static_cast<Directory*>(handle);
-    std::lock_guard lock(directory.mutex);
-    const int savedError = errno;
-    errno = 0;
-    GuestDirectoryEntry* next = ReadEntry(directory);
-    if (next != nullptr) std::memcpy(entry, next, GuestDirectorySize(*next));
-    if (errno != 0) {
-        if (next == nullptr) return errno;
-    } else {
-        errno = savedError;
-    }
-    *result = next != nullptr ? entry : nullptr;
-    return 0;
 }
 
 std::int64_t APS5_VABI telldir_nid_postfix(void* handle) {
@@ -241,5 +245,18 @@ int APS5_VABI scandir_nid_postfix(const char* path, GuestDirectoryEntry*** list,
     if (count != 0 && compare != nullptr) qsort_r_nid_postfix(names, count, sizeof(GuestDirectoryEntry*), &compare, CompareThunk);
     *list = names;
     return static_cast<int>(count);
+}
+
+void* APS5_VABI OpenDescriptorDirectory_nid_no_patch(const char* hostPath, int descriptor, int (APS5_VABI* closeDescriptor)(int)) {
+    try {
+        auto directory = std::make_unique<Directory>();
+        directory->path = std::filesystem::path(reinterpret_cast<const char8_t*>(hostPath));
+        directory->native = OpenNative(directory->path);
+        if (!directory->native) { errno = DirectoryError(errno); return nullptr; }
+        directory->descriptor = descriptor;
+        directory->closeDescriptor = closeDescriptor;
+        return directory.release();
+    } catch (const std::bad_alloc&) { errno = 12; return nullptr; }
+      catch (const std::filesystem::filesystem_error&) { errno = 5; return nullptr; }
 }
 }

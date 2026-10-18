@@ -132,16 +132,9 @@ int ScaleExponent(std::int64_t exponent) {
 
 extern "C" {
 
-double APS5_VABI ceil_nid_postfix(double x) { return std::ceil(x); }
-float APS5_VABI ceilf_nid_postfix(float x) { return std::ceil(x); }
 long double APS5_VABI ceill_nid_postfix(long double x) { return std::ceil(x); }
-double APS5_VABI floor_nid_postfix(double x) { return std::floor(x); }
-float APS5_VABI floorf_nid_postfix(float x) { return std::floor(x); }
 long double APS5_VABI floorl_nid_postfix(long double x) { return std::floor(x); }
-float APS5_VABI truncf_nid_postfix(float x) { return std::trunc(x); }
 long double APS5_VABI roundl_nid_postfix(long double x) { return std::round(x); }
-double APS5_VABI nearbyint_nid_postfix(double x) { return std::nearbyint(x); }
-long double APS5_VABI nearbyintl_nid_postfix(long double x) { return std::nearbyint(x); }
 double APS5_VABI rint_nid_postfix(double x) { return std::rint(x); }
 float APS5_VABI rintf_nid_postfix(float x) { return std::rint(x); }
 long double APS5_VABI rintl_nid_postfix(long double x) { return std::rint(x); }
@@ -153,7 +146,6 @@ long long APS5_VABI llrint_nid_postfix(double x) { return lrint_nid_postfix(x); 
 long long APS5_VABI llrintf_nid_postfix(float x) { return lrintf_nid_postfix(x); }
 long long APS5_VABI llrintl_nid_postfix(long double x) { return lrintl_nid_postfix(x); }
 std::int64_t APS5_VABI lroundl_nid_postfix(long double x) { return RoundToLong(x); }
-long long APS5_VABI llroundl_nid_postfix(long double x) { return RoundToLong(x); }
 
 float APS5_VABI fabsf_nid_postfix(float x) { return std::fabs(x); }
 long double APS5_VABI fabsl_nid_postfix(long double x) { return std::fabs(x); }
@@ -165,7 +157,6 @@ double APS5_VABI fmax_nid_postfix(double x, double y) { return Maximum(x, y); }
 float APS5_VABI fmaxf_nid_postfix(float x, float y) { return Maximum(x, y); }
 long double APS5_VABI fmaxl_nid_postfix(long double x, long double y) { return Maximum(x, y); }
 double APS5_VABI fmin_nid_postfix(double x, double y) { return Minimum(x, y); }
-float APS5_VABI fminf_nid_postfix(float x, float y) { return Minimum(x, y); }
 long double APS5_VABI fminl_nid_postfix(long double x, long double y) { return Minimum(x, y); }
 double APS5_VABI fdim_nid_postfix(double x, double y) { return PositiveDifference(x, y); }
 float APS5_VABI fdimf_nid_postfix(float x, float y) { return PositiveDifference(x, y); }

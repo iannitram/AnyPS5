@@ -141,13 +141,6 @@ int APS5_VABI fesetround_nid_postfix(int round) {
     return 0;
 }
 
-int APS5_VABI fegetenv_nid_postfix(GuestFloatingEnvironment* environment) {
-    Require(environment, __func__);
-    StoreEnvironment(environment);
-    environment->mxcsr = Mxcsr();
-    SetX87Control(static_cast<std::uint16_t>(environment->x87.control));
-    return 0;
-}
 
 int APS5_VABI feholdexcept_nid_postfix(GuestFloatingEnvironment* environment) {
     Require(environment, __func__);

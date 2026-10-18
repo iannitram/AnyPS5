@@ -1,3 +1,4 @@
+#include "prx/libc/include/general/AsmMacros.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <climits>
 #include <cstdint>
@@ -23,11 +24,10 @@ int APS5_VABI _sigprocmask_nid_postfix(int, const GuestSignalSet*, GuestSignalSe
 int APS5_VABI JumpKeepingCalleeSaved(std::uint64_t* buffer);
 }
 
-#ifdef _WIN32
-#define TEST_ASM_FUNCTION(name) ".globl " name "\n.def " name "; .scl 2; .type 32; .endef\n" name ":\n"
-#define TEST_ASM_CALL(name) "    call " name "\n"
+#define TEST_ASM_FUNCTION(name) APS5_ASM_FUNCTION(name)
+#if defined(_WIN32) || defined(__APPLE__)
+#define TEST_ASM_CALL(name) "    call " APS5_ASM_SYMBOL(name) "\n"
 #else
-#define TEST_ASM_FUNCTION(name) ".globl " name "\n.type " name ", @function\n" name ":\n"
 #define TEST_ASM_CALL(name) "    call " name "@PLT\n"
 #endif
 
@@ -150,13 +150,13 @@ static void CheckSigsetjmp() {
     Require(BufferWord(buffer, 92) == Filler);
     Require(BlockedMask() == 0x30u);
 
-    SetBlockedMask(0x40000005u);
+    SetBlockedMask(0x80000005u);
     Require(sigsetjmp_nid_postfix(buffer, 1) == 0);
-    Require(BufferWord(buffer, 72) == 0x40000005u);
+    Require(BufferWord(buffer, 72) == 0x80000005u);
     for (std::size_t offset = 76; offset < 88; offset += 4) Require(BufferWord(buffer, offset) == 0);
     Require(BufferWord(buffer, 88) == 1);
     Require(BufferWord(buffer, 92) == Filler);
-    Require(BlockedMask() == 0x40000005u);
+    Require(BlockedMask() == 0x80000005u);
 
     SetBlockedMask(0x6u);
     Require(JumpKeepingCalleeSaved(buffer) == 42);
