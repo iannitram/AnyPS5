@@ -1,3 +1,4 @@
+#include "prx/libSceLibcInternal/include/Api.hpp"
 #include <cerrno>
 #include <cstdarg>
 
@@ -56,79 +57,18 @@ void Report(bool withCode, int code, const char* format, VaList* arguments) {
 
 extern "C" {
 
-void APS5_VABI err_set_file_nid_postfix(void* stream) {
-    errorStream = stream != nullptr ? static_cast<FileStream*>(stream) : __stderrp_nid_postfix;
-}
 
-void APS5_VABI err_set_exit_nid_postfix(ExitHook hook) {
-    exitHook = hook;
-}
 
-[[noreturn]] void APS5_VABI verrc_nid_postfix(int value, int code, const char* format, VaList* arguments) {
-    Report(true, code, format, arguments);
-    Exit(value);
-}
 
-[[noreturn]] void APS5_VABI verr_nid_postfix(int value, const char* format, VaList* arguments) {
-    verrc_nid_postfix(value, errno, format, arguments);
-}
 
-[[noreturn]] void APS5_VABI verrx_nid_postfix(int value, const char* format, VaList* arguments) {
-    Report(false, 0, format, arguments);
-    Exit(value);
-}
 
-void APS5_VABI vwarnc_nid_postfix(int code, const char* format, VaList* arguments) {
-    Report(true, code, format, arguments);
-}
 
-void APS5_VABI vwarn_nid_postfix(const char* format, VaList* arguments) {
-    vwarnc_nid_postfix(errno, format, arguments);
-}
 
-void APS5_VABI vwarnx_nid_postfix(const char* format, VaList* arguments) {
-    Report(false, 0, format, arguments);
-}
 
-[[noreturn]] void APS5_VABI err_nid_postfix(int value, const char* format, ...) {
-    const int code = errno;
-    APS5_GUEST_VA_LIST arguments;
-    APS5_GUEST_VA_START(arguments, format);
-    verrc_nid_postfix(value, code, format, reinterpret_cast<VaList*>(arguments));
-}
 
-[[noreturn]] void APS5_VABI errc_nid_postfix(int value, int code, const char* format, ...) {
-    APS5_GUEST_VA_LIST arguments;
-    APS5_GUEST_VA_START(arguments, format);
-    verrc_nid_postfix(value, code, format, reinterpret_cast<VaList*>(arguments));
-}
 
-[[noreturn]] void APS5_VABI errx_nid_postfix(int value, const char* format, ...) {
-    APS5_GUEST_VA_LIST arguments;
-    APS5_GUEST_VA_START(arguments, format);
-    verrx_nid_postfix(value, format, reinterpret_cast<VaList*>(arguments));
-}
 
-void APS5_VABI warn_nid_postfix(const char* format, ...) {
-    const int code = errno;
-    APS5_GUEST_VA_LIST arguments;
-    APS5_GUEST_VA_START(arguments, format);
-    vwarnc_nid_postfix(code, format, reinterpret_cast<VaList*>(arguments));
-    APS5_GUEST_VA_END(arguments);
-}
 
-void APS5_VABI warnc_nid_postfix(int code, const char* format, ...) {
-    APS5_GUEST_VA_LIST arguments;
-    APS5_GUEST_VA_START(arguments, format);
-    vwarnc_nid_postfix(code, format, reinterpret_cast<VaList*>(arguments));
-    APS5_GUEST_VA_END(arguments);
-}
 
-void APS5_VABI warnx_nid_postfix(const char* format, ...) {
-    APS5_GUEST_VA_LIST arguments;
-    APS5_GUEST_VA_START(arguments, format);
-    vwarnx_nid_postfix(format, reinterpret_cast<VaList*>(arguments));
-    APS5_GUEST_VA_END(arguments);
-}
 
 }

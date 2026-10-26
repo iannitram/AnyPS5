@@ -1,3 +1,4 @@
+#include "prx/libSceLibcInternal/include/Api.hpp"
 #include <cstdint>
 
 #include "SceTypes.hpp"

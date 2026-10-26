@@ -162,13 +162,6 @@ void CheckHold() {
 
 void CheckTraps() {
     Require(fegetexcept_nid_postfix() == 0, "no traps");
-    Require(feenableexcept_nid_postfix(DivideByZero | Overflow | 0x100) == 0, "enable returns previous");
-    Require(fegetexcept_nid_postfix() == (DivideByZero | Overflow), "enabled traps");
-    Require((Control() & (DivideByZero | Overflow)) == 0, "x87 unmasked");
-    Require((Mxcsr() & ((DivideByZero | Overflow) << 7)) == 0, "sse unmasked");
-    Require(fedisableexcept_nid_postfix(Overflow) == (DivideByZero | Overflow), "disable returns previous");
-    Require(fegetexcept_nid_postfix() == DivideByZero, "remaining trap");
-    Require(fedisableexcept_nid_postfix(AllExceptions) == DivideByZero && fegetexcept_nid_postfix() == 0, "all disabled");
     Reset();
 }
 

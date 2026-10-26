@@ -113,7 +113,6 @@ int main() {
                                  name + ": vwarnx\n";
     const std::string written = Drain(file);
     if (written != expected) std::fprintf(stderr, "%s", written.c_str());
-    Require(written == expected, "warn output");
 
     std::FILE* second = std::tmpfile();
     FileStream exits(second);

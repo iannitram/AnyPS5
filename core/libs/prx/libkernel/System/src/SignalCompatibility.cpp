@@ -1,17 +1,8 @@
+#include "prx/libkernel/include/Api.hpp"
 #include <atomic>
 #include <cstdint>
 
 #include "prx/libc/include/General.hpp"
-
-struct GuestSignalSet {
-    std::uint32_t bits[4];
-};
-
-struct GuestSigaction {
-    std::uintptr_t handler;
-    int flags;
-    GuestSignalSet mask;
-};
 
 namespace {
 
@@ -36,7 +27,6 @@ constexpr std::uintptr_t Ignore = 1;
 constexpr std::uintptr_t Hold = 3;
 constexpr std::uintptr_t Error = static_cast<std::uintptr_t>(-1);
 
-std::atomic<std::uint32_t> interrupting[4];
 
 }
 
@@ -48,12 +38,6 @@ int APS5_VABI sigemptyset_nid_postfix(SignalSet* set);
 int APS5_VABI sigaddset_nid_postfix(SignalSet* set, int signal);
 int APS5_VABI sigismember_nid_postfix(const SignalSet* set, int signal);
 int APS5_VABI kill_nid_postfix(int pid, int signal);
-
-bool SignalInterrupts_nid_no_patch(int signal) {
-    if (signal < 1 || signal > MaxSignal) return false;
-    const int bit = signal - 1;
-    return (interrupting[bit / 32].load() >> (bit % 32)) & 1;
-}
 
 int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous) {
     SignalAction action{};
@@ -129,21 +113,6 @@ std::uintptr_t APS5_VABI sigset_nid_postfix(int signal, std::uintptr_t dispositi
     action.handler = disposition;
     if (sigaction_nid_postfix(signal, &action, &previous) == -1) return Error;
     return sigismember_nid_postfix(&previousMask, signal) ? Hold : previous.handler;
-}
-
-int APS5_VABI siginterrupt_nid_postfix(int signal, int flag) {
-    SignalAction action{};
-    const int result = sigaction_nid_postfix(signal, nullptr, &action);
-    if (result < 0) return result;
-    const int bit = signal - 1;
-    if (flag) {
-        interrupting[bit / 32].fetch_or(1u << (bit % 32));
-        action.flags &= ~Restart;
-    } else {
-        interrupting[bit / 32].fetch_and(~(1u << (bit % 32)));
-        action.flags |= Restart;
-    }
-    return sigaction_nid_postfix(signal, &action, nullptr);
 }
 
 int APS5_VABI sigqueue_nid_postfix(int pid, int signal, void* value) {

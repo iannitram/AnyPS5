@@ -33,10 +33,6 @@ LibcException::TypeInfoVtable _ZTVN10__cxxabiv117__array_type_infoE_nid_postfix 
 LibcException::TypeInfoVtable _ZTVN10__cxxabiv117__pbase_type_infoE_nid_postfix {0, APS5_TYPE_INFO(_ZTIN10__cxxabiv117__pbase_type_infoE_nid_postfix)};
 LibcException::TypeInfoVtable _ZTVN10__cxxabiv123__fundamental_type_infoE_nid_postfix {0, APS5_TYPE_INFO(_ZTIN10__cxxabiv123__fundamental_type_infoE_nid_postfix)};
 LibcException::TypeInfoVtable _ZTVN10__cxxabiv129__pointer_to_member_type_infoE_nid_postfix {0, APS5_TYPE_INFO(_ZTIN10__cxxabiv129__pointer_to_member_type_infoE_nid_postfix)};
-LibcException::TypeInfoVtable _ZTVN10__cxxabiv119__pointer_type_infoE_nid_postfix {0, APS5_TYPE_INFO(_ZTIN10__cxxabiv119__pointer_type_infoE_nid_postfix),
-    LibcException::DestroyTypeInfo, LibcException::DeleteTypeInfo, LibcException::IsTypeInfoKind, LibcException::IsPointerTypeInfo};
-LibcException::TypeInfoVtable _ZTVN10__cxxabiv120__function_type_infoE_nid_postfix {0, APS5_TYPE_INFO(_ZTIN10__cxxabiv120__function_type_infoE_nid_postfix),
-    LibcException::DestroyTypeInfo, LibcException::DeleteTypeInfo, LibcException::IsPointerTypeInfo, LibcException::IsTypeInfoKind};
 
 #define APS5_FUNDAMENTAL_TYPE(code) \
     LibcException::FundamentalRecord _ZTI##code##_nid_postfix {&_ZTVN10__cxxabiv123__fundamental_type_infoE_nid_postfix.destroy, #code}; \

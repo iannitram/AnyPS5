@@ -1,3 +1,5 @@
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include "prx/libkernel/Socket/include/SocketRuntime.hpp"
 #include <cstddef>
@@ -13,12 +15,20 @@
 #include <unistd.h>
 #endif
 
-extern "C" int* APS5_VABI __error_nid_postfix();
 #ifdef _WIN32
 extern "C" _invalid_parameter_handler _set_thread_local_invalid_parameter_handler(_invalid_parameter_handler);
 #endif
 
 namespace {
+struct GuestTermios {
+    std::uint32_t flags[4];
+    std::uint8_t controlCharacters[20];
+    std::uint32_t inputSpeed;
+    std::uint32_t outputSpeed;
+};
+static_assert(sizeof(GuestTermios) == 44 && alignof(GuestTermios) == 4);
+static_assert(offsetof(GuestTermios, inputSpeed) == 36 && offsetof(GuestTermios, outputSpeed) == 40);
+
 constexpr int BadDescriptor = 9;
 constexpr int BadAddress = 14;
 constexpr int InvalidArgument = 22;
@@ -62,16 +72,6 @@ constexpr std::uint32_t NoFlush = 0x80000000;
 constexpr int MinimumIndex = 16;
 constexpr int TimeIndex = 17;
 
-struct GuestTermios {
-    std::uint32_t inputFlags;
-    std::uint32_t outputFlags;
-    std::uint32_t controlFlags;
-    std::uint32_t localFlags;
-    std::uint8_t controlCharacters[20];
-    std::uint32_t inputSpeed;
-    std::uint32_t outputSpeed;
-};
-static_assert(sizeof(GuestTermios) == 44);
 constexpr int InputQueue = 1;
 constexpr int OutputQueue = 2;
 constexpr int BothQueues = 3;
@@ -117,6 +117,14 @@ int ProcessGroupError(int descriptor, const char* pipeMessage) {
 }
 
 extern "C" {
+int APS5_VABI cfsetspeed_nid_postfix(void* attributes, std::uint32_t speed) {
+    if (attributes == nullptr) throw std::invalid_argument("cfsetspeed: attributes is null");
+    auto* bytes = static_cast<std::byte*>(attributes);
+    std::memcpy(bytes + offsetof(GuestTermios, inputSpeed), &speed, sizeof(speed));
+    std::memcpy(bytes + offsetof(GuestTermios, outputSpeed), &speed, sizeof(speed));
+    return 0;
+}
+
 int APS5_VABI tcgetattr_nid_postfix(int descriptor, void* attributes) {
     static_cast<void>(attributes);
     return Fail(TerminalError(descriptor));
@@ -171,20 +179,16 @@ int APS5_VABI cfsetospeed_nid_postfix(GuestTermios* attributes, std::uint32_t sp
     return 0;
 }
 
-int APS5_VABI cfsetspeed_nid_postfix(GuestTermios* attributes, std::uint32_t speed) {
-    attributes->inputSpeed = attributes->outputSpeed = speed;
-    return 0;
-}
 
 void APS5_VABI cfmakeraw_nid_postfix(GuestTermios* attributes) {
-    attributes->inputFlags &= ~(BellOnFullQueue | InputFlowControl | CheckParity | BreakInterrupt | MarkParity | StripHighBit |
+    attributes->flags[0] &= ~(BellOnFullQueue | InputFlowControl | CheckParity | BreakInterrupt | MarkParity | StripHighBit |
                                 MapNewlineToReturn | IgnoreReturn | MapReturnToNewline | OutputFlowControl | IgnoreParity);
-    attributes->inputFlags |= IgnoreBreak;
-    attributes->outputFlags &= ~PostProcessOutput;
-    attributes->localFlags &= ~(Echo | EchoErase | EchoKill | EchoNewline | Canonical | Signals | Extensions | NoFlush |
+    attributes->flags[0] |= IgnoreBreak;
+    attributes->flags[1] &= ~PostProcessOutput;
+    attributes->flags[3] &= ~(Echo | EchoErase | EchoKill | EchoNewline | Canonical | Signals | Extensions | NoFlush |
                                 StopBackgroundOutput | PendingInput);
-    attributes->controlFlags &= ~(CharacterSizeMask | EnableParity);
-    attributes->controlFlags |= EightBits | EnableReceiver;
+    attributes->flags[2] &= ~(CharacterSizeMask | EnableParity);
+    attributes->flags[2] |= EightBits | EnableReceiver;
     attributes->controlCharacters[MinimumIndex] = 1;
     attributes->controlCharacters[TimeIndex] = 0;
 }

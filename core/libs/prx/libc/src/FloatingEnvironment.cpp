@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -77,39 +78,8 @@ const GuestFloatingEnvironment __fe_dfl_env_nid_postfix {
     0x1f80,
 };
 
-int APS5_VABI feclearexcept_nid_postfix(int excepts) {
-    GuestFloatingEnvironment environment;
-    if (excepts == AllExceptions) {
-        ClearX87Exceptions();
-    } else {
-        StoreEnvironment(&environment);
-        environment.x87.status &= ~excepts;
-        LoadEnvironment(&environment);
-    }
-    SetMxcsr(Mxcsr() & ~excepts);
-    return 0;
-}
 
-int APS5_VABI fegetexceptflag_nid_postfix(GuestExceptionFlags* flags, int excepts) {
-    const std::uint32_t mxcsr = Mxcsr();
-    const std::uint16_t status = X87Status();
-    *Require(flags, __func__) = static_cast<GuestExceptionFlags>((mxcsr | status) & excepts);
-    return 0;
-}
 
-int APS5_VABI fesetexceptflag_nid_postfix(const GuestExceptionFlags* flags, int excepts) {
-    const GuestExceptionFlags value = *Require(flags, __func__);
-    GuestFloatingEnvironment environment;
-    StoreEnvironment(&environment);
-    environment.x87.status &= ~excepts;
-    environment.x87.status |= value & excepts;
-    LoadEnvironment(&environment);
-    std::uint32_t mxcsr = Mxcsr();
-    mxcsr &= ~excepts;
-    mxcsr |= value & excepts;
-    SetMxcsr(mxcsr);
-    return 0;
-}
 
 int APS5_VABI feraiseexcept_nid_postfix(int excepts) {
     const GuestExceptionFlags flags = static_cast<GuestExceptionFlags>(excepts);
@@ -118,41 +88,10 @@ int APS5_VABI feraiseexcept_nid_postfix(int excepts) {
     return 0;
 }
 
-int APS5_VABI fetestexcept_nid_postfix(int excepts) {
-    const std::uint32_t mxcsr = Mxcsr();
-    const std::uint16_t status = X87Status();
-    return static_cast<int>((status | mxcsr) & excepts);
-}
-
-int APS5_VABI fegetround_nid_postfix() {
-    return X87Control() & RoundMask;
-}
-
-int APS5_VABI fesetround_nid_postfix(int round) {
-    if (round & ~RoundMask) return -1;
-    std::uint16_t control = X87Control();
-    control &= ~RoundMask;
-    control |= round;
-    SetX87Control(control);
-    std::uint32_t mxcsr = Mxcsr();
-    mxcsr &= ~(RoundMask << SseRoundShift);
-    mxcsr |= round << SseRoundShift;
-    SetMxcsr(mxcsr);
-    return 0;
-}
 
 
-int APS5_VABI feholdexcept_nid_postfix(GuestFloatingEnvironment* environment) {
-    Require(environment, __func__);
-    std::uint32_t mxcsr = Mxcsr();
-    StoreEnvironment(environment);
-    ClearX87Exceptions();
-    environment->mxcsr = mxcsr;
-    mxcsr &= ~AllExceptions;
-    mxcsr |= AllExceptions << SseMaskShift;
-    SetMxcsr(mxcsr);
-    return 0;
-}
+
+
 
 int APS5_VABI fesetenv_nid_postfix(const GuestFloatingEnvironment* environment) {
     Require(environment, __func__);
@@ -161,41 +100,8 @@ int APS5_VABI fesetenv_nid_postfix(const GuestFloatingEnvironment* environment) 
     return 0;
 }
 
-int APS5_VABI feupdateenv_nid_postfix(const GuestFloatingEnvironment* environment) {
-    Require(environment, __func__);
-    const std::uint16_t status = X87Status();
-    const std::uint32_t mxcsr = Mxcsr();
-    fesetenv_nid_postfix(environment);
-    feraiseexcept_nid_postfix(static_cast<int>((mxcsr | status) & AllExceptions));
-    return 0;
-}
 
-int APS5_VABI feenableexcept_nid_postfix(int mask) {
-    mask &= AllExceptions;
-    std::uint16_t control = X87Control();
-    std::uint32_t mxcsr = Mxcsr();
-    const int previous = static_cast<int>(~(control | mxcsr >> SseMaskShift) & AllExceptions);
-    control &= ~mask;
-    SetX87Control(control);
-    mxcsr &= ~(mask << SseMaskShift);
-    SetMxcsr(mxcsr);
-    return previous;
-}
 
-int APS5_VABI fedisableexcept_nid_postfix(int mask) {
-    mask &= AllExceptions;
-    std::uint16_t control = X87Control();
-    std::uint32_t mxcsr = Mxcsr();
-    const int previous = static_cast<int>(~(control | mxcsr >> SseMaskShift) & AllExceptions);
-    control |= mask;
-    SetX87Control(control);
-    mxcsr |= mask << SseMaskShift;
-    SetMxcsr(mxcsr);
-    return previous;
-}
 
-int APS5_VABI fegetexcept_nid_postfix() {
-    return ~X87Control() & AllExceptions;
-}
 
 }

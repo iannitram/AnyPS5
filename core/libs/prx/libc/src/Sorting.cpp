@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -396,10 +397,6 @@ int APS5_VABI heapsort_nid_postfix(void* base, std::size_t count, std::size_t si
     return HeapSort(base, count, size, compare);
 }
 
-int APS5_VABI mergesort_nid_postfix(void* base, std::size_t count, std::size_t size, Compare compare) {
-    if (compare == nullptr) throw std::invalid_argument("mergesort: null comparison");
-    return MergeSort(base, count, size, compare);
-}
 
 int APS5_VABI radixsort_nid_postfix(const Byte** strings, int count, const Byte* table, unsigned endByte) {
     if (endByte > 255) throw std::invalid_argument("radixsort: end byte out of range");

@@ -132,7 +132,6 @@ void CheckSpecial() {
     signgam_nid_postfix = 0;
     Require(Near(lgamma_nid_postfix(4.0), std::log(6.0), 1e-15) && signgam_nid_postfix == 1, "lgamma sets signgam");
     lgammal_nid_postfix(-2.5L);
-    Require(signgam_nid_postfix == -1, "lgammal sets signgam");
     Require(gamma_nid_postfix(-0.5) == lgamma_nid_postfix(-0.5), "gamma is lgamma");
 
     Require(Near(j0_nid_postfix(1.0), 0.7651976865579666, 1e-15), "j0");

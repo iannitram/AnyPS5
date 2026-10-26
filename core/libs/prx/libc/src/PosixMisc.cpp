@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <cerrno>
 #include <chrono>
 #include <cstddef>
@@ -55,23 +56,7 @@ std::string Year(int year) {
 
 extern "C" {
 
-GuestTm* APS5_VABI localtime_r_nid_postfix(const std::int64_t* timer, GuestTm* result) {
-    if (timer == nullptr || result == nullptr) throw std::invalid_argument("localtime_r: null argument");
-    volatile int& hostErrno = errno;
-    const int saved = hostErrno;
-    GuestTm* converted = localtime_s_nid_postfix(timer, result);
-    hostErrno = saved;
-    return converted != nullptr ? result : nullptr;
-}
 
-GuestTm* APS5_VABI gmtime_r_nid_postfix(const std::int64_t* timer, GuestTm* result) {
-    if (timer == nullptr || result == nullptr) throw std::invalid_argument("gmtime_r: null argument");
-    volatile int& hostErrno = errno;
-    const int saved = hostErrno;
-    GuestTm* converted = gmtime_s_nid_postfix(timer, result);
-    hostErrno = saved;
-    return converted != nullptr ? result : nullptr;
-}
 
 char* APS5_VABI asctime_r_nid_postfix(const GuestTm* time, char* buffer) {
     if (buffer == nullptr) throw std::invalid_argument("asctime_r: null buffer");
@@ -99,16 +84,8 @@ char* APS5_VABI ctime_r_nid_postfix(const std::int64_t* timer, char* buffer) {
     return asctime_r_nid_postfix(localtime_r_nid_postfix(timer, &local), buffer);
 }
 
-int APS5_VABI isascii_nid_postfix(int character) { return (character & ~0x7f) == 0; }
 
-int APS5_VABI getw_nid_postfix(FileStream* stream) {
-    int value = 0;
-    return fread_nid_postfix(&value, sizeof(value), 1, stream) == 1 ? value : EOF;
-}
 
-int APS5_VABI putw_nid_postfix(int value, FileStream* stream) {
-    return fwrite_nid_postfix(&value, sizeof(value), 1, stream) == 1 ? 0 : EOF;
-}
 
 void* APS5_VABI valloc_nid_postfix(std::size_t size) { return memalign_nid_postfix(PageSize, size); }
 
@@ -152,30 +129,5 @@ char* APS5_VABI getwd_nid_postfix(char* buffer) {
     return nullptr;
 }
 
-char* APS5_VABI gets_nid_postfix(char* buffer) {
-    if (buffer == nullptr) throw std::invalid_argument("gets: null buffer");
-    FileStream* stream = __stdinp_nid_postfix;
-    flockfile_nid_postfix(stream);
-    struct Unlock {
-        FileStream* stream;
-        ~Unlock() { funlockfile_nid_postfix(stream); }
-    } unlock{stream};
-    static bool warned = false;
-    if (!warned) {
-        std::fputs("warning: this program uses gets(), which is unsafe.\n", stderr);
-        std::fflush(stderr);
-        warned = true;
-    }
-    char* cursor = buffer;
-    for (int c; (c = getc_unlocked_nid_postfix(stream)) != '\n';) {
-        if (c == EOF) {
-            if (cursor == buffer) return nullptr;
-            break;
-        }
-        *cursor++ = static_cast<char>(c);
-    }
-    *cursor = '\0';
-    return buffer;
-}
 
 }

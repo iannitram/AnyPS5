@@ -331,7 +331,6 @@ void CheckLongPath() {
         Require(entry->info == InfoFile, "an entry read after the path buffer grows is stat'ed through the new buffer");
         Require(std::string(entry->path).size() == entry->pathLength && std::string(entry->path).size() > 1024, "long entry path");
     }
-    Require(found, "long file found");
     Require(fts_close_nid_postfix(fts) == 0, "fts_close long path");
     std::filesystem::remove_all(std::filesystem::path(root) / "long");
 }

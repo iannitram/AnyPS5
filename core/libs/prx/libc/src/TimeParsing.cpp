@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <cctype>
 #include <cerrno>
 #include <climits>
@@ -444,9 +445,6 @@ const char* Parse(const char* text, const char* format, GuestTm* time, bool* uni
 
 extern "C" {
 
-std::int64_t APS5_VABI timegm_nid_postfix(GuestTm* time) {
-    return UniversalTime(time, 0);
-}
 
 std::int64_t APS5_VABI timeoff_nid_postfix(GuestTm* time, std::int64_t offset) {
     return UniversalTime(time, offset);

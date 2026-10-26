@@ -1,231 +1,425 @@
+#include "prx/libc/include/Api.hpp"
+#include "prx/libSceLibcInternal/include/Api.hpp"
 #include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <initializer_list>
+#include <sstream>
 #include <string>
 #include <vector>
 
-namespace {
-struct Option {
-    const char* name;
-    int hasArgument;
-    int* flag;
-    int value;
-};
-}
-
 extern "C" {
-extern int optind_nid_postfix;
+
 extern int opterr_nid_postfix;
+extern int optind_nid_postfix;
 extern int optopt_nid_postfix;
 extern int optreset_nid_postfix;
 extern char* optarg_nid_postfix;
-int APS5_VABI getopt_nid_postfix(int, char* const*, const char*);
-int APS5_VABI getopt_long_nid_postfix(int, char* const*, const char*, const Option*, int*);
-int APS5_VABI getopt_long_only_nid_postfix(int, char* const*, const char*, const Option*, int*);
-int APS5_VABI setenv_nid_postfix(const char*, const char*, int);
-int APS5_VABI unsetenv_nid_postfix(const char*);
 extern FileStream* __stderrp_nid_postfix;
-void APS5_VABI err_set_file_nid_postfix(void*);
-const char* APS5_VABI getprogname_nid_postfix();
 }
 
 namespace {
 
-void Require(bool value, const char* what) {
-    if (!value) {
-        std::fprintf(stderr, "failed: %s\n", what);
-        std::abort();
-    }
+void Expect(bool value, const std::string& what) {
+    if (value) return;
+    std::fprintf(stderr, "failed: %s\n", what.c_str());
+    std::abort();
 }
 
-struct Arguments {
+void ExpectText(const std::string& actual, const std::string& expected, const std::string& what) {
+    Expect(actual == expected, what + ": `" + actual + "' != `" + expected + "'");
+}
+
+class ArgumentVector {
     std::vector<std::string> storage;
     std::vector<char*> pointers;
-    explicit Arguments(std::initializer_list<const char*> values) : storage(values.begin(), values.end()) {
-        for (auto& value : storage) pointers.push_back(value.data());
+
+public:
+    explicit ArgumentVector(const std::string& line) {
+        std::istringstream words(line);
+        for (std::string word; words >> word;) storage.push_back(word);
+        for (auto& word : storage) pointers.push_back(word.data());
         pointers.push_back(nullptr);
     }
-    int count() const { return static_cast<int>(storage.size()); }
-    char* const* data() { return pointers.data(); }
-    std::string at(int index) const { return pointers[index]; }
+    int Count() const { return static_cast<int>(storage.size()); }
+    char* const* Values() { return pointers.data(); }
+    std::string Joined() const {
+        std::string result;
+        for (std::size_t i = 0; i + 1 < pointers.size(); ++i) result += (i ? " " : "") + std::string(pointers[i]);
+        return result;
+    }
 };
 
-void Reset(bool errors = false) {
-    optind_nid_postfix = 1;
-    optreset_nid_postfix = 1;
-    opterr_nid_postfix = errors ? 1 : 0;
+class StderrCapture {
+    FileStream* previous;
+    FileStream stream;
+
+public:
+    StderrCapture() : previous(__stderrp_nid_postfix), stream(std::tmpfile()) { __stderrp_nid_postfix = &stream; }
+    ~StderrCapture() {
+        __stderrp_nid_postfix = previous;
+        stream.Close();
+    }
+    std::string Text() {
+        std::FILE* handle = stream.GetHandle();
+        std::fflush(handle);
+        std::rewind(handle);
+        std::string text;
+        for (int character; (character = std::fgetc(handle)) != EOF;) text.push_back(static_cast<char>(character));
+        return text;
+    }
+};
+
+void Reset() {
+    optind_nid_postfix = optreset_nid_postfix = 1;
+    opterr_nid_postfix = 1;
 }
 
-bool Argument(const char* expected) {
-    if (expected == nullptr) return optarg_nid_postfix == nullptr;
-    return optarg_nid_postfix != nullptr && std::strcmp(optarg_nid_postfix, expected) == 0;
+std::string Finish(std::string result, int count) {
+    if (result.empty()) result = "|";
+    else result.back() = '|';
+    return result + std::to_string(count - optind_nid_postfix);
 }
 
-void CheckShort() {
-    Arguments a {"prog", "-a", "-bval", "-b", "x", "-c", "-cy", "-ab", "z", "file", "-a"};
+std::string RunGetopt(const char* options, ArgumentVector& arguments) {
     Reset();
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'a' && Argument(nullptr), "flag option");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'b' && Argument("val"), "attached argument");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'b' && Argument("x"), "separate argument");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'c' && Argument(nullptr), "optional argument absent");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'c' && Argument("y"), "optional argument attached");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'a', "grouped flag");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == 'b' && Argument("z"), "grouped option with argument");
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab:c::") == -1 && optind_nid_postfix == 9, "stops at the first operand");
-    Require(a.at(9) == "file", "getopt does not permute");
-
-    Arguments unknown {"prog", "-xa", "-b"};
-    Reset();
-    Require(getopt_nid_postfix(unknown.count(), unknown.data(), "ab:") == '?' && optopt_nid_postfix == 'x' && optind_nid_postfix == 1, "unknown option");
-    Require(getopt_nid_postfix(unknown.count(), unknown.data(), "ab:") == 'a' && optind_nid_postfix == 2, "rest of the group");
-    Require(getopt_nid_postfix(unknown.count(), unknown.data(), "ab:") == '?' && optopt_nid_postfix == 'b' && optind_nid_postfix == 3, "missing argument");
-    Reset();
-    getopt_nid_postfix(unknown.count(), unknown.data(), ":ab:");
-    getopt_nid_postfix(unknown.count(), unknown.data(), ":ab:");
-    Require(getopt_nid_postfix(unknown.count(), unknown.data(), ":ab:") == ':', "missing argument with leading colon");
-
-    Arguments ends {"prog", "--", "-a"};
-    Reset();
-    Require(getopt_nid_postfix(ends.count(), ends.data(), "a") == -1 && optind_nid_postfix == 2, "double dash ends options");
-    Arguments dash {"prog", "-", "-a"};
-    Reset();
-    Require(getopt_nid_postfix(dash.count(), dash.data(), "a") == -1 && optind_nid_postfix == 1, "lone dash is an operand");
-    Reset();
-    Require(getopt_nid_postfix(dash.count(), dash.data(), "a-") == '-' && optind_nid_postfix == 2, "lone dash as an option");
-    Arguments colon {"prog", "-:"};
-    Reset();
-    Require(getopt_nid_postfix(colon.count(), colon.data(), "a:") == '?' && optopt_nid_postfix == ':', "colon is never an option");
+    std::string result;
+    for (int character; (character = getopt_nid_postfix(arguments.Count(), arguments.Values(), options)) != -1;) {
+        Expect(character != ':', "getopt returned `:'");
+        const char* found = std::strchr(options, character);
+        if (!found) result += "!" + std::string(1, static_cast<char>(character)) + ",";
+        else if (found[1] != ':') result += std::string(1, static_cast<char>(character)) + ",";
+        else result += std::string(1, static_cast<char>(character)) + "=" + optarg_nid_postfix + ",";
+    }
+    return Finish(result, arguments.Count());
 }
 
-void CheckLong() {
-    int flag = 0;
-    const Option options[] = {
-        {"verbose", 0, &flag, 7},
-        {"version", 0, nullptr, 'V'},
-        {"name", 1, nullptr, 'N'},
-        {"color", 2, nullptr, 'C'},
+std::string RunGetoptLong(const char* options, const GuestOption* longOptions, ArgumentVector& arguments) {
+    Reset();
+    std::string result;
+    int index = -2;
+    for (int character; (character = getopt_long_nid_postfix(arguments.Count(), arguments.Values(), options, longOptions, &index)) != -1;) {
+        Expect(character != ':', "getopt_long returned `:'");
+        if (index == -2) {
+            const char* found = std::strchr(options, character);
+            if (!found) result += "!" + std::string(1, static_cast<char>(character)) + ",";
+            else if (found[1] != ':') result += std::string(1, static_cast<char>(character)) + ",";
+            else result += std::string(1, static_cast<char>(character)) + "=" + optarg_nid_postfix + ",";
+        } else {
+            const GuestOption& option = longOptions[index];
+            result += "-" + std::string(option.name);
+            if (option.hasArgument == 1) result += "=" + std::string(optarg_nid_postfix);
+            if (option.hasArgument == 2 && optarg_nid_postfix) result += "=" + std::string(optarg_nid_postfix);
+            result += ",";
+        }
+        index = -2;
+    }
+    return Finish(result, arguments.Count());
+}
+
+struct GetoptCase {
+    const char* options;
+    const char* arguments;
+    const char* result;
+};
+
+void FreeBsdGetoptCases() {
+    const GetoptCase cases[] = {
+        {"c:d", "foo -c 1 -d foo", "c=1,d|1"},
+        {"c:d", "foo -d foo bar", "d|2"},
+        {"c:d", "foo -c 2 foo bar", "c=2|2"},
+        {"c:d", "foo -e 1 foo bar", "!?|3"},
+        {"c:d", "foo -d -- -c 1", "d|2"},
+        {"c:d", "foo -c- 1", "c=-|1"},
+        {"c:d", "foo -d - 1", "d|2"},
+    };
+    for (const auto& test : cases) {
+        ArgumentVector arguments(test.arguments);
+        StderrCapture capture;
+        ExpectText(RunGetopt(test.options, arguments), test.result, std::string("getopt ") + test.arguments);
+        const std::string expectedError = std::strcmp(test.result, "!?|3") == 0 ? "eboot.bin: illegal option -- e\n" : "";
+        ExpectText(capture.Text(), expectedError, std::string("getopt stderr ") + test.arguments);
+    }
+}
+
+void FreeBsdGetoptLongCases() {
+    const GuestOption gnu[] = {
+        {"required", 1, nullptr, 'r'},
+        {"optional", 2, nullptr, 'o'},
+        {"none", 0, nullptr, 'n'},
+        {"color", 0, nullptr, 'C'},
+        {"colour", 0, nullptr, 'C'},
         {nullptr, 0, nullptr, 0},
     };
-    Arguments a {"prog", "file1", "--verbose", "file2", "-n", "5", "--name=bob", "--", "-x"};
+    const GetoptCase cases[] = {
+        {"abc:", "foo --req foobar", "-required=foobar|0"},
+        {"abc:", "foo --opt=bazbug", "-optional=bazbug|0"},
+        {"abc:", "foo --col", "-color|0"},
+        {"abc:", "foo --colour", "-colour|0"},
+        {"abc:", "foo -a -b -cfoobar --required foobar --optional=bazbug --none random --col --color --colour",
+         "a,b,c=foobar,-required=foobar,-optional=bazbug,-none,-color,-color,-colour|1"},
+    };
+    for (const auto& test : cases) {
+        ArgumentVector arguments(test.arguments);
+        StderrCapture capture;
+        ExpectText(RunGetoptLong(test.options, gnu, arguments), test.result, std::string("getopt_long ") + test.arguments);
+        ExpectText(capture.Text(), "", std::string("getopt_long stderr ") + test.arguments);
+    }
+
+    int flags[3] {};
+    const GuestOption lists[] = {
+        {"list-foobar", 0, &flags[0], 'f'},
+        {"list-goobar", 0, &flags[1], 'g'},
+        {"list", 0, &flags[2], 'l'},
+        {nullptr, 0, nullptr, 0},
+    };
+    ArgumentVector arguments("foo --list");
+    ExpectText(RunGetoptLong("fgl", lists, arguments), "-list|0", "exact match among prefixes");
+    Expect(flags[0] == 0 && flags[1] == 0 && flags[2] == 'l', "flag set by an exact match");
+}
+
+void ShortOptions() {
+    ArgumentVector grouped("foo -dcvalue -dd rest");
+    ExpectText(RunGetopt("c:d", grouped), "d,c=value,d,d|1", "grouped options");
+
+    ArgumentVector optional("foo -afoo -a bar");
+    Reset();
+    Expect(getopt_nid_postfix(optional.Count(), optional.Values(), "a::") == 'a' && std::strcmp(optarg_nid_postfix, "foo") == 0, "optional attached");
+    Expect(getopt_nid_postfix(optional.Count(), optional.Values(), "a::") == 'a' && optarg_nid_postfix == nullptr && optind_nid_postfix == 3, "optional absent");
+    Expect(getopt_nid_postfix(optional.Count(), optional.Values(), "a::") == -1 && optind_nid_postfix == 3, "optional stops at operand");
+
+    ArgumentVector dash("foo - -x");
+    Reset();
+    Expect(getopt_nid_postfix(dash.Count(), dash.Values(), "-x") == '-' && optind_nid_postfix == 2, "lone dash as option");
+    Expect(getopt_nid_postfix(dash.Count(), dash.Values(), "-x") == 'x' && optind_nid_postfix == 3, "after lone dash");
+
+    ArgumentVector unknown("foo -x");
+    {
+        StderrCapture capture;
+        Reset();
+        opterr_nid_postfix = 0;
+        Expect(getopt_nid_postfix(unknown.Count(), unknown.Values(), "ab") == '?', "unknown option returns ?");
+        Expect(optopt_nid_postfix == 'x' && optind_nid_postfix == 2, "optopt of unknown option");
+        ExpectText(capture.Text(), "", "opterr 0 is silent");
+    }
+    {
+        StderrCapture capture;
+        Reset();
+        Expect(getopt_nid_postfix(unknown.Count(), unknown.Values(), ":ab") == '?' && optopt_nid_postfix == 'x', "leading colon unknown");
+        ExpectText(capture.Text(), "", "leading colon is silent");
+    }
+
+    ArgumentVector missing("foo -c");
+    {
+        StderrCapture capture;
+        Reset();
+        Expect(getopt_nid_postfix(missing.Count(), missing.Values(), "c:") == '?' && optopt_nid_postfix == 'c' && optind_nid_postfix == 2, "missing argument");
+        ExpectText(capture.Text(), "eboot.bin: option requires an argument -- c\n", "missing argument message");
+    }
+    {
+        StderrCapture capture;
+        Reset();
+        Expect(getopt_nid_postfix(missing.Count(), missing.Values(), ":c:") == ':' && optopt_nid_postfix == 'c', "missing argument with leading colon");
+        ExpectText(capture.Text(), "", "leading colon missing argument is silent");
+    }
+
+    ArgumentVector first("foo -ab");
+    ArgumentVector second("bar -c");
+    Reset();
+    Expect(getopt_nid_postfix(first.Count(), first.Values(), "abc") == 'a', "first parse");
+    optind_nid_postfix = optreset_nid_postfix = 1;
+    Expect(getopt_nid_postfix(second.Count(), second.Values(), "abc") == 'c', "optreset restarts getopt");
+    Expect(getopt_nid_postfix(second.Count(), second.Values(), "abc") == -1 && optind_nid_postfix == 2, "restarted parse ends");
+
+    ArgumentVector permuted("foo a -b c");
+    ExpectText(RunGetopt("bc", permuted), "|3", "getopt does not permute");
+}
+
+void LongOnlyOptions() {
+    int flag = 0;
+    const GuestOption options[] = {
+        {"alpha", 0, nullptr, 100},
+        {"alpine", 0, nullptr, 100},
+        {"b", 0, nullptr, 101},
+        {"required", 1, nullptr, 102},
+        {"optional", 2, nullptr, 103},
+        {"flag", 0, &flag, 7},
+        {nullptr, 0, nullptr, 0},
+    };
+    struct Case {
+        const char* arguments;
+        const char* shortOptions;
+        std::vector<int> results;
+        std::vector<std::string> values;
+        int finalIndex;
+    };
+    const Case cases[] = {
+        {"foo -alpha --alpha -b", "ab", {100, 100, 101}, {"", "", ""}, 4},
+        {"foo -a -acvalue", "ac:", {'a', 'a', 'c'}, {"", "", "value"}, 3},
+        {"foo -required=one -req two -optional=three -optional four", "", {102, 102, 103, 103}, {"one", "two", "three", ""}, 6},
+        {"foo operand -alpha tail -b", "ab", {100, 101}, {"", ""}, 3},
+        {"foo -al --al", "a", {'?', '?'}, {"", ""}, 3},
+        {"foo -unknown", "", {'?'}, {""}, 2},
+        {"foo -required", ":", {':'}, {""}, 2},
+        {"foo -alpha=yes", "", {'?'}, {""}, 2},
+        {"foo -flag", "", {0}, {""}, 2},
+        {"foo -- -alpha", "", {}, {}, 2},
+        {"foo operand -alpha", "+", {}, {}, 1},
+        {"foo operand -alpha", "-", {1, 100}, {"operand", ""}, 3},
+        {"foo -W alpha", "W;", {100}, {""}, 3},
+    };
+    for (const auto& test : cases) {
+        ArgumentVector arguments(test.arguments);
+        Reset();
+        opterr_nid_postfix = 0;
+        for (std::size_t i = 0; i < test.results.size(); ++i) {
+            const int result = getopt_long_only_nid_postfix(arguments.Count(), arguments.Values(), test.shortOptions, options, nullptr);
+            Expect(result == test.results[i], std::string("getopt_long_only result: ") + test.arguments);
+            ExpectText(optarg_nid_postfix ? optarg_nid_postfix : "", test.values[i], "getopt_long_only argument");
+        }
+        Expect(getopt_long_only_nid_postfix(arguments.Count(), arguments.Values(), test.shortOptions, options, nullptr) == -1,
+               std::string("getopt_long_only termination: ") + test.arguments);
+        Expect(optind_nid_postfix == test.finalIndex, std::string("getopt_long_only optind: ") + test.arguments);
+    }
+    Expect(flag == 7, "getopt_long_only flag pointer");
+    {
+        ArgumentVector arguments("foo -al");
+        StderrCapture capture;
+        Reset();
+        int index = -1;
+        Expect(getopt_long_only_nid_postfix(arguments.Count(), arguments.Values(), "a", options, &index) == '?' &&
+               optopt_nid_postfix == 0 && index == -1, "ambiguous aliases keep index unchanged");
+        ExpectText(capture.Text(), "eboot.bin: option `-al' is ambiguous\n", "single dash diagnostic");
+    }
+    ArgumentVector arguments("foo -alpha");
     Reset();
     int index = -1;
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "n:", options, &index) == 0 && flag == 7 && index == 0, "flag option");
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "n:", options, &index) == 'n' && Argument("5"), "short option between operands");
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "n:", options, &index) == 'N' && Argument("bob") && index == 2, "long option with equals");
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "n:", options, &index) == -1, "end");
-    const char* permuted[] = {"prog", "--verbose", "-n", "5", "--name=bob", "--", "file1", "file2", "-x"};
-    for (int i = 0; i < a.count(); i++) Require(a.at(i) == permuted[i], "operands permuted after the options");
-    Require(optind_nid_postfix == 6, "optind at the first operand");
-
-    Arguments b {"prog", "--name", "alice", "--color", "--color=red", "--verb", "--ver", "--version=1", "--nope", "--name"};
-    Reset();
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == 'N' && Argument("alice"), "separate long argument");
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == 'C' && Argument(nullptr), "optional long argument absent");
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == 'C' && Argument("red"), "optional long argument present");
-    flag = 0;
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == 0 && flag == 7, "unique abbreviation");
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == '?' && optopt_nid_postfix == 0, "ambiguous abbreviation");
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == '?' && optopt_nid_postfix == 'V', "argument to a no-argument option");
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == '?' && optopt_nid_postfix == 0, "unknown long option");
-    Require(getopt_long_nid_postfix(b.count(), b.data(), "", options, nullptr) == '?' && optopt_nid_postfix == 'N', "missing long argument");
-    Reset();
-    optind_nid_postfix = 9;
-    Require(getopt_long_nid_postfix(b.count(), b.data(), ":", options, nullptr) == ':', "missing long argument with leading colon");
-
-    Arguments c {"prog", "-W", "name=w", "-Wversion"};
-    Reset();
-    Require(getopt_long_nid_postfix(c.count(), c.data(), "W;", options, nullptr) == 'N' && Argument("w"), "-W long option");
-    Require(getopt_long_nid_postfix(c.count(), c.data(), "W;", options, nullptr) == 'V', "-W attached long option");
-}
-
-void CheckOrdering() {
-    const Option options[] = {{"all", 0, nullptr, 'A'}, {nullptr, 0, nullptr, 0}};
-    Arguments a {"prog", "file", "-a"};
-    Reset();
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "+a", options, nullptr) == -1 && optind_nid_postfix == 1, "plus stops at the first operand");
-    Reset();
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "-a", options, nullptr) == 1 && Argument("file"), "minus returns operands in order");
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "-a", options, nullptr) == 'a', "minus then option");
-    setenv_nid_postfix("POSIXLY_CORRECT", "1", 1);
-    Reset();
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "a", options, nullptr) == -1 && optind_nid_postfix == 1, "POSIXLY_CORRECT disables permutation");
-    unsetenv_nid_postfix("POSIXLY_CORRECT");
-    Reset();
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "a", options, nullptr) == 'a', "permutation again");
-}
-
-void CheckLongOnly() {
-    const Option options[] = {{"name", 1, nullptr, 'N'}, {"all", 0, nullptr, 'A'}, {nullptr, 0, nullptr, 0}};
-    Arguments a {"prog", "-name=x", "-n", "5", "-al", "-all"};
-    Reset();
-    Require(getopt_long_only_nid_postfix(a.count(), a.data(), "n:al", options, nullptr) == 'N' && Argument("x"), "single dash long option");
-    Require(getopt_long_only_nid_postfix(a.count(), a.data(), "n:al", options, nullptr) == 'n' && Argument("5"), "single letter stays short");
-    Require(getopt_long_only_nid_postfix(a.count(), a.data(), "n:al", options, nullptr) == 'A', "-al abbreviates all");
-    Require(getopt_long_only_nid_postfix(a.count(), a.data(), "n:al", options, nullptr) == 'A', "-all is all");
-    Require(getopt_long_only_nid_postfix(a.count(), a.data(), "n:al", options, nullptr) == -1, "end");
-}
-
-void CheckReset() {
-    Arguments a {"prog", "-ab"};
-    Reset();
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab") == 'a', "first");
-    Reset();
-    Require(getopt_nid_postfix(a.count(), a.data(), "ab") == 'a', "optreset restarts the group");
+    Expect(getopt_long_only_nid_postfix(arguments.Count(), arguments.Values(), "a", options, &index) == 100 && index == 0,
+           "long-only index");
     optind_nid_postfix = 0;
-    Require(getopt_long_nid_postfix(a.count(), a.data(), "ab", nullptr, nullptr) == 'a', "optind 0 restarts");
+    Expect(getopt_long_only_nid_postfix(arguments.Count(), arguments.Values(), "a", options, nullptr) == 100, "long-only restart");
 }
 
-std::string Drain(std::FILE* file) {
-    std::fflush(file);
-    std::rewind(file);
-    std::string text;
-    char buffer[256];
-    std::size_t count;
-    while ((count = std::fread(buffer, 1, sizeof(buffer), file)) > 0) text.append(buffer, count);
-    std::rewind(file);
-    return text;
-}
+void LongOptions() {
+    int flag = 0;
+    const GuestOption options[] = {
+        {"required", 1, nullptr, 'r'},
+        {"optional", 2, nullptr, 'o'},
+        {"none", 0, nullptr, 'n'},
+        {"verbose", 0, nullptr, 'v'},
+        {"version", 0, nullptr, 'V'},
+        {"flag", 0, &flag, 7},
+        {nullptr, 0, nullptr, 0},
+    };
 
-void CheckMessages() {
-    const std::string name = getprogname_nid_postfix();
-    std::FILE* errorFile = std::tmpfile();
-    std::FILE* standardFile = std::tmpfile();
-    Require(errorFile != nullptr && standardFile != nullptr, "tmpfile");
-    FileStream errorStream(errorFile);
-    FileStream standardStream(standardFile);
-    err_set_file_nid_postfix(&errorStream);
-    FileStream* savedStandardError = __stderrp_nid_postfix;
-    __stderrp_nid_postfix = &standardStream;
+    ArgumentVector kinds("foo --required=1 --required 2 --optional=3 --optional 4 --none --flag");
+    ExpectText(RunGetoptLong("", options, kinds), "-required=1,-required=2,-optional=3,-optional,-none,-flag|1", "three argument kinds");
+    Expect(flag == 7, "flag pointer set");
+    ExpectText(kinds.Joined(), "foo --required=1 --required 2 --optional=3 --optional --none --flag 4", "operand permuted to the end");
 
-    const Option options[] = {{"alpha", 0, nullptr, 'a'}, {nullptr, 0, nullptr, 0}};
-    Arguments longForm {"prog", "--bogus"};
-    Reset(true);
-    Require(getopt_long_nid_postfix(longForm.count(), longForm.data(), "a", options, nullptr) == '?', "unknown long option");
-    Require(Drain(errorFile) == name + ": unrecognized option `--bogus'\n", "getopt_long warns through the err_set_file stream");
+    ArgumentVector abbreviations("foo --verb --vers --req=x --opt");
+    ExpectText(RunGetoptLong("", options, abbreviations), "-verbose,-version,-required=x,-optional|0", "unique abbreviations");
 
-    Arguments shortForm {"prog", "-z"};
-    Reset(true);
-    Require(getopt_nid_postfix(shortForm.count(), shortForm.data(), "a") == '?', "unknown short option");
-    Require(Drain(standardFile) == name + ": illegal option -- z\n", "getopt writes to the guest stderr");
+    struct ErrorCase {
+        const char* options;
+        const char* arguments;
+        int result;
+        int optopt;
+        const char* message;
+    };
+    const ErrorCase errors[] = {
+        {"", "foo --ver", '?', 0, "eboot.bin: option `--ver' is ambiguous\n"},
+        {"", "foo --none=1", '?', 'n', "eboot.bin: option `--none' doesn't allow an argument\n"},
+        {"", "foo --flag=1", '?', 0, "eboot.bin: option `--flag' doesn't allow an argument\n"},
+        {"", "foo --required", '?', 'r', "eboot.bin: option `--required' requires an argument\n"},
+        {":", "foo --required", ':', 'r', ""},
+        {"", "foo --nope=1", '?', 0, "eboot.bin: unrecognized option `--nope=1'\n"},
+        {"", "foo -x", '?', 'x', "eboot.bin: invalid option -- x\n"},
+        {"c:", "foo -c", '?', 'c', "eboot.bin: option requires an argument -- c\n"},
+        {":c:", "foo -c", ':', 'c', ""},
+        {"W;", "foo -W ver", '?', 0, "eboot.bin: option `-W ver' is ambiguous\n"},
+        {"W;", "foo -W", '?', 'W', "eboot.bin: option requires an argument -- W\n"},
+    };
+    for (const auto& test : errors) {
+        ArgumentVector arguments(test.arguments);
+        StderrCapture capture;
+        Reset();
+        optopt_nid_postfix = -1;
+        const int result = getopt_long_nid_postfix(arguments.Count(), arguments.Values(), test.options, options, nullptr);
+        Expect(result == test.result, std::string("getopt_long result ") + test.arguments);
+        Expect(optopt_nid_postfix == test.optopt, std::string("getopt_long optopt ") + test.arguments);
+        ExpectText(capture.Text(), test.message, std::string("getopt_long message ") + test.arguments);
+    }
+    {
+        ArgumentVector arguments("foo --ver -x");
+        StderrCapture capture;
+        Reset();
+        opterr_nid_postfix = 0;
+        Expect(getopt_long_nid_postfix(arguments.Count(), arguments.Values(), "", options, nullptr) == '?' && optopt_nid_postfix == 0, "silent ambiguity");
+        Expect(getopt_long_nid_postfix(arguments.Count(), arguments.Values(), "", options, nullptr) == '?' && optopt_nid_postfix == 'x', "silent unknown");
+        ExpectText(capture.Text(), "", "opterr 0 silences getopt_long");
+    }
 
-    __stderrp_nid_postfix = savedStandardError;
-    err_set_file_nid_postfix(nullptr);
-    std::fclose(errorFile);
-    std::fclose(standardFile);
+    ArgumentVector wOption("foo -W verbose -Wversion");
+    ExpectText(RunGetoptLong("W;", options, wOption), "-verbose,-version|0", "W; long options");
+
+    ArgumentVector terminated("foo a -b -- -d c");
+    ExpectText(RunGetoptLong("bd", options, terminated), "b|3", "-- ends getopt_long");
+    ExpectText(terminated.Joined(), "foo -b -- a -d c", "-- permutes skipped operands");
+
+    ArgumentVector interleaved("foo a -b c -d");
+    ExpectText(RunGetoptLong("bd", options, interleaved), "b,d|2", "permutation");
+    ExpectText(interleaved.Joined(), "foo -b -d a c", "permuted order");
+
+    ArgumentVector plus("foo a -b");
+    ExpectText(RunGetoptLong("+b", options, plus), "|2", "+ stops at the first operand");
+
+    ArgumentVector inOrder("foo a -b c");
+    Reset();
+    std::string sequence;
+    for (int character; (character = getopt_long_nid_postfix(inOrder.Count(), inOrder.Values(), "-b", options, nullptr)) != -1;)
+        sequence += character == 1 ? std::string("1:") + optarg_nid_postfix + "," : std::string(1, static_cast<char>(character)) + ",";
+    ExpectText(sequence, "1:a,b,1:c,", "- returns operands in order");
+
+    ArgumentVector restartFirst("foo -bd");
+    ArgumentVector restartSecond("bar -b");
+    Reset();
+    Expect(getopt_long_nid_postfix(restartFirst.Count(), restartFirst.Values(), "bd", options, nullptr) == 'b', "getopt_long first parse");
+    optind_nid_postfix = 0;
+    Expect(getopt_long_nid_postfix(restartSecond.Count(), restartSecond.Values(), "bd", options, nullptr) == 'b', "optind 0 restarts getopt_long");
+    Expect(getopt_long_nid_postfix(restartSecond.Count(), restartSecond.Values(), "bd", options, nullptr) == -1 && optind_nid_postfix == 2, "restarted getopt_long ends");
+    Reset();
+    Expect(getopt_long_nid_postfix(restartFirst.Count(), restartFirst.Values(), "bd", options, nullptr) == 'b', "getopt_long parse before optreset");
+    optind_nid_postfix = optreset_nid_postfix = 1;
+    Expect(getopt_long_nid_postfix(restartSecond.Count(), restartSecond.Values(), "bd", options, nullptr) == 'b', "optreset restarts getopt_long");
+
+    Expect(setenv_nid_postfix("POSIXLY_CORRECT", "1", 1) == 0, "setenv POSIXLY_CORRECT");
+    {
+        ArgumentVector posix("foo a -b");
+        ExpectText(RunGetoptLong("b", options, posix), "|2", "POSIXLY_CORRECT stops at the first operand");
+        ArgumentVector illegal("foo -x");
+        StderrCapture capture;
+        Reset();
+        Expect(getopt_long_nid_postfix(illegal.Count(), illegal.Values(), "b", options, nullptr) == '?', "POSIXLY_CORRECT unknown option");
+        ExpectText(capture.Text(), "eboot.bin: illegal option -- x\n", "POSIXLY_CORRECT message");
+    }
+    Expect(unsetenv_nid_postfix("POSIXLY_CORRECT") == 0, "unsetenv POSIXLY_CORRECT");
+    ArgumentVector gnu("foo a -b");
+    ExpectText(RunGetoptLong("b", options, gnu), "b|1", "permutation after POSIXLY_CORRECT is unset");
+
+    Reset();
+    Expect(getopt_long_nid_postfix(gnu.Count(), gnu.Values(), nullptr, options, nullptr) == -1, "null option string");
 }
 
 }
 
 int main() {
-    CheckShort();
-    CheckLong();
-    CheckOrdering();
-    CheckLongOnly();
-    CheckReset();
-    CheckMessages();
-    std::puts("guest getopt tests passed");
-    return 0;
+    Expect(opterr_nid_postfix == 1 && optind_nid_postfix == 1 && optopt_nid_postfix == 0 &&
+           optreset_nid_postfix == 0 && optarg_nid_postfix == nullptr, "initial values");
+    FreeBsdGetoptCases();
+    FreeBsdGetoptLongCases();
+    ShortOptions();
+    LongOptions();
+    LongOnlyOptions();
 }

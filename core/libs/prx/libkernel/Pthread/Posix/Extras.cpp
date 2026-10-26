@@ -1,3 +1,4 @@
+#include "prx/libkernel/include/Api.hpp"
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
@@ -57,31 +58,10 @@ bool ZeroFrom(const void* bytes, std::size_t start, std::size_t end) {
 
 extern "C" {
 
-int APS5_VABI pthread_mutexattr_getprotocol_nid_postfix(const PthreadMutexattr* attr, int* protocol) {
-    if (attr == nullptr || *attr == nullptr) return PosixThread::GUEST_EINVAL;
-    if (protocol == nullptr) throw std::invalid_argument("pthread_mutexattr_getprotocol: null protocol");
-    *protocol = (*attr)->protocol;
-    return 0;
-}
 
 
 
-int APS5_VABI pthread_mutexattr_setkind_np_nid_postfix(PthreadMutexattr* attr, int kind) {
-    if (attr == nullptr || *attr == nullptr) {
-        errno = PosixThread::GUEST_EINVAL;
-        return -1;
-    }
-    (*attr)->type = static_cast<MutexType>(kind);
-    return 0;
-}
 
-int APS5_VABI pthread_mutexattr_getkind_np_nid_postfix(PthreadMutexattr attr) {
-    if (attr == nullptr) {
-        errno = PosixThread::GUEST_EINVAL;
-        return -1;
-    }
-    return static_cast<int>(attr->type);
-}
 
 int APS5_VABI pthread_mutex_getprioceiling_nid_postfix(const PthreadMutex* mutex, int* ceiling) {
     if (!LiveMutex(mutex) || (*mutex)->_protocol != PriorityProtect) return PosixThread::GUEST_EINVAL;
@@ -103,39 +83,12 @@ int APS5_VABI pthread_condattr_getclock_nid_postfix(const PthreadCondattr* attr,
     return 0;
 }
 
-int APS5_VABI pthread_condattr_getpshared_nid_postfix(const PthreadCondattr* attr, int* shared) {
-    if (attr == nullptr || *attr == nullptr) return PosixThread::GUEST_EINVAL;
-    if (shared == nullptr) throw std::invalid_argument("pthread_condattr_getpshared: null pshared");
-    *shared = (*attr)->_pshared;
-    return 0;
-}
-
-int APS5_VABI pthread_condattr_setpshared_nid_postfix(PthreadCondattr* attr, int shared) {
-    if (attr == nullptr || *attr == nullptr || !ValidShared(shared)) return PosixThread::GUEST_EINVAL;
-    (*attr)->_pshared = shared;
-    return 0;
-}
-
-int APS5_VABI pthread_rwlockattr_getpshared_nid_postfix(const PthreadRwlockattr* attr, int* shared) {
-    if (attr == nullptr || *attr == nullptr) return PosixThread::GUEST_EINVAL;
-    if (shared == nullptr) throw std::invalid_argument("pthread_rwlockattr_getpshared: null pshared");
-    *shared = (*attr)->pshared;
-    return 0;
-}
-
-int APS5_VABI pthread_rwlockattr_setpshared_nid_postfix(PthreadRwlockattr* attr, int shared) {
-    if (attr == nullptr || *attr == nullptr || !ValidShared(shared)) return PosixThread::GUEST_EINVAL;
-    (*attr)->pshared = shared;
-    return 0;
-}
 
 
 
-int APS5_VABI pthread_atfork_nid_postfix(ForkHandler prepare, ForkHandler parent, ForkHandler child) {
-    std::lock_guard lock(forkLock);
-    forkHandlers.push_back({prepare, parent, child});
-    return 0;
-}
+
+
+
 
 int APS5_VABI pthread_setname_np_nid_postfix(Pthread thread, const char* name) {
     if (thread == nullptr) return PosixThread::GUEST_ESRCH;

@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
@@ -40,47 +41,10 @@ std::size_t Length(const Wide* text) {
 extern "C" {
 
 
-Wide* APS5_VABI wcsncat_nid_postfix(Wide* destination, const Wide* source, std::size_t count) {
-    Wide* end = destination + Length(destination);
-    while (count != 0 && *source != 0) {
-        *end++ = *source++;
-        --count;
-    }
-    *end = 0;
-    return destination;
-}
 
-std::size_t APS5_VABI wcscspn_nid_postfix(const Wide* text, const Wide* reject) {
-    std::size_t length = 0;
-    for (; text[length] != 0; ++length)
-        for (const Wide* r = reject; *r != 0; ++r)
-            if (*r == text[length]) return length;
-    return length;
-}
 
-int APS5_VABI wctomb_nid_postfix(char* destination, Wide value) {
-    if (destination == nullptr) return 0;
-    const std::size_t result = wcrtomb_nid_postfix(destination, value, nullptr);
-    return result == static_cast<std::size_t>(-1) ? -1 : static_cast<int>(result);
-}
 
-int APS5_VABI wctrans_nid_postfix(const char* name) {
-    if (name == nullptr) throw std::invalid_argument("wctrans: null name");
-    if (std::strcmp(name, "tolower") == 0) return TransformLower;
-    if (std::strcmp(name, "toupper") == 0) return TransformUpper;
-    errno = GuestInvalidArgument;
-    return TransformError;
-}
 
-std::uint32_t APS5_VABI towctrans_nid_postfix(std::uint32_t value, int transform) {
-    switch (transform) {
-    case TransformLower: return towlower_nid_postfix(value);
-    case TransformUpper: return towupper_nid_postfix(value);
-    default:
-        errno = GuestInvalidArgument;
-        return value;
-    }
-}
 
 
 }

@@ -1,98 +1,84 @@
-#include <cstdarg>
+#include "prx/libc/include/Api.hpp"
+#include "prx/libSceLibcInternal/include/Api.hpp"
+#include "prx/libc/include/FileStream.hpp"
+#include "prx/libc/include/general/VabiMacros.hpp"
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
-#include "prx/libc/include/General.hpp"
-
-struct FileStream;
+static_assert(sizeof(GuestOption) == 32);
+static_assert(offsetof(GuestOption, hasArgument) == 8);
+static_assert(offsetof(GuestOption, flag) == 16);
+static_assert(offsetof(GuestOption, value) == 24);
 
 extern "C" {
+extern const char* __progname_nid_postfix;
 extern FileStream* __stderrp_nid_postfix;
-const char* APS5_VABI getprogname_nid_postfix();
-char* APS5_VABI getenv_nid_postfix(const char* name);
-int APS5_VABI fprintf_nid_postfix(FileStream* stream, const char* format, ...);
-void APS5_VABI warnx_nid_postfix(const char* format, ...);
-}
-
-namespace {
-
-struct GuestOption {
-    const char* name;
-    int hasArgument;
-    int* flag;
-    int value;
-};
-
-constexpr int NoArgument = 0;
-constexpr int RequiredArgument = 1;
-constexpr int OptionalArgument = 2;
-
-constexpr int FlagPermute = 0x01;
-constexpr int FlagAllArguments = 0x02;
-constexpr int FlagLongOnly = 0x04;
-
-constexpr int BadCharacter = '?';
-constexpr int InOrder = 1;
-
-enum class DashPrefix { None, Single, Double, W };
-
-char Empty[] = "";
-
-char* shortPlace = Empty;
-char* longPlace = Empty;
-int nonOptionStart = -1;
-int nonOptionEnd = -1;
-DashPrefix dashPrefix = DashPrefix::None;
-int posixlyCorrect = -1;
-
-std::string Format(const char* format, va_list arguments) {
-    va_list copy;
-    va_copy(copy, arguments);
-    const int length = std::vsnprintf(nullptr, 0, format, copy);
-    va_end(copy);
-    std::string text(length > 0 ? static_cast<std::size_t>(length) : 0, '\0');
-    if (length > 0) std::vsnprintf(text.data(), text.size() + 1, format, arguments);
-    return text;
-}
-
-void Warn(const char* format, ...) {
-    va_list arguments;
-    va_start(arguments, format);
-    const std::string message = Format(format, arguments);
-    va_end(arguments);
-    warnx_nid_postfix("%s", message.c_str());
-}
-
-void WarnShort(const char* format, ...) {
-    va_list arguments;
-    va_start(arguments, format);
-    const std::string message = Format(format, arguments);
-    va_end(arguments);
-    fprintf_nid_postfix(__stderrp_nid_postfix, "%s: %s\n", getprogname_nid_postfix(), message.c_str());
-}
-
-}
-
-extern "C" {
 
 int opterr_nid_postfix = 1;
 int optind_nid_postfix = 1;
 int optopt_nid_postfix = 0;
 int optreset_nid_postfix = 0;
 char* optarg_nid_postfix = nullptr;
-
 }
 
 namespace {
 
-int& optind = optind_nid_postfix;
-int& opterr = opterr_nid_postfix;
-int& optopt = optopt_nid_postfix;
-int& optreset = optreset_nid_postfix;
-char*& optarg = optarg_nid_postfix;
+constexpr int NoArgument = 0;
+constexpr int RequiredArgument = 1;
+constexpr int OptionalArgument = 2;
 
-int GreatestCommonDivisor(int a, int b) {
+constexpr int FlagPermute = 1;
+constexpr int FlagAllArguments = 2;
+constexpr int FlagLongOnly = 4;
+
+constexpr int BadCharacter = '?';
+constexpr int InOrder = 1;
+
+char g_emptyMessage[1] {};
+char* g_shortPlace = g_emptyMessage;
+char* g_longPlace = g_emptyMessage;
+int g_nonOptionStart = -1;
+int g_nonOptionEnd = -1;
+int g_posixlyCorrect = -1;
+
+void Warn(std::string_view message) {
+    const char* const name = __progname_nid_postfix ? __progname_nid_postfix : "(null)";
+    std::string line(name);
+    line.append(": ").append(message).append("\n");
+    FileStream* const stream = __stderrp_nid_postfix;
+    std::fwrite(line.data(), 1, line.size(), GetNativeStream(stream));
+    stream->SyncStatus();
+}
+
+std::string Character(int character) {
+    return std::string(1, static_cast<char>(character));
+}
+
+char* Argument(char* const* arguments, int index, const char* function) {
+    if (!arguments) throw std::invalid_argument(std::string(function) + ": null argument vector");
+    if (index < 0) throw std::invalid_argument(std::string(function) + ": negative optind " + std::to_string(index));
+    char* const argument = arguments[index];
+    if (!argument) throw std::invalid_argument(std::string(function) + ": null argument " + std::to_string(index));
+    return argument;
+}
+
+int OptionCharacter(const char* place) {
+    return static_cast<signed char>(*place);
+}
+
+bool PrintError(const char* options) {
+    return opterr_nid_postfix && *options != ':';
+}
+
+int BadArgument(const char* options) {
+    return *options == ':' ? ':' : '?';
+}
+
+int Gcd(int a, int b) {
     int c = a % b;
     while (c != 0) {
         a = b;
@@ -102,56 +88,44 @@ int GreatestCommonDivisor(int a, int b) {
     return b;
 }
 
-void PermuteArguments(int start, int end, int optionsEnd, char* const* arguments) {
-    char** vector = const_cast<char**>(arguments);
-    const int nonOptions = end - start;
-    const int options = optionsEnd - end;
-    const int cycles = GreatestCommonDivisor(nonOptions, options);
-    const int cycleLength = (optionsEnd - start) / cycles;
-    for (int i = 0; i < cycles; i++) {
-        const int cycleStart = end + i;
+void PermuteArguments(int nonOptionStart, int nonOptionEnd, int optionEnd, char* const* arguments) {
+    char** const vector = const_cast<char**>(arguments);
+    const int nonOptions = nonOptionEnd - nonOptionStart;
+    const int options = optionEnd - nonOptionEnd;
+    if (nonOptions <= 0 || options <= 0) throw std::logic_error("getopt_long: optind moved inside a permutation");
+    const int cycles = Gcd(nonOptions, options);
+    const int cycleLength = (optionEnd - nonOptionStart) / cycles;
+    for (int i = 0; i < cycles; ++i) {
+        const int cycleStart = nonOptionEnd + i;
         int position = cycleStart;
-        for (int j = 0; j < cycleLength; j++) {
-            if (position >= end) position -= nonOptions;
+        for (int j = 0; j < cycleLength; ++j) {
+            if (position >= nonOptionEnd) position -= nonOptions;
             else position += options;
-            char* swap = vector[position];
+            char* const swap = vector[position];
             vector[position] = vector[cycleStart];
             vector[cycleStart] = swap;
         }
     }
 }
 
-bool PrintError(const char* options) { return opterr && *options != ':'; }
-int BadArgument(const char* options) { return *options == ':' ? ':' : '?'; }
-
-const char* PrefixText() {
-    switch (dashPrefix) {
-    case DashPrefix::Single: return "-";
-    case DashPrefix::Double: return "--";
-    case DashPrefix::W: return "-W ";
-    default: return "";
-    }
-}
-
-int ParseLongOption(char* const* arguments, const char* options, const GuestOption* longOptions, int* index, bool shortToo, int flags) {
-    char* current = longPlace;
-    const char* prefix = PrefixText();
+int ParseLongOptions(char* const* arguments, const char* options, const GuestOption* longOptions, int* index, const char* dash, bool shortToo, int flags) {
+    char* const current = g_longPlace;
     int match = -1;
     bool exactMatch = false;
     bool secondPartialMatch = false;
 
-    optind++;
+    ++optind_nid_postfix;
 
-    char* equal = std::strchr(current, '=');
+    char* hasEqual = std::strchr(current, '=');
     std::size_t length;
-    if (equal != nullptr) {
-        length = static_cast<std::size_t>(equal - current);
-        equal++;
+    if (hasEqual) {
+        length = static_cast<std::size_t>(hasEqual - current);
+        ++hasEqual;
     } else {
         length = std::strlen(current);
     }
 
-    for (int i = 0; longOptions[i].name; i++) {
+    for (int i = 0; longOptions[i].name; ++i) {
         if (std::strncmp(current, longOptions[i].name, length) != 0) continue;
         if (std::strlen(longOptions[i].name) == length) {
             match = i;
@@ -159,45 +133,45 @@ int ParseLongOption(char* const* arguments, const char* options, const GuestOpti
             break;
         }
         if (shortToo && length == 1) continue;
-        if (match == -1) {
-            match = i;
-        } else if ((flags & FlagLongOnly) || longOptions[i].hasArgument != longOptions[match].hasArgument ||
-                   longOptions[i].flag != longOptions[match].flag || longOptions[i].value != longOptions[match].value) {
+        if (match == -1) match = i;
+        else if ((flags & FlagLongOnly) || longOptions[i].hasArgument != longOptions[match].hasArgument ||
+                 longOptions[i].flag != longOptions[match].flag ||
+                 longOptions[i].value != longOptions[match].value)
             secondPartialMatch = true;
-        }
     }
+    const std::string_view name(current, length);
     if (!exactMatch && secondPartialMatch) {
-        if (PrintError(options)) Warn("option `%s%.*s' is ambiguous", prefix, static_cast<int>(length), current);
-        optopt = 0;
+        if (PrintError(options)) Warn(std::string("option `") + dash + std::string(name) + "' is ambiguous");
+        optopt_nid_postfix = 0;
         return BadCharacter;
     }
     if (match == -1) {
         if (shortToo) {
-            --optind;
+            --optind_nid_postfix;
             return -1;
         }
-        if (PrintError(options)) Warn("unrecognized option `%s%s'", prefix, current);
-        optopt = 0;
+        if (PrintError(options)) Warn(std::string("unrecognized option `") + dash + current + "'");
+        optopt_nid_postfix = 0;
         return BadCharacter;
     }
     const GuestOption& option = longOptions[match];
-    if (option.hasArgument == NoArgument && equal != nullptr) {
-        if (PrintError(options)) Warn("option `%s%.*s' doesn't allow an argument", prefix, static_cast<int>(length), current);
-        optopt = option.flag == nullptr ? option.value : 0;
+    if (option.hasArgument == NoArgument && hasEqual) {
+        if (PrintError(options)) Warn(std::string("option `") + dash + std::string(name) + "' doesn't allow an argument");
+        optopt_nid_postfix = option.flag ? 0 : option.value;
         return BadCharacter;
     }
     if (option.hasArgument == RequiredArgument || option.hasArgument == OptionalArgument) {
-        if (equal != nullptr) optarg = equal;
-        else if (option.hasArgument == RequiredArgument) optarg = arguments[optind++];
+        if (hasEqual) optarg_nid_postfix = hasEqual;
+        else if (option.hasArgument == RequiredArgument) optarg_nid_postfix = arguments[optind_nid_postfix++];
     }
-    if (option.hasArgument == RequiredArgument && optarg == nullptr) {
-        if (PrintError(options)) Warn("option `%s%s' requires an argument", prefix, current);
-        optopt = option.flag == nullptr ? option.value : 0;
-        --optind;
+    if (option.hasArgument == RequiredArgument && !optarg_nid_postfix) {
+        if (PrintError(options)) Warn(std::string("option `") + dash + current + "' requires an argument");
+        optopt_nid_postfix = option.flag ? 0 : option.value;
+        --optind_nid_postfix;
         return BadArgument(options);
     }
-    if (index != nullptr) *index = match;
-    if (option.flag != nullptr) {
+    if (index) *index = match;
+    if (option.flag) {
         *option.flag = option.value;
         return 0;
     }
@@ -205,127 +179,126 @@ int ParseLongOption(char* const* arguments, const char* options, const GuestOpti
 }
 
 int GetoptInternal(int count, char* const* arguments, const char* options, const GuestOption* longOptions, int* index, int flags) {
-    if (options == nullptr) return -1;
+    if (!options) return -1;
 
-    if (optind == 0) optind = optreset = 1;
+    if (optind_nid_postfix == 0) optind_nid_postfix = optreset_nid_postfix = 1;
 
-    if (posixlyCorrect == -1 || optreset) posixlyCorrect = getenv_nid_postfix("POSIXLY_CORRECT") != nullptr;
+    if (g_posixlyCorrect == -1 || optreset_nid_postfix)
+        g_posixlyCorrect = getenv_nid_postfix("POSIXLY_CORRECT") != nullptr;
     if (*options == '-') flags |= FlagAllArguments;
-    else if (posixlyCorrect || *options == '+') flags &= ~FlagPermute;
-    if (*options == '+' || *options == '-') options++;
+    else if (g_posixlyCorrect || *options == '+') flags &= ~FlagPermute;
+    if (*options == '+' || *options == '-') ++options;
 
-    optarg = nullptr;
-    if (optreset) nonOptionStart = nonOptionEnd = -1;
+    optarg_nid_postfix = nullptr;
+    if (optreset_nid_postfix) g_nonOptionStart = g_nonOptionEnd = -1;
 
-    for (;;) {
-        if (optreset || !*longPlace) {
-            optreset = 0;
-            if (optind >= count) {
-                longPlace = Empty;
-                if (nonOptionEnd != -1) {
-                    PermuteArguments(nonOptionStart, nonOptionEnd, optind, arguments);
-                    optind -= nonOptionEnd - nonOptionStart;
-                } else if (nonOptionStart != -1) {
-                    optind = nonOptionStart;
-                }
-                nonOptionStart = nonOptionEnd = -1;
-                return -1;
+    while (optreset_nid_postfix || !*g_longPlace) {
+        optreset_nid_postfix = 0;
+        if (optind_nid_postfix >= count) {
+            g_longPlace = g_emptyMessage;
+            if (g_nonOptionEnd != -1) {
+                PermuteArguments(g_nonOptionStart, g_nonOptionEnd, optind_nid_postfix, arguments);
+                optind_nid_postfix -= g_nonOptionEnd - g_nonOptionStart;
+            } else if (g_nonOptionStart != -1) {
+                optind_nid_postfix = g_nonOptionStart;
             }
-            longPlace = arguments[optind];
-            if (*longPlace != '-' || longPlace[1] == '\0') {
-                longPlace = Empty;
-                if (flags & FlagAllArguments) {
-                    optarg = arguments[optind++];
-                    return InOrder;
-                }
-                if (!(flags & FlagPermute)) return -1;
-                if (nonOptionStart == -1) {
-                    nonOptionStart = optind;
-                } else if (nonOptionEnd != -1) {
-                    PermuteArguments(nonOptionStart, nonOptionEnd, optind, arguments);
-                    nonOptionStart = optind - (nonOptionEnd - nonOptionStart);
-                    nonOptionEnd = -1;
-                }
-                optind++;
-                continue;
+            g_nonOptionStart = g_nonOptionEnd = -1;
+            return -1;
+        }
+        g_longPlace = Argument(arguments, optind_nid_postfix, "getopt_long");
+        if (*g_longPlace != '-' || g_longPlace[1] == '\0') {
+            g_longPlace = g_emptyMessage;
+            if (flags & FlagAllArguments) {
+                optarg_nid_postfix = arguments[optind_nid_postfix++];
+                return InOrder;
             }
-            if (nonOptionStart != -1 && nonOptionEnd == -1) nonOptionEnd = optind;
+            if (!(flags & FlagPermute)) return -1;
+            if (g_nonOptionStart == -1) {
+                g_nonOptionStart = optind_nid_postfix;
+            } else if (g_nonOptionEnd != -1) {
+                PermuteArguments(g_nonOptionStart, g_nonOptionEnd, optind_nid_postfix, arguments);
+                g_nonOptionStart = optind_nid_postfix - (g_nonOptionEnd - g_nonOptionStart);
+                g_nonOptionEnd = -1;
+            }
+            ++optind_nid_postfix;
+            continue;
+        }
+        if (g_nonOptionStart != -1 && g_nonOptionEnd == -1) g_nonOptionEnd = optind_nid_postfix;
 
-            if (longPlace[1] != '\0' && *++longPlace == '-' && longPlace[1] == '\0') {
-                optind++;
-                longPlace = Empty;
-                if (nonOptionEnd != -1) {
-                    PermuteArguments(nonOptionStart, nonOptionEnd, optind, arguments);
-                    optind -= nonOptionEnd - nonOptionStart;
-                }
-                nonOptionStart = nonOptionEnd = -1;
-                return -1;
+        if (g_longPlace[1] != '\0' && *++g_longPlace == '-' && g_longPlace[1] == '\0') {
+            ++optind_nid_postfix;
+            g_longPlace = g_emptyMessage;
+            if (g_nonOptionEnd != -1) {
+                PermuteArguments(g_nonOptionStart, g_nonOptionEnd, optind_nid_postfix, arguments);
+                optind_nid_postfix -= g_nonOptionEnd - g_nonOptionStart;
             }
+            g_nonOptionStart = g_nonOptionEnd = -1;
+            return -1;
         }
         break;
     }
 
-    int optionCharacter;
-    if (longOptions != nullptr && longPlace != arguments[optind] && (*longPlace == '-' || (flags & FlagLongOnly))) {
+    if (longOptions && g_longPlace != arguments[optind_nid_postfix] &&
+        (*g_longPlace == '-' || (flags & FlagLongOnly))) {
         bool shortToo = false;
-        dashPrefix = DashPrefix::Single;
-        if (*longPlace == '-') {
-            longPlace++;
-            dashPrefix = DashPrefix::Double;
-        } else if (*longPlace != ':' && std::strchr(options, *longPlace) != nullptr) {
+        const char* dash = "-";
+        if (*g_longPlace == '-') {
+            ++g_longPlace;
+            dash = "--";
+        } else if (*g_longPlace != ':' && std::strchr(options, *g_longPlace)) {
             shortToo = true;
         }
-        optionCharacter = ParseLongOption(arguments, options, longOptions, index, shortToo, flags);
-        if (optionCharacter != -1) {
-            longPlace = Empty;
-            return optionCharacter;
+        const int result = ParseLongOptions(arguments, options, longOptions, index, dash, shortToo, flags);
+        if (result != -1) {
+            g_longPlace = g_emptyMessage;
+            return result;
         }
     }
 
-    const char* letter = nullptr;
-    optionCharacter = *longPlace++;
-    if (optionCharacter == ':' || (optionCharacter == '-' && *longPlace != '\0') ||
-        (letter = std::strchr(options, optionCharacter)) == nullptr) {
-        if (optionCharacter == '-' && *longPlace == '\0') return -1;
-        if (!*longPlace) ++optind;
-        if (PrintError(options)) Warn(posixlyCorrect ? "illegal option -- %c" : "invalid option -- %c", optionCharacter);
-        optopt = optionCharacter;
+    const int character = OptionCharacter(g_longPlace++);
+    const char* found = nullptr;
+    if (character == ':' || (character == '-' && *g_longPlace != '\0') ||
+        (found = std::strchr(options, character)) == nullptr) {
+        if (character == '-' && *g_longPlace == '\0') return -1;
+        if (!*g_longPlace) ++optind_nid_postfix;
+        if (PrintError(options))
+            Warn((g_posixlyCorrect ? "illegal option -- " : "invalid option -- ") + Character(character));
+        optopt_nid_postfix = character;
         return BadCharacter;
     }
-    if (longOptions != nullptr && optionCharacter == 'W' && letter[1] == ';') {
-        if (*longPlace) {
-        } else if (++optind >= count) {
-            longPlace = Empty;
-            if (PrintError(options)) Warn("option requires an argument -- %c", optionCharacter);
-            optopt = optionCharacter;
-            return BadArgument(options);
-        } else {
-            longPlace = arguments[optind];
-        }
-        dashPrefix = DashPrefix::W;
-        optionCharacter = ParseLongOption(arguments, options, longOptions, index, false, flags);
-        longPlace = Empty;
-        return optionCharacter;
-    }
-    if (*++letter != ':') {
-        if (!*longPlace) ++optind;
-    } else {
-        optarg = nullptr;
-        if (*longPlace) {
-            optarg = longPlace;
-        } else if (letter[1] != ':') {
-            if (++optind >= count) {
-                longPlace = Empty;
-                if (PrintError(options)) Warn("option requires an argument -- %c", optionCharacter);
-                optopt = optionCharacter;
+    if (longOptions && character == 'W' && found[1] == ';') {
+        if (!*g_longPlace) {
+            if (++optind_nid_postfix >= count) {
+                g_longPlace = g_emptyMessage;
+                if (PrintError(options)) Warn("option requires an argument -- " + Character(character));
+                optopt_nid_postfix = character;
                 return BadArgument(options);
             }
-            optarg = arguments[optind];
+            g_longPlace = Argument(arguments, optind_nid_postfix, "getopt_long");
         }
-        longPlace = Empty;
-        ++optind;
+        const int result = ParseLongOptions(arguments, options, longOptions, index, "-W ", false, flags);
+        g_longPlace = g_emptyMessage;
+        return result;
     }
-    return optionCharacter;
+    if (*++found != ':') {
+        if (!*g_longPlace) ++optind_nid_postfix;
+    } else {
+        optarg_nid_postfix = nullptr;
+        if (*g_longPlace) {
+            optarg_nid_postfix = g_longPlace;
+        } else if (found[1] != ':') {
+            if (++optind_nid_postfix >= count) {
+                g_longPlace = g_emptyMessage;
+                if (PrintError(options)) Warn("option requires an argument -- " + Character(character));
+                optopt_nid_postfix = character;
+                return BadArgument(options);
+            }
+            optarg_nid_postfix = arguments[optind_nid_postfix];
+        }
+        g_longPlace = g_emptyMessage;
+        ++optind_nid_postfix;
+    }
+    return character;
 }
 
 }
@@ -333,55 +306,60 @@ int GetoptInternal(int count, char* const* arguments, const char* options, const
 extern "C" {
 
 int APS5_VABI getopt_nid_postfix(int count, char* const* arguments, const char* options) {
-    char* option = nullptr;
-    if (optreset || *shortPlace == 0) {
-        optreset = 0;
-        shortPlace = arguments[optind];
-        if (optind >= count || *shortPlace++ != '-') {
-            shortPlace = Empty;
+    if (!options) throw std::invalid_argument("getopt: null option string");
+    if (optreset_nid_postfix || *g_shortPlace == '\0') {
+        optreset_nid_postfix = 0;
+        if (optind_nid_postfix >= count) {
+            g_shortPlace = g_emptyMessage;
             return -1;
         }
-        optopt = *shortPlace++;
-        if (optopt == '-' && *shortPlace == 0) {
-            ++optind;
-            shortPlace = Empty;
+        g_shortPlace = Argument(arguments, optind_nid_postfix, "getopt");
+        if (*g_shortPlace++ != '-') {
+            g_shortPlace = g_emptyMessage;
             return -1;
         }
-        if (optopt == 0) {
-            shortPlace = Empty;
-            if (std::strchr(options, '-') == nullptr) return -1;
-            optopt = '-';
+        optopt_nid_postfix = OptionCharacter(g_shortPlace++);
+        if (optopt_nid_postfix == '-' && *g_shortPlace == '\0') {
+            ++optind_nid_postfix;
+            g_shortPlace = g_emptyMessage;
+            return -1;
+        }
+        if (optopt_nid_postfix == 0) {
+            g_shortPlace = g_emptyMessage;
+            if (!std::strchr(options, '-')) return -1;
+            optopt_nid_postfix = '-';
         }
     } else {
-        optopt = *shortPlace++;
+        optopt_nid_postfix = OptionCharacter(g_shortPlace++);
     }
 
-    if (optopt == ':' || (option = const_cast<char*>(std::strchr(options, optopt))) == nullptr) {
-        if (*shortPlace == 0) ++optind;
-        if (opterr && *options != ':') WarnShort("illegal option -- %c", optopt);
+    const char* found = nullptr;
+    if (optopt_nid_postfix == ':' || (found = std::strchr(options, optopt_nid_postfix)) == nullptr) {
+        if (*g_shortPlace == '\0') ++optind_nid_postfix;
+        if (opterr_nid_postfix && *options != ':') Warn("illegal option -- " + Character(optopt_nid_postfix));
         return BadCharacter;
     }
 
-    if (option[1] != ':') {
-        optarg = nullptr;
-        if (*shortPlace == 0) ++optind;
+    if (found[1] != ':') {
+        optarg_nid_postfix = nullptr;
+        if (*g_shortPlace == '\0') ++optind_nid_postfix;
     } else {
-        if (*shortPlace) {
-            optarg = shortPlace;
-        } else if (option[2] == ':') {
-            optarg = nullptr;
-        } else if (count > ++optind) {
-            optarg = arguments[optind];
+        if (*g_shortPlace) {
+            optarg_nid_postfix = g_shortPlace;
+        } else if (found[2] == ':') {
+            optarg_nid_postfix = nullptr;
+        } else if (count > ++optind_nid_postfix) {
+            optarg_nid_postfix = arguments[optind_nid_postfix];
         } else {
-            shortPlace = Empty;
+            g_shortPlace = g_emptyMessage;
             if (*options == ':') return ':';
-            if (opterr) WarnShort("option requires an argument -- %c", optopt);
+            if (opterr_nid_postfix) Warn("option requires an argument -- " + Character(optopt_nid_postfix));
             return BadCharacter;
         }
-        shortPlace = Empty;
-        ++optind;
+        g_shortPlace = g_emptyMessage;
+        ++optind_nid_postfix;
     }
-    return optopt;
+    return optopt_nid_postfix;
 }
 
 int APS5_VABI getopt_long_nid_postfix(int count, char* const* arguments, const char* options, const GuestOption* longOptions, int* index) {

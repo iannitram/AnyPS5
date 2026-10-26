@@ -54,8 +54,6 @@ void CheckLayout() {
         ++count; }
     FUNDAMENTAL_TYPES(CHECK)
     assert(count == 25);
-    assert(reinterpret_cast<const void* const*>(_ZTVN10__cxxabiv119__pointer_type_infoE_nid_postfix)[1] == _ZTIN10__cxxabiv119__pointer_type_infoE_nid_postfix);
-    assert(reinterpret_cast<const void* const*>(_ZTVN10__cxxabiv120__function_type_infoE_nid_postfix)[1] == _ZTIN10__cxxabiv120__function_type_infoE_nid_postfix);
 }
 
 void CheckHostAgreement() {

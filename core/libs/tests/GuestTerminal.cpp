@@ -1,6 +1,7 @@
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -10,33 +11,11 @@
 #include <string>
 
 extern "C" {
-int APS5_VABI tcgetattr_nid_postfix(int, void*);
-int APS5_VABI tcsetattr_nid_postfix(int, int, const void*);
-int APS5_VABI tcsendbreak_nid_postfix(int, int);
-int APS5_VABI tcdrain_nid_postfix(int);
-int APS5_VABI tcflush_nid_postfix(int, int);
-int APS5_VABI tcflow_nid_postfix(int, int);
-int APS5_VABI tcgetpgrp_nid_postfix(int);
-int APS5_VABI tcsetpgrp_nid_postfix(int, int);
-int APS5_VABI open_nid_postfix(const char*, int, int);
-int APS5_VABI pipe_nid_postfix(int*);
-int APS5_VABI socket_nid_postfix(int, int, int);
-int APS5_VABI socketpair_nid_postfix(int, int, int, int*);
-int APS5_VABI mkdir_nid_postfix(const char*, unsigned short);
-int APS5_VABI close_nid_postfix(int);
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI tcdrain_nid_postfix(int);
-int APS5_VABI tcflush_nid_postfix(int, int);
-int APS5_VABI tcflow_nid_postfix(int, int);
-int APS5_VABI tcsendbreak_nid_postfix(int, int);
-int APS5_VABI tcgetpgrp_nid_postfix(int);
-int APS5_VABI tcsetpgrp_nid_postfix(int, int);
 int APS5_VABI tcgetsid_nid_postfix(int);
 std::uint32_t APS5_VABI cfgetispeed_nid_postfix(const void*);
 std::uint32_t APS5_VABI cfgetospeed_nid_postfix(const void*);
 int APS5_VABI cfsetispeed_nid_postfix(void*, std::uint32_t);
 int APS5_VABI cfsetospeed_nid_postfix(void*, std::uint32_t);
-int APS5_VABI cfsetspeed_nid_postfix(void*, std::uint32_t);
 void APS5_VABI cfmakeraw_nid_postfix(void*);
 int APS5_VABI ttyname_r_nid_postfix(int, char*, std::size_t);
 char* APS5_VABI ttyname_nid_postfix(int);
@@ -152,13 +131,15 @@ static void RequireNotTerminal(int descriptor) {
         Require(Fails(tcsetattr_nid_postfix(descriptor, action, attributes), NotTerminal));
     }
     RequireControlFails(descriptor, NotTerminal);
-    RequireIdentityCalls(descriptor, NotTerminal);
 }
 
 int main() {
     const auto name = "anyps5-terminal-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     const int file = open_nid_postfix(name.c_str(), 0x202, 0644);
     Require(file >= 0);
+    RequireIdentityCalls(file, NotTerminal);
+    RequireIdentityCalls(-1, BadDescriptor);
+    CheckAttributeHelpers();
     RequireNotTerminal(file);
     RequireProcessGroupFails(file, NotTerminal);
     for (const int stream : {0, 1, 2}) {
@@ -205,11 +186,6 @@ int main() {
     RequireControlFails(directory, BadDescriptor);
     std::filesystem::remove(directoryName);
 
-    RequireTerminalCalls(socket, AddressNotAvailable);
-    CheckAttributeHelpers();
-    Require(Fails(tcflush_nid_postfix(file, 0), InvalidArgument) && Fails(tcflush_nid_postfix(-1, 4), InvalidArgument));
-    Require(Fails(tcflow_nid_postfix(file, 0), InvalidArgument) && Fails(tcflow_nid_postfix(-1, 5), InvalidArgument));
-
     unsigned char attributes[44]{};
     Require(Fails(tcsetattr_nid_postfix(file, 3, attributes), InvalidArgument));
     Require(Fails(tcsetattr_nid_postfix(file, -1, attributes), InvalidArgument));
@@ -231,7 +207,6 @@ int main() {
     }
     RequireControlFails(-1, BadDescriptor);
     RequireProcessGroupFails(-1, BadDescriptor);
-    RequireIdentityCalls(-1, BadDescriptor);
 
     Require(close_nid_postfix(socket) == 0);
     Require(Fails(tcgetattr_nid_postfix(socket, attributes), BadDescriptor));

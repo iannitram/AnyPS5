@@ -1,3 +1,4 @@
+#include "prx/libSceLibcInternal/include/Api.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <cstddef>

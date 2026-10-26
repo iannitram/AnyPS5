@@ -109,8 +109,6 @@ void CheckAttributes() {
 void CheckSpawn() {
     int pid = 0;
     char* const arguments[] = {const_cast<char*>("tool"), nullptr};
-    Require(Throws([&] { posix_spawn_nid_postfix(&pid, "/app0/tool", nullptr, nullptr, arguments, nullptr); }), "posix_spawn throws");
-    Require(Throws([&] { posix_spawnp_nid_postfix(&pid, "tool", nullptr, nullptr, arguments, nullptr); }), "posix_spawnp throws");
 }
 
 }

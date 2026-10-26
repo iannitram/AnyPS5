@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <algorithm>
 #include <bit>
 #include <cerrno>
@@ -132,64 +133,17 @@ int ScaleExponent(std::int64_t exponent) {
 
 extern "C" {
 
-long double APS5_VABI ceill_nid_postfix(long double x) { return std::ceil(x); }
-long double APS5_VABI floorl_nid_postfix(long double x) { return std::floor(x); }
-long double APS5_VABI roundl_nid_postfix(long double x) { return std::round(x); }
-double APS5_VABI rint_nid_postfix(double x) { return std::rint(x); }
-float APS5_VABI rintf_nid_postfix(float x) { return std::rint(x); }
-long double APS5_VABI rintl_nid_postfix(long double x) { return std::rint(x); }
 
-std::int64_t APS5_VABI lrint_nid_postfix(double x) { return _mm_cvtsd_si64(_mm_set_sd(x)); }
-std::int64_t APS5_VABI lrintf_nid_postfix(float x) { return _mm_cvtss_si64(_mm_set_ss(x)); }
-std::int64_t APS5_VABI lrintl_nid_postfix(long double x) { return ConvertX87(x); }
-long long APS5_VABI llrint_nid_postfix(double x) { return lrint_nid_postfix(x); }
-long long APS5_VABI llrintf_nid_postfix(float x) { return lrintf_nid_postfix(x); }
-long long APS5_VABI llrintl_nid_postfix(long double x) { return lrintl_nid_postfix(x); }
-std::int64_t APS5_VABI lroundl_nid_postfix(long double x) { return RoundToLong(x); }
 
-float APS5_VABI fabsf_nid_postfix(float x) { return std::fabs(x); }
-long double APS5_VABI fabsl_nid_postfix(long double x) { return std::fabs(x); }
-double APS5_VABI copysign_nid_postfix(double x, double y) { return std::copysign(x, y); }
-float APS5_VABI copysignf_nid_postfix(float x, float y) { return std::copysign(x, y); }
-long double APS5_VABI copysignl_nid_postfix(long double x, long double y) { return std::copysign(x, y); }
 
-double APS5_VABI fmax_nid_postfix(double x, double y) { return Maximum(x, y); }
-float APS5_VABI fmaxf_nid_postfix(float x, float y) { return Maximum(x, y); }
-long double APS5_VABI fmaxl_nid_postfix(long double x, long double y) { return Maximum(x, y); }
-double APS5_VABI fmin_nid_postfix(double x, double y) { return Minimum(x, y); }
-long double APS5_VABI fminl_nid_postfix(long double x, long double y) { return Minimum(x, y); }
-double APS5_VABI fdim_nid_postfix(double x, double y) { return PositiveDifference(x, y); }
-float APS5_VABI fdimf_nid_postfix(float x, float y) { return PositiveDifference(x, y); }
-long double APS5_VABI fdiml_nid_postfix(long double x, long double y) { return PositiveDifference(x, y); }
 
-double APS5_VABI nextafter_nid_postfix(double x, double y) { return KeepErrno([=] { return std::nextafter(x, y); }); }
 long double APS5_VABI nextafterl_nid_postfix(long double x, long double y) { return KeepErrno([=] { return std::nextafter(x, y); }); }
 double APS5_VABI nexttoward_nid_postfix(double x, long double y) { return KeepErrno([=] { return std::nexttoward(x, y); }); }
 float APS5_VABI nexttowardf_nid_postfix(float x, long double y) { return KeepErrno([=] { return std::nexttoward(x, y); }); }
 long double APS5_VABI nexttowardl_nid_postfix(long double x, long double y) { return KeepErrno([=] { return std::nexttoward(x, y); }); }
 
-int APS5_VABI ilogb_nid_postfix(double x) { return ExponentOf(x); }
-int APS5_VABI ilogbf_nid_postfix(float x) { return ExponentOf(x); }
-int APS5_VABI ilogbl_nid_postfix(long double x) { return ExponentOfX87(x); }
-long double APS5_VABI logbl_nid_postfix(long double x) { return KeepErrno([=] { return std::logb(x); }); }
 
-long double APS5_VABI modfl_nid_postfix(long double x, long double* integral) {
-    if (integral == nullptr) throw std::invalid_argument("modfl: null integral part");
-    return std::modf(x, integral);
-}
-long double APS5_VABI fmodl_nid_postfix(long double x, long double y) { return KeepErrno([=] { return std::fmod(x, y); }); }
-long double APS5_VABI remainderl_nid_postfix(long double x, long double y) { return KeepErrno([=] { return std::remainder(x, y); }); }
-double APS5_VABI remquo_nid_postfix(double x, double y, int* quotient) { return static_cast<double>(PartialRemainder(x, y, quotient)); }
-float APS5_VABI remquof_nid_postfix(float x, float y, int* quotient) { return static_cast<float>(PartialRemainder(x, y, quotient)); }
-long double APS5_VABI remquol_nid_postfix(long double x, long double y, int* quotient) { return PartialRemainder(x, y, quotient); }
 
-long double APS5_VABI scalbnl_nid_postfix(long double x, int exponent) { return KeepErrno([=] { return std::scalbn(x, exponent); }); }
-double APS5_VABI scalbln_nid_postfix(double x, std::int64_t exponent) { return KeepErrno([=] { return std::scalbn(x, ScaleExponent(exponent)); }); }
-float APS5_VABI scalblnf_nid_postfix(float x, std::int64_t exponent) { return KeepErrno([=] { return std::scalbn(x, ScaleExponent(exponent)); }); }
-long double APS5_VABI scalblnl_nid_postfix(long double x, std::int64_t exponent) { return KeepErrno([=] { return std::scalbn(x, ScaleExponent(exponent)); }); }
 
-float APS5_VABI fmaf_nid_postfix(float x, float y, float z) { return std::fma(x, y, z); }
-long double APS5_VABI fmal_nid_postfix(long double x, long double y, long double z) { return KeepErrno([=] { return std::fma(x, y, z); }); }
-long double APS5_VABI sqrtl_nid_postfix(long double x) { return KeepErrno([=] { return std::sqrt(x); }); }
 
 }

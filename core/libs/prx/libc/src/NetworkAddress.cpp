@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>

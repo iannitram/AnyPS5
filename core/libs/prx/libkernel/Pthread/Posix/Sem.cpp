@@ -1,3 +1,4 @@
+#include "prx/libkernel/include/Api.hpp"
 #include <cstdint>
 #include <cstddef>
 #include "SceTypes.hpp"
@@ -7,12 +8,14 @@
 #include "prx/libkernel/Time/include/TimedWait.hpp"
 #include <cerrno>
 #include <chrono>
-#include <cstring>
 #include <cstdarg>
-#include <list>
+#include <cstring>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 // The guest sem_t is at least 8 bytes; its first word holds a pointer to the host semaphore.
 struct PosixSemaphore {
@@ -21,29 +24,19 @@ struct PosixSemaphore {
     unsigned int count;
 };
 
+static constexpr int GUEST_ENOENT = 2;
+static constexpr int GUEST_EEXIST = 17;
 static constexpr int GUEST_EAGAIN = 35;
+static constexpr int GUEST_ENAMETOOLONG = 63;
 static constexpr int GUEST_EOVERFLOW = 84;
 static constexpr unsigned int GUEST_SEM_VALUE_MAX = 0x7fffffffu;
 static constexpr int GUEST_REALTIME_CLOCK = 0;
-
-static constexpr int GUEST_ENOENT = 2;
-static constexpr int GUEST_EEXIST = 17;
-static constexpr int GUEST_ENAMETOOLONG = 63;
-static constexpr int GUEST_O_CREAT = 0x0200;
-static constexpr int GUEST_O_EXCL = 0x0800;
+static constexpr int GUEST_O_CREAT = 0x200;
+static constexpr int GUEST_O_EXCL = 0x800;
 static constexpr std::size_t GUEST_PATH_MAX = 1024;
-static constexpr std::size_t NAMED_PREFIX_LENGTH = sizeof("/tmp/SEMD") - 1;
-static constexpr std::size_t GUEST_SEM_SIZE = 16;
-
-struct NamedSemaphore {
-    std::string name;
-    bool linked = true;
-    int openCount = 0;
-    alignas(8) unsigned char storage[GUEST_SEM_SIZE]{};
-};
-
-static std::mutex namedLock;
-static std::list<NamedSemaphore> namedSemaphores;
+static constexpr std::size_t GUEST_NAME_MAX = 255;
+static constexpr std::string_view NAMED_SEMAPHORE_PREFIX = "/tmp/SEMD";
+static constexpr std::string_view NAMED_SEMAPHORE_FILE_PREFIX = "SEMD";
 
 static int Fail(int error) {
     errno = error;
@@ -55,6 +48,49 @@ static PosixSemaphore* Get(void* sem) {
     PosixSemaphore* semaphore = nullptr;
     std::memcpy(&semaphore, sem, sizeof(semaphore));
     return semaphore;
+}
+
+struct NamedSemaphoreMapping {
+    PosixSemaphore* semaphore;
+    std::uint64_t reserved;
+};
+
+struct NamedSemaphore {
+    std::unique_ptr<PosixSemaphore> semaphore;
+    std::unique_ptr<NamedSemaphoreMapping> mapping;
+    int openCount = 0;
+};
+
+struct NamedSemaphores {
+    std::mutex lock;
+    std::map<std::string, std::shared_ptr<NamedSemaphore>> linked;
+    std::map<const void*, std::shared_ptr<NamedSemaphore>> open;
+};
+
+static NamedSemaphores& Named() {
+    static NamedSemaphores named;
+    return named;
+}
+
+static bool IsNamed(const void* sem) {
+    auto& named = Named();
+    std::lock_guard lock(named.lock);
+    return named.open.count(sem) != 0;
+}
+
+static int NamedPathError(const char* function, const char* name, int notAbsolute) {
+    if (!name) throw std::invalid_argument(std::string(function) + ": null name");
+    if (name[0] != '/') return notAbsolute;
+    if (NAMED_SEMAPHORE_PREFIX.size() + std::strlen(name + 1) >= GUEST_PATH_MAX) return GUEST_ENAMETOOLONG;
+    return 0;
+}
+
+static int NamedFileError(const char* function, const char* name) {
+    const std::string_view file(name + 1);
+    if (file.find('/') != std::string_view::npos)
+        throw std::runtime_error(std::string(function) + ": the name " + name + " would resolve below /tmp, which is not modelled");
+    if (NAMED_SEMAPHORE_FILE_PREFIX.size() + file.size() > GUEST_NAME_MAX) return GUEST_ENAMETOOLONG;
+    return 0;
 }
 
 static int WaitFor(PosixSemaphore* semaphore, const KernelUseconds* usec) {
@@ -81,19 +117,12 @@ int APS5_VABI sem_init_nid_postfix(void* sem, int pshared, unsigned int value) {
     return 0;
 }
 
-static int Destroy(void* sem) {
+int APS5_VABI sem_destroy_nid_postfix(void* sem) {
     auto* semaphore = Get(sem);
-    if (!semaphore) return Fail(PosixThread::GUEST_EINVAL);
+    if (!semaphore || IsNamed(sem)) return Fail(PosixThread::GUEST_EINVAL);
     delete semaphore;
     std::memset(sem, 0, sizeof(semaphore));
     return 0;
-}
-
-int APS5_VABI sem_destroy_nid_postfix(void* sem) {
-    std::lock_guard lock(namedLock);
-    for (const auto& entry : namedSemaphores)
-        if (entry.storage == sem) return Fail(PosixThread::GUEST_EINVAL);
-    return Destroy(sem);
 }
 
 int APS5_VABI sem_wait_nid_postfix(void* sem) {
@@ -114,6 +143,7 @@ int APS5_VABI sem_trywait_nid_postfix(void* sem) {
 int APS5_VABI sem_timedwait_nid_postfix(void* sem, const KernelTimespec* abstime) {
     auto* semaphore = Get(sem);
     if (!semaphore) return Fail(PosixThread::GUEST_EINVAL);
+    ThreadCancel::Check();
     {
         std::lock_guard lock(semaphore->lock);
         if (semaphore->count > 0) {
@@ -137,11 +167,9 @@ int APS5_VABI sem_reltimedwait_np_nid_postfix(void* sem, uint32_t usec) {
 int APS5_VABI sem_post_nid_postfix(void* sem) {
     auto* semaphore = Get(sem);
     if (!semaphore) return Fail(PosixThread::GUEST_EINVAL);
-    {
-        std::lock_guard lock(semaphore->lock);
-        if (semaphore->count == GUEST_SEM_VALUE_MAX) return Fail(GUEST_EOVERFLOW);
-        ++semaphore->count;
-    }
+    std::lock_guard lock(semaphore->lock);
+    if (semaphore->count == GUEST_SEM_VALUE_MAX) return Fail(GUEST_EOVERFLOW);
+    ++semaphore->count;
     semaphore->available.NotifyOne();
     return 0;
 }
@@ -154,91 +182,86 @@ int APS5_VABI sem_getvalue_nid_postfix(void* sem, int* value) {
     return 0;
 }
 
-
 void* APS5_VABI sem_open_nid_postfix(const char* name, int flags, ...) {
-    if (name == nullptr) throw std::invalid_argument("sem_open: null name");
-    if (name[0] != '/') {
-        errno = PosixThread::GUEST_EINVAL;
+    if (const int error = NamedPathError("sem_open", name, PosixThread::GUEST_EINVAL)) {
+        Fail(error);
         return nullptr;
     }
-    ++name;
-    if (NAMED_PREFIX_LENGTH + std::strlen(name) >= GUEST_PATH_MAX) {
-        errno = GUEST_ENAMETOOLONG;
-        return nullptr;
-    }
-    if (flags & ~(GUEST_O_CREAT | GUEST_O_EXCL)) {
-        errno = PosixThread::GUEST_EINVAL;
+    if ((flags & ~(GUEST_O_CREAT | GUEST_O_EXCL)) != 0) {
+        Fail(PosixThread::GUEST_EINVAL);
         return nullptr;
     }
     unsigned int value = 0;
-    if (flags & GUEST_O_CREAT) {
+    if ((flags & GUEST_O_CREAT) != 0) {
 #ifdef _WIN32
         __builtin_sysv_va_list arguments;
         __builtin_sysv_va_start(arguments, flags);
-        (void)__builtin_va_arg(arguments, int);
-        value = __builtin_va_arg(arguments, unsigned int);
+        static_cast<void>(__builtin_va_arg(arguments, int));
+        value = static_cast<unsigned int>(__builtin_va_arg(arguments, int));
         __builtin_sysv_va_end(arguments);
 #else
-        va_list arguments;
+        std::va_list arguments;
         va_start(arguments, flags);
-        (void)va_arg(arguments, int);
-        value = va_arg(arguments, unsigned int);
+        static_cast<void>(va_arg(arguments, int));
+        value = static_cast<unsigned int>(va_arg(arguments, int));
         va_end(arguments);
 #endif
     }
-    std::lock_guard lock(namedLock);
-    for (auto& named : namedSemaphores) {
-        if (!named.linked || named.name != name) continue;
+    if (const int error = NamedFileError("sem_open", name)) {
+        Fail(error);
+        return nullptr;
+    }
+    auto& named = Named();
+    std::lock_guard lock(named.lock);
+    const std::string file(name + 1);
+    std::shared_ptr<NamedSemaphore> object;
+    if (const auto found = named.linked.find(file); found != named.linked.end()) {
         if ((flags & (GUEST_O_CREAT | GUEST_O_EXCL)) == (GUEST_O_CREAT | GUEST_O_EXCL)) {
-            errno = GUEST_EEXIST;
+            Fail(GUEST_EEXIST);
             return nullptr;
         }
-        ++named.openCount;
-        return named.storage;
+        object = found->second;
+    } else {
+        if ((flags & GUEST_O_CREAT) == 0) {
+            Fail(GUEST_ENOENT);
+            return nullptr;
+        }
+        if (value > GUEST_SEM_VALUE_MAX)
+            throw std::runtime_error("sem_open: initial value " + std::to_string(value) + " is above SEM_VALUE_MAX, which FreeBSD stores unchecked");
+        object = std::make_shared<NamedSemaphore>();
+        object->semaphore = std::make_unique<PosixSemaphore>();
+        object->semaphore->count = value;
+        named.linked.emplace(file, object);
     }
-    if (!(flags & GUEST_O_CREAT)) {
-        errno = GUEST_ENOENT;
-        return nullptr;
+    if (!object->mapping) {
+        object->mapping = std::make_unique<NamedSemaphoreMapping>(NamedSemaphoreMapping{object->semaphore.get(), 0});
+        named.open.emplace(object->mapping.get(), object);
     }
-    auto& named = namedSemaphores.emplace_back();
-    named.name = name;
-    if (sem_init_nid_postfix(named.storage, 1, value) != 0) {
-        namedSemaphores.pop_back();
-        return nullptr;
-    }
-    named.openCount = 1;
-    return named.storage;
+    ++object->openCount;
+    return object->mapping.get();
 }
 
 int APS5_VABI sem_close_nid_postfix(void* sem) {
-    std::lock_guard lock(namedLock);
-    for (auto entry = namedSemaphores.begin(); entry != namedSemaphores.end(); ++entry) {
-        if (entry->storage != sem || entry->openCount == 0) continue;
-        if (--entry->openCount == 0 && !entry->linked) {
-            Destroy(entry->storage);
-            namedSemaphores.erase(entry);
-        }
-        return 0;
+    if (!sem) throw std::invalid_argument("sem_close: null semaphore");
+    auto& named = Named();
+    std::lock_guard lock(named.lock);
+    const auto found = named.open.find(sem);
+    if (found == named.open.end()) return Fail(PosixThread::GUEST_EINVAL);
+    const auto object = found->second;
+    if (--object->openCount == 0) {
+        named.open.erase(found);
+        object->mapping.reset();
     }
-    return Fail(PosixThread::GUEST_EINVAL);
+    return 0;
 }
 
 int APS5_VABI sem_unlink_nid_postfix(const char* name) {
-    if (name == nullptr) throw std::invalid_argument("sem_unlink: null name");
-    if (name[0] != '/') return Fail(GUEST_ENOENT);
-    ++name;
-    if (NAMED_PREFIX_LENGTH + std::strlen(name) >= GUEST_PATH_MAX) return Fail(GUEST_ENAMETOOLONG);
-    std::lock_guard lock(namedLock);
-    for (auto entry = namedSemaphores.begin(); entry != namedSemaphores.end(); ++entry) {
-        if (!entry->linked || entry->name != name) continue;
-        entry->linked = false;
-        if (entry->openCount == 0) {
-            Destroy(entry->storage);
-            namedSemaphores.erase(entry);
-        }
-        return 0;
-    }
-    return Fail(GUEST_ENOENT);
+    if (const int error = NamedPathError("sem_unlink", name, GUEST_ENOENT)) return Fail(error);
+    if (const int error = NamedFileError("sem_unlink", name)) return Fail(error);
+    auto& named = Named();
+    std::lock_guard lock(named.lock);
+    if (named.linked.erase(std::string(name + 1)) == 0) return Fail(GUEST_ENOENT);
+    return 0;
 }
 
 }

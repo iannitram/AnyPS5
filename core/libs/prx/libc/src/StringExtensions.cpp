@@ -1,25 +1,53 @@
+#include "prx/libc/include/Api.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <stdexcept>
 #include <string_view>
 
 extern "C" {
 
-char* APS5_VABI basename_nid_postfix(const char* path) {
-    thread_local char buffer[1024];
+long long APS5_VABI strtonum_nid_postfix(const char* text, long long minimum, long long maximum, const char** error) {
+    const int savedError = errno;
+    const auto fail = [error](const char* message, int number) -> long long {
+        if (error) *error = message;
+        errno = number;
+        return 0;
+    };
+    if (minimum > maximum) return fail("invalid", 22);
+    errno = 0;
+    char* end = nullptr;
+    const long long value = std::strtoll(text, &end, 10);
+    if (errno == EINVAL || end == text || *end != '\0') return fail("invalid", 22);
+    if ((value == LLONG_MIN && errno == ERANGE) || value < minimum) return fail("too small", 34);
+    if ((value == LLONG_MAX && errno == ERANGE) || value > maximum) return fail("too large", 34);
+    if (error) *error = nullptr;
+    errno = savedError;
+    return value;
+}
+
+char* APS5_VABI basename_r_nid_postfix(const char* path, char* buffer) {
+    if (buffer == nullptr) throw std::invalid_argument("basename_r: null buffer");
     std::string_view name = path && *path ? path : ".";
     while (name.size() > 1 && name.back() == '/') name.remove_suffix(1);
     if (name != "/") {
         const auto separator = name.find_last_of('/');
         if (separator != std::string_view::npos) name.remove_prefix(separator + 1);
     }
-    if (name.size() >= sizeof(buffer)) { errno = 63; return nullptr; }
+    if (name.size() >= 1024) { errno = 63; return nullptr; }
     std::memcpy(buffer, name.data(), name.size());
     buffer[name.size()] = '\0';
     return buffer;
+}
+
+char* APS5_VABI basename_nid_postfix(const char* path) {
+    thread_local char buffer[1024];
+    return basename_r_nid_postfix(path, buffer);
 }
 
 char* APS5_VABI __inet_ntoa_nid_postfix(unsigned int address) {
@@ -143,7 +171,6 @@ char* APS5_VABI strtok_nid_postfix(char* text, const char* delimiters) {
     return strtok_r_nid_postfix(text, delimiters, &state);
 }
 
-
 int APS5_VABI __inet_aton_nid_postfix(const char* text, void* address) {
     std::uint8_t parts[3];
     std::size_t count = 0;
@@ -199,38 +226,10 @@ std::uint32_t APS5_VABI __inet_addr_nid_postfix(const char* text) {
     return __inet_aton_nid_postfix(text, &address) ? address : 0xffffffff;
 }
 
-void* APS5_VABI memmem_nid_postfix(const void* haystack, std::size_t haystackLength, const void* needle, std::size_t needleLength) {
-    const auto* big = static_cast<const char*>(haystack);
-    const auto* little = static_cast<const char*>(needle);
-    if (needleLength == 0) return const_cast<char*>(big);
-    if (haystackLength < needleLength) return nullptr;
-    if (needleLength == 1) return const_cast<void*>(std::memchr(haystack, *little, haystackLength));
-    const char* last = big + haystackLength - needleLength;
-    for (const char* current = big; current <= last; current++)
-        if (current[0] == little[0] && std::memcmp(current, little, needleLength) == 0) return const_cast<char*>(current);
-    return nullptr;
-}
 
-void* APS5_VABI memccpy_nid_postfix(void* destination, const void* source, int character, std::size_t count) {
-    auto* to = static_cast<unsigned char*>(destination);
-    const auto* from = static_cast<const unsigned char*>(source);
-    const auto stop = static_cast<unsigned char>(character);
-    for (; count != 0; --count)
-        if ((*to++ = *from++) == stop) return to;
-    return nullptr;
-}
 
-char* APS5_VABI index_nid_postfix(const char* string, int character) {
-    return const_cast<char*>(std::strchr(string, character));
-}
 
-char* APS5_VABI rindex_nid_postfix(const char* string, int character) {
-    return const_cast<char*>(std::strrchr(string, character));
-}
 
-void APS5_VABI bcopy_nid_postfix(const void* source, void* destination, std::size_t length) {
-    std::memmove(destination, source, length);
-}
 
 int APS5_VABI ffs_nid_postfix(int mask) {
     return mask == 0 ? 0 : std::countr_zero(static_cast<unsigned>(mask)) + 1;
@@ -248,9 +247,6 @@ int APS5_VABI fls_nid_postfix(int mask) {
     return mask == 0 ? 0 : std::bit_width(static_cast<unsigned>(mask));
 }
 
-int APS5_VABI flsl_nid_postfix(std::int64_t mask) {
-    return mask == 0 ? 0 : static_cast<int>(std::bit_width(static_cast<std::uint64_t>(mask)));
-}
 
 int APS5_VABI flsll_nid_postfix(long long mask) {
     return mask == 0 ? 0 : static_cast<int>(std::bit_width(static_cast<unsigned long long>(mask)));

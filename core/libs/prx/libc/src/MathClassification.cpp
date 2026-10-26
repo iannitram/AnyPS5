@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <bit>
 #include <cerrno>
 #include <climits>
@@ -68,51 +69,15 @@ extern "C" {
 
 
 
-int APS5_VABI finite_nid_postfix(double x) {
-    const auto high = static_cast<std::uint32_t>(std::bit_cast<std::uint64_t>(x) >> 32);
-    return static_cast<int>(((high & 0x7fffffffu) - 0x7ff00000u) >> 31);
-}
-
-int APS5_VABI finitef_nid_postfix(float x) {
-    const auto bits = std::bit_cast<std::uint32_t>(x);
-    return static_cast<int>(((bits & 0x7fffffffu) - 0x7f800000u) >> 31);
-}
-
-int APS5_VABI __isinfl_nid_postfix(long double x) {
-    const ExtendedBits bits = Decode(x);
-    return bits.exponent == 0x7fff && (bits.mantissa & ~IntegerBit) == 0;
-}
-
-int APS5_VABI __isnanl_nid_postfix(long double x) {
-    const ExtendedBits bits = Decode(x);
-    return bits.exponent == 0x7fff && (bits.mantissa & ~IntegerBit) != 0;
-}
 
 
-int APS5_VABI __isnormall_nid_postfix(long double x) {
-    const unsigned exponent = Decode(x).exponent;
-    return exponent != 0 && exponent != 0x7fff;
-}
 
-int APS5_VABI __fpclassifyl_nid_postfix(long double x) {
-    const ExtendedBits bits = Decode(x);
-    if (bits.exponent == 0) return bits.mantissa == 0 ? Zero : Subnormal;
-    if (bits.exponent == 0x7fff) return (bits.mantissa & ~IntegerBit) == 0 ? Infinite : NotANumber;
-    return Normal;
-}
 
-double APS5_VABI drem_nid_postfix(double x, double y) { return KeepErrno([=] { return std::remainder(x, y); }); }
-float APS5_VABI dremf_nid_postfix(float x, float y) { return KeepErrno([=] { return std::remainder(x, y); }); }
 
-double APS5_VABI scalb_nid_postfix(double x, double exponent) { return Scale(x, exponent, 65000.0); }
-float APS5_VABI scalbf_nid_postfix(float x, float exponent) { return Scale(x, exponent, 65000.0f); }
 
-double APS5_VABI significand_nid_postfix(double x) {
-    return Scale(x, static_cast<double>(-Exponent(x)), 65000.0);
-}
 
-float APS5_VABI significandf_nid_postfix(float x) {
-    return Scale(x, static_cast<float>(-Exponent(x)), 65000.0f);
-}
+
+
+
 
 }

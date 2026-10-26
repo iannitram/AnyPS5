@@ -1,3 +1,4 @@
+#include "prx/libc/include/Api.hpp"
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
@@ -36,25 +37,10 @@ extern "C" {
 
 char* suboptarg_nid_postfix = nullptr;
 
-std::int64_t APS5_VABI labs_nid_postfix(std::int64_t value) { return Magnitude(value); }
-long long APS5_VABI llabs_nid_postfix(long long value) { return Magnitude(value); }
-std::int64_t APS5_VABI imaxabs_nid_postfix(std::int64_t value) { return Magnitude(value); }
 
-GuestIntegerDivision APS5_VABI imaxdiv_nid_postfix(std::int64_t numerator, std::int64_t denominator) {
-    GuestIntegerDivision result{numerator / denominator, numerator % denominator};
-    if (numerator >= 0 && result.remainder < 0) {
-        result.quotient++;
-        result.remainder -= denominator;
-    }
-    return result;
-}
 
 long long APS5_VABI strtoq_nid_postfix(const char* text, char** end, int base) { return strtoll_nid_postfix(text, end, base); }
-unsigned long long APS5_VABI strtouq_nid_postfix(const char* text, char** end, int base) { return strtoull_nid_postfix(text, end, base); }
-std::int64_t APS5_VABI wcstoimax_nid_postfix(const char16_t* text, char16_t** end, int base) { return wcstoll_nid_postfix(text, end, base); }
-std::uint64_t APS5_VABI wcstoumax_nid_postfix(const char16_t* text, char16_t** end, int base) { return wcstoull_nid_postfix(text, end, base); }
 
-int APS5_VABI toascii_nid_postfix(int character) { return character & 0x7f; }
 
 void* APS5_VABI reallocarray_nid_postfix(void* pointer, std::size_t count, std::size_t size) {
     constexpr std::size_t NoOverflow = std::size_t{1} << (sizeof(std::size_t) * 4);
