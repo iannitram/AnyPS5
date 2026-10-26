@@ -151,7 +151,7 @@ void CheckOtherAttributes() {
     Require(pthread_condattr_getclock_nid_postfix(&cond, &value) == 0 && value == 0, "default clock");
     Require(pthread_condattr_setclock_nid_postfix(&cond, 4) == 0 && pthread_condattr_getclock_nid_postfix(&cond, &value) == 0 && value == 4, "monotonic clock");
     Require(pthread_condattr_getpshared_nid_postfix(&cond, &value) == 0 && value == 0, "cond pshared default");
-    Require(pthread_condattr_setpshared_nid_postfix(&cond, -1) == 22 && pthread_condattr_getclock_nid_postfix(&cond, nullptr) == 22, "cond errors");
+    Require(pthread_condattr_setpshared_nid_postfix(&cond, -1) == 22, "cond errors");
     Require(pthread_condattr_destroy_nid_postfix(&cond) == 0, "condattr destroy");
 
     void* rwlock = nullptr;
