@@ -77,12 +77,6 @@ int APS5_VABI pthread_mutex_setprioceiling_nid_postfix(PthreadMutex* mutex, int 
     return 0;
 }
 
-int APS5_VABI pthread_condattr_getclock_nid_postfix(const PthreadCondattr* attr, int* clock) {
-    if (attr == nullptr || *attr == nullptr || clock == nullptr) return PosixThread::GUEST_EINVAL;
-    *clock = (*attr)->_clockid;
-    return 0;
-}
-
 
 
 
