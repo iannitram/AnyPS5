@@ -2,7 +2,7 @@
 
 - Repo: iannitram/AnyPS5, a fork of boykopovar/AnyPS5 (C++20 / CMake, GPL-2.0-only).
 - Kind: static relinker plus reimplemented PS5 system libraries (no emulation). It converts a PS5 executable into a native Linux ELF, Windows PE or macOS Mach-O that calls native implementations of the system libraries.
-- Integration branch: `main` (merge commits only). Described commit: `e7c0343f5` (2026-10-26).
+- Integration branch: `main` (merge commits only). Described commit: `e7c0343f5` (2026-10-26; later commits on `main` are fork docs only).
 - Upstream: `boykopovar/AnyPS5` (`upstream/main`). This fork does not post to it.
 
 ## Layout
@@ -20,7 +20,7 @@
 | `3rdparty/` | Git submodules (see Open-source pieces). |
 | `cmake/` | Build helpers: `SystemDeps`, `Opus`, `Jxr`, `Tracy`, `ZArchive`, Windows exit shims. |
 | `demo/web/` | Browser converter front end (`app.mjs`, `archive.mjs`, `batch.mjs`, `index.html`) with Node tests in `demo/web/tests/`. |
-| `tools/` | Python and shell dev tools with tests in `tools/tests/`: `check_conventions.py`, `pr_overlap.py`, `select_tests.py`, `stubgen.py`, `progress*.py`, `trace_digest.py`, `package_release.py`, `build_web.py`, `test_web.py`, `unwrap_self.py`, `input-mapper/`, `hw-oracle/`. |
+| `tools/` | Python and shell dev tools with tests in `tools/tests/`: `check_conventions.py`, `check_compile.py`, `check_main_sync.py`, `check_skips.py`, `check_test_registration.py`, `pr_overlap.py`, `pr_labels.py`, `select_tests.py`, `stubgen.py`, `progress*.py`, `trace_digest.py`, `package_release.py`, `build_web.py`, `test_web.py`, `unwrap_self.py`, `nid_names.py`, `import_audit.py`, `input-mapper/`, `hw-oracle/`. |
 | `docs/user/` | `USAGE.md`, `INPUT_MAPPING.md`. |
 | `docs/dev/` | `ARCHITECTURE.md`, `BUILD.md`, `CONVENTIONS.md`, `ENVIRONMENT.md`, `GAME_TESTING.md`, `TRACING.md`, `TechnicalDebt.md`, and `debt/<library>.md` (about 250 known-gap files). |
 | `AGENTS.md`, `CONTRIBUTING.md` | Contribution rules (Conventional Commits, no code comments, throw rather than fake success). |
