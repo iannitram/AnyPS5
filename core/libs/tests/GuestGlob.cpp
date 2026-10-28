@@ -9,6 +9,9 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+
 
 namespace {
 
@@ -23,11 +26,6 @@ struct GuestGlob {
 
 }
 
-extern "C" {
-int APS5_VABI glob_nid_postfix(const char*, int, int (APS5_VABI *)(const char*, int), GuestGlob*);
-void APS5_VABI globfree_nid_postfix(GuestGlob*);
-int APS5_VABI setenv_nid_postfix(const char*, const char*, int);
-}
 
 namespace {
 

@@ -5,3 +5,6 @@
 #include "prx/libc/include/exceptions/Unwind.hpp"
 #include "prx/libc/include/SonyCrt.hpp"
 #include "prx/libc/include/WindowsFormatting.hpp"
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libSceAmpr/include/Api.hpp"
+#include "prx/libSceLibcInternal/include/Api.hpp"

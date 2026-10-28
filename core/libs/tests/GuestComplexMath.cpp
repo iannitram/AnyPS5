@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include "prx/libc/include/Api.hpp"
+
 
 using ComplexFloat = __complex__ float;
 using ComplexDouble = __complex__ double;
@@ -32,20 +34,6 @@ ComplexDouble APS5_VABI catanh_nid_postfix(ComplexDouble);
 ComplexFloat APS5_VABI csinhf_nid_postfix(ComplexFloat);
 ComplexLongDouble APS5_VABI ctanl_nid_postfix(ComplexLongDouble);
 
-double APS5_VABI erf_nid_postfix(double);
-float APS5_VABI erfcf_nid_postfix(float);
-double APS5_VABI tgamma_nid_postfix(double);
-double APS5_VABI lgamma_nid_postfix(double);
-double APS5_VABI lgamma_r_nid_postfix(double, int*);
-float APS5_VABI lgammaf_r_nid_postfix(float, int*);
-long double APS5_VABI lgammal_nid_postfix(long double);
-double APS5_VABI gamma_nid_postfix(double);
-double APS5_VABI j0_nid_postfix(double);
-double APS5_VABI jn_nid_postfix(int, double);
-float APS5_VABI y1f_nid_postfix(float);
-long double APS5_VABI atan2l_nid_postfix(long double, long double);
-long double APS5_VABI hypotl_nid_postfix(long double, long double);
-long double APS5_VABI nanl_nid_postfix(const char*);
 extern int signgam_nid_postfix;
 }
 

@@ -5,26 +5,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
+
 
 extern "C" {
-int APS5_VABI getservbyname_r_nid_postfix(const char*, const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getservbyport_r_nid_postfix(int, const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getservent_r_nid_postfix(void*, char*, std::size_t, void**);
-void* APS5_VABI getservbyport_nid_postfix(int, const char*);
-void* APS5_VABI getservent_nid_postfix(void);
-void APS5_VABI setservent_nid_postfix(int);
-void APS5_VABI endservent_nid_postfix(void);
-int APS5_VABI getprotobyname_r_nid_postfix(const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getprotobynumber_r_nid_postfix(int, void*, char*, std::size_t, void**);
-int APS5_VABI getprotoent_r_nid_postfix(void*, char*, std::size_t, void**);
-void* APS5_VABI getprotobyname_nid_postfix(const char*);
-void* APS5_VABI getprotobynumber_nid_postfix(int);
-void* APS5_VABI getprotoent_nid_postfix(void);
-void APS5_VABI setprotoent_nid_postfix(int);
-void APS5_VABI endprotoent_nid_postfix(void);
 extern const char* const h_errlist_nid_postfix[];
 extern const int h_nerr_nid_postfix;
-const char* APS5_VABI hstrerror_nid_postfix(int);
 }
 
 namespace {

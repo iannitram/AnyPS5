@@ -10,22 +10,13 @@
 #ifndef _WIN32
 #include <sys/wait.h>
 #include <unistd.h>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+
 #endif
 
 extern "C" {
 using ExitHook = void (APS5_VABI *)(int);
-void APS5_VABI err_set_file_nid_postfix(void*);
-void APS5_VABI err_set_exit_nid_postfix(ExitHook);
-[[noreturn]] void APS5_VABI err_nid_postfix(int, const char*, ...);
-[[noreturn]] void APS5_VABI errc_nid_postfix(int, int, const char*, ...);
-[[noreturn]] void APS5_VABI errx_nid_postfix(int, const char*, ...);
-void APS5_VABI warn_nid_postfix(const char*, ...);
-void APS5_VABI warnc_nid_postfix(int, const char*, ...);
-void APS5_VABI warnx_nid_postfix(const char*, ...);
-void APS5_VABI vwarn_nid_postfix(const char*, void*);
-void APS5_VABI vwarnx_nid_postfix(const char*, void*);
-const char* APS5_VABI getprogname_nid_postfix();
-}
+[[noreturn]] void [[noreturn]] void [[noreturn]] void }
 
 namespace {
 

@@ -6,24 +6,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI isinf_nid_postfix(double);
-int APS5_VABI isnan_nid_postfix(double);
-int APS5_VABI finite_nid_postfix(double);
-int APS5_VABI finitef_nid_postfix(float);
-int APS5_VABI __isinfl_nid_postfix(long double);
-int APS5_VABI __isnanl_nid_postfix(long double);
-int APS5_VABI __isfinitel_nid_postfix(long double);
-int APS5_VABI __isnormall_nid_postfix(long double);
-int APS5_VABI __fpclassifyl_nid_postfix(long double);
-double APS5_VABI drem_nid_postfix(double, double);
-float APS5_VABI dremf_nid_postfix(float, float);
-double APS5_VABI scalb_nid_postfix(double, double);
-float APS5_VABI scalbf_nid_postfix(float, float);
-double APS5_VABI significand_nid_postfix(double);
-float APS5_VABI significandf_nid_postfix(float);
-}
+
 
 namespace {
 

@@ -22,6 +22,12 @@ struct LibcUtimbuf {
 
 using ThreadDestructorFunction = void (APS5_VABI*)(void*);
 
+
+struct GuestFts;
+struct GuestFtsEntry;
+struct GuestFtw;
+struct GuestGlob;
+
 extern "C" {
 
 void* APS5_VABI fdopendir_nid_postfix(int fd);
@@ -103,4 +109,20 @@ int APS5_VABI __std_init_once_begin_initialize_clr_nid_postfix(void** once, unsi
 int APS5_VABI __std_init_once_complete_clr_nid_postfix(void** once, unsigned long flags, void* context);
 [[noreturn]] void APS5_VABI __std_init_once_link_alternate_names_and_abort_nid_postfix();
 
+
+int APS5_VABI dprintf_nid_postfix(int descriptor, const char* format, ...);
+int APS5_VABI vdprintf_nid_postfix(int descriptor, const char* format, VaList* arguments);
+GuestFts* APS5_VABI fts_open_nid_postfix(char* const* arguments, int options, int (APS5_VABI *compare)(const GuestFtsEntry* const*, const GuestFtsEntry* const*));
+GuestFtsEntry* APS5_VABI fts_read_nid_postfix(GuestFts* fts);
+GuestFtsEntry* APS5_VABI fts_children_nid_postfix(GuestFts* fts, int options);
+int APS5_VABI fts_set_nid_postfix(GuestFts* fts, GuestFtsEntry* entry, int instruction);
+int APS5_VABI fts_close_nid_postfix(GuestFts* fts);
+void APS5_VABI fts_set_clientptr_nid_postfix(GuestFts* fts, void* pointer);
+void* APS5_VABI fts_get_clientptr_nid_postfix(GuestFts* fts);
+GuestFts* APS5_VABI fts_get_stream_nid_postfix(GuestFtsEntry* entry);
+int APS5_VABI nftw_nid_postfix(const char* path, int (APS5_VABI *callback)(const char*, const FileStat*, int, GuestFtw*), int descriptors, int flags);
+int APS5_VABI ftw_nid_postfix(const char* path, int (APS5_VABI *callback)(const char*, const FileStat*, int), int descriptors);
+int APS5_VABI glob_nid_postfix(const char* pattern, int flags, int (APS5_VABI *errorFunction)(const char*, int), GuestGlob* result);
+void APS5_VABI globfree_nid_postfix(GuestGlob* glob);
+int APS5_VABI ftok_nid_postfix(const char* path, int id);
 }

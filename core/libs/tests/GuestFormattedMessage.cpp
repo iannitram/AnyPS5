@@ -6,11 +6,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI fmtmsg_nid_postfix(long, const char*, int, const char*, const char*, const char*);
-int APS5_VABI setenv_nid_postfix(const char*, const char*, int);
-}
+
 
 namespace {
 

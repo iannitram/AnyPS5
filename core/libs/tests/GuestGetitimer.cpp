@@ -17,7 +17,6 @@ static_assert(sizeof(GuestItimerval) == 32 && offsetof(GuestItimerval, value) ==
 extern "C" {
 
 unsigned int APS5_VABI GuestAlarm_nid_no_patch(unsigned int);
-std::uint32_t APS5_VABI ualarm_nid_postfix(std::uint32_t, std::uint32_t);
 using Handler = void (APS5_VABI *)(int);
 
 }

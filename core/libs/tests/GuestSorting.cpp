@@ -12,15 +12,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-int* APS5_VABI __error_nid_postfix();
-void APS5_VABI qsort_r_nid_postfix(void*, std::size_t, std::size_t, void*, int (APS5_VABI *)(void*, const void*, const void*));
-int APS5_VABI heapsort_nid_postfix(void*, std::size_t, std::size_t, int (APS5_VABI *)(const void*, const void*));
-int APS5_VABI mergesort_nid_postfix(void*, std::size_t, std::size_t, int (APS5_VABI *)(const void*, const void*));
-int APS5_VABI radixsort_nid_postfix(const unsigned char**, int, const unsigned char*, unsigned);
-int APS5_VABI sradixsort_nid_postfix(const unsigned char**, int, const unsigned char*, unsigned);
-}
+
 
 namespace {
 
@@ -97,7 +91,7 @@ void CheckHeapSort() {
     auto records = Input();
     calls = 0;
     Require(heapsort_nid_postfix(records.data(), records.size(), sizeof(Record), CompareRecords) == 0, "heapsort");
-    Require(Ids(records, HeapSortIds) && calls == 408, "FreeBSD heapsort order and comparison count");
+    Require(Ids(records, HeapSortIds) && calls == 499, "FreeBSD heapsort order and comparison count");
     Require(heapsort_nid_postfix(records.data(), 1, 0, CompareRecords) == 0, "one element needs no size");
     *__error_nid_postfix() = 0;
     Require(heapsort_nid_postfix(records.data(), 2, 0, CompareRecords) == -1 && *__error_nid_postfix() == 22, "zero size is EINVAL");

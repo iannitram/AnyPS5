@@ -10,13 +10,10 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include "prx/libc/include/Api.hpp"
+
 
 extern "C" {
-int APS5_VABI fscanf_nid_postfix(FileStream*, const char*, ...);
-int APS5_VABI vfscanf_nid_postfix(FileStream*, const char*, void*);
-int APS5_VABI scanf_nid_postfix(const char*, ...);
-int APS5_VABI vscanf_nid_postfix(const char*, void*);
-int APS5_VABI feof_nid_postfix(FileStream*);
 extern FileStream* __stdinp_nid_postfix;
 }
 

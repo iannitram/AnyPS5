@@ -9,13 +9,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI dprintf_nid_postfix(int, const char*, ...);
-int APS5_VABI open_nid_postfix(const char*, int, int);
-int APS5_VABI close_nid_postfix(int);
-int* APS5_VABI __error_nid_postfix();
-}
+
 
 namespace {
 

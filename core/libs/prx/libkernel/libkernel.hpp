@@ -13,3 +13,5 @@
 #include "prx/libkernel/Semaphore/include/Semaphore.hpp"
 #include "prx/libkernel/Socket/include/SocketOptions.hpp"
 #include "prx/libkernel/Time/include/Time.hpp"
+#include "prx/libkernel_sys/include/Api.hpp"
+#include "prx/libScePosixForWebKit/include/Api.hpp"

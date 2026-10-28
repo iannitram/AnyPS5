@@ -51,12 +51,6 @@ static bool CreateLinks(const std::filesystem::path& root) {
 #endif
     return true;
 }
-extern "C" {
-int APS5_VABI alphasort_nid_postfix(const GuestDirectoryEntry* const*, const GuestDirectoryEntry* const*);
-int APS5_VABI scandir_nid_postfix(const char*, GuestDirectoryEntry***, int (APS5_VABI *)(const GuestDirectoryEntry*),
-    int (APS5_VABI *)(const GuestDirectoryEntry* const*, const GuestDirectoryEntry* const*));
-void APS5_VABI free_nid_postfix(void*);
-}
 static int APS5_VABI SkipDots(const GuestDirectoryEntry* entry) { return entry->name[0] != '.'; }
 static void CheckScanning(const std::filesystem::path& base) {
     const auto root = base / "scanning";

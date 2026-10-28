@@ -8,19 +8,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include "prx/libc/include/Api.hpp"
+
 
 extern "C" {
 using Handler = void (*)();
 [[noreturn]] void _ZSt10unexpectedv_nid_postfix();
-Handler _ZSt14set_unexpectedPFvvE_nid_postfix(Handler);
-Handler _ZSt14get_unexpectedv_nid_postfix();
-Handler _ZSt13set_terminatePFvvE_nid_postfix(Handler);
 extern char _ZTISt13bad_exception_nid_postfix[];
-void _ZNSt13bad_exceptionC1Ev_nid_postfix(void*);
-const char* _ZNKSt13bad_exception4whatEv_nid_postfix(const void*);
-void* __cxa_current_primary_exception_nid_postfix();
-void __cxa_rethrow_primary_exception_nid_postfix(void*);
-void __cxa_decrement_exception_refcount_nid_postfix(void*);
 }
 
 namespace {

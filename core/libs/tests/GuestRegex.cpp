@@ -5,25 +5,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "prx/libc/include/Api.hpp"
 
-struct GuestRegex {
-    int magic;
-    std::size_t subexpressions;
-    const char* end;
-    void* guts;
-};
 
-struct GuestMatch {
-    std::int64_t start;
-    std::int64_t end;
-};
 
-extern "C" {
-int APS5_VABI regcomp_nid_postfix(GuestRegex*, const char*, int);
-int APS5_VABI regexec_nid_postfix(const GuestRegex*, const char*, std::size_t, GuestMatch*, int);
-std::size_t APS5_VABI regerror_nid_postfix(int, const GuestRegex*, char*, std::size_t);
-void APS5_VABI regfree_nid_postfix(GuestRegex*);
-}
+
 
 namespace {
 constexpr int Extended = 1;

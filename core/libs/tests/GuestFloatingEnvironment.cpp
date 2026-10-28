@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
+#include "prx/libc/include/Api.hpp"
+
 
 namespace {
 
@@ -19,20 +21,6 @@ struct Environment {
 
 extern "C" {
 extern const Environment __fe_dfl_env_nid_postfix;
-int APS5_VABI feclearexcept_nid_postfix(int);
-int APS5_VABI fegetexceptflag_nid_postfix(std::uint16_t*, int);
-int APS5_VABI fesetexceptflag_nid_postfix(const std::uint16_t*, int);
-int APS5_VABI feraiseexcept_nid_postfix(int);
-int APS5_VABI fetestexcept_nid_postfix(int);
-int APS5_VABI fegetround_nid_postfix();
-int APS5_VABI fesetround_nid_postfix(int);
-int APS5_VABI fegetenv_nid_postfix(Environment*);
-int APS5_VABI feholdexcept_nid_postfix(Environment*);
-int APS5_VABI fesetenv_nid_postfix(const Environment*);
-int APS5_VABI feupdateenv_nid_postfix(const Environment*);
-int APS5_VABI feenableexcept_nid_postfix(int);
-int APS5_VABI fedisableexcept_nid_postfix(int);
-int APS5_VABI fegetexcept_nid_postfix();
 }
 
 namespace {
@@ -83,9 +71,9 @@ void CheckDefault() {
     Require(environment.status == 0xffff0000, "default status word");
     Require(environment.tag == 0xffffffff, "default tag word");
     Require(static_cast<unsigned char>(environment.other[14]) == 0xff && static_cast<unsigned char>(environment.other[15]) == 0xff, "default operand selector");
-    Require(environment.mxcsr == 0x1f80, "default mxcsr");
+    Require(environment.mxcsr == 0x9fc0, "default mxcsr");
     Reset();
-    Require((Control() & 0x0f3f) == 0x033f && (Mxcsr() & 0xffbf) == 0x1f80, "default loaded");
+    Require((Control() & 0x0f3f) == 0x033f && (Mxcsr() & 0xffbf) == 0x9f80, "default loaded");
     Require(fegetround_nid_postfix() == ToNearest && fegetexcept_nid_postfix() == 0 && fetestexcept_nid_postfix(AllExceptions) == 0, "default state");
 }
 

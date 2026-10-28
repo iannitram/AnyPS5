@@ -7,12 +7,11 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
-extern "C" {
-std::int64_t APS5_VABI ftok_nid_postfix(const char*, int);
-int APS5_VABI stat_nid_postfix(const char*, FileStat*);
-int* APS5_VABI __error_nid_postfix();
-}
+
 
 namespace {
 

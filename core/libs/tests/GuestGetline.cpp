@@ -10,15 +10,9 @@
 #include <cstring>
 #include <filesystem>
 #include <string>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-std::int64_t APS5_VABI getline_nid_postfix(char**, std::size_t*, FileStream*);
-std::int64_t APS5_VABI getdelim_nid_postfix(char**, std::size_t*, int, FileStream*);
-int APS5_VABI feof_nid_postfix(FileStream*);
-int APS5_VABI ferror_nid_postfix(FileStream*);
-void APS5_VABI clearerr_nid_postfix(FileStream*);
-void APS5_VABI free_nid_postfix(void*);
-}
+
 
 namespace {
 

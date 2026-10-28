@@ -141,6 +141,7 @@ struct SceKernelSystemSwVersion {
     std::uint32_t version;
 };
 
+
 extern "C" {
 int APS5_VABI sceKernelCreateEventFlag(KernelEventFlag* ef, const char* name, std::uint32_t attr, std::uint64_t initPattern, const void* param);
 int APS5_VABI sceKernelDeleteEventFlag(KernelEventFlag ef);
@@ -148,6 +149,7 @@ int APS5_VABI sceKernelSetEventFlag(KernelEventFlag ef, std::uint64_t bitPattern
 int APS5_VABI sceKernelCancelEventFlag(KernelEventFlag ef, std::uint64_t setPattern, int* numWaitThreads);
 
 }
+
 
 extern "C" {
 
@@ -824,4 +826,36 @@ int APS5_VABI sysKernelGetManufacturingMode_nid_postfix(void);
 int APS5_VABI sysKernelGetIntdevModeForInternalLibc_nid_postfix(void);
 int APS5_VABI sysKernelGetIntdevModeForRcmgr_nid_postfix(void);
 
+
+char* APS5_VABI ctermid_nid_postfix(char* buffer);
+int APS5_VABI ttyname_r_nid_postfix(int descriptor, char* buffer, std::size_t length);
+void APS5_VABI cfmakeraw_nid_postfix(GuestTermios* attributes);
+std::uint32_t APS5_VABI cfgetispeed_nid_postfix(const GuestTermios* attributes);
+char* APS5_VABI ttyname_nid_postfix(int descriptor);
+int APS5_VABI cfsetispeed_nid_postfix(GuestTermios* attributes, std::uint32_t speed);
+int APS5_VABI cfsetospeed_nid_postfix(GuestTermios* attributes, std::uint32_t speed);
+std::uint32_t APS5_VABI cfgetospeed_nid_postfix(const GuestTermios* attributes);
+void* APS5_VABI mq_open_nid_postfix(const char* name, int flags, ...);
+std::int64_t APS5_VABI mq_receive_nid_postfix(void* handle, char* buffer, std::size_t length, unsigned* priority);
+int APS5_VABI mq_getattr_nid_postfix(void* handle, GuestQueueAttributes* attributes);
+int APS5_VABI mq_timedsend_nid_postfix(void* handle, const char* data, std::size_t length, unsigned priority, const KernelTimespec* timeout);
+std::int64_t APS5_VABI mq_timedreceive_nid_postfix(void* handle, char* buffer, std::size_t length, unsigned* priority, const KernelTimespec* timeout);
+int APS5_VABI mq_notify_nid_postfix(void* handle, const GuestSignalEvent* event);
+int APS5_VABI mq_send_nid_postfix(void* handle, const char* data, std::size_t length, unsigned priority);
+int APS5_VABI mq_unlink_nid_postfix(const char* name);
+int APS5_VABI mq_close_nid_postfix(void* handle);
+int APS5_VABI mq_setattr_nid_postfix(void* handle, const GuestQueueAttributes* attributes, GuestQueueAttributes* previous);
+int APS5_VABI shmget_nid_postfix(std::int64_t key, std::size_t size, int flags);
+int APS5_VABI shmctl_nid_postfix(int identifier, int command, GuestSegmentStatus* status);
+int APS5_VABI shmdt_nid_postfix(const void* address);
+void* APS5_VABI shmat_nid_postfix(int identifier, const void* address, int flags);
+std::uintptr_t APS5_VABI sigset_nid_postfix(int signal, std::uintptr_t disposition);
+int APS5_VABI sigignore_nid_postfix(int signal);
+int APS5_VABI sighold_nid_postfix(int signal);
+int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous);
+int APS5_VABI sigrelse_nid_postfix(int signal);
+int APS5_VABI sigpause_nid_postfix(int mask);
+int APS5_VABI sigsetmask_nid_postfix(int mask);
+int APS5_VABI sigblock_nid_postfix(int mask);
+std::uint32_t APS5_VABI ualarm_nid_postfix(std::uint32_t microseconds, std::uint32_t reload);
 }
