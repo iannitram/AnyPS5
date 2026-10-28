@@ -106,8 +106,14 @@ bool TranslationContext::integer16Mad(const RdnaInstruction& inst, bool sign, bo
     const IrU32 product(ir.IMul(lhs.Value(), rhs.Value()));
     if (wide) {
         const IrU32 high(sign ? ir.ShiftRightArithmetic(product.Value(), ir.Constant(31u)) : ir.Constant(0u));
-        const IrU32 result = wideAdd(inst, product, high, readU32(sourceAt(inst, 2u)), sign);
-        writeOperand(inst.destination, &result.Value());
+        const IrU32 addend = readU16AsU32(sourceAt(inst, 2u), false);
+        const IrU32 result = wideAdd(inst, product, high, addend, sign);
+        if (inst.destination.sdwaSel == 5u) {
+            const IrU32 shifted(ir.ShiftLeftLogical(ir.BitwiseAnd(result.Value(), ir.Constant(0xffffu)), ir.Constant(16u)));
+            writeOperand(inst.destination, &shifted.Value());
+        } else {
+            writeOperand(inst.destination, &result.Value());
+        }
     } else {
         const IrU32 addend = readU16AsU32(sourceAt(inst, 2u), sign);
         const IrU32 result = saturateU16Result(inst, IrU32(ir.IAdd(product.Value(), addend.Value())), sign);
