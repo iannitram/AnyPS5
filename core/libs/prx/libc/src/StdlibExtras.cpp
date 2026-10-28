@@ -9,16 +9,12 @@
 #include "prx/libc/include/General.hpp"
 
 extern "C" {
-long long APS5_VABI strtoll_nid_postfix(const char* text, char** end, int base);
 unsigned long long APS5_VABI strtoull_nid_postfix(const char* text, char** end, int base);
 long long APS5_VABI wcstoll_nid_postfix(const char16_t* text, char16_t** end, int base);
 unsigned long long APS5_VABI wcstoull_nid_postfix(const char16_t* text, char16_t** end, int base);
-void* APS5_VABI realloc_nid_postfix(void* pointer, std::size_t size);
 }
 
 namespace {
-
-constexpr int GuestOutOfMemory = 12;
 
 template<typename T>
 T Magnitude(T value) {
@@ -36,20 +32,6 @@ struct GuestIntegerDivision {
 extern "C" {
 
 char* suboptarg_nid_postfix = nullptr;
-
-
-
-long long APS5_VABI strtoq_nid_postfix(const char* text, char** end, int base) { return strtoll_nid_postfix(text, end, base); }
-
-
-void* APS5_VABI reallocarray_nid_postfix(void* pointer, std::size_t count, std::size_t size) {
-    constexpr std::size_t NoOverflow = std::size_t{1} << (sizeof(std::size_t) * 4);
-    if ((count >= NoOverflow || size >= NoOverflow) && count > 0 && SIZE_MAX / count < size) {
-        errno = GuestOutOfMemory;
-        return nullptr;
-    }
-    return realloc_nid_postfix(pointer, size * count);
-}
 
 std::int64_t APS5_VABI a64l_nid_postfix(const char* text) {
     if (text == nullptr) throw std::invalid_argument("a64l: null string");

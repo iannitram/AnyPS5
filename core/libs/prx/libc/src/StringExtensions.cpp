@@ -1,6 +1,5 @@
 #include "prx/libc/include/Api.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -224,32 +223,6 @@ int APS5_VABI __inet_aton_nid_postfix(const char* text, void* address) {
 std::uint32_t APS5_VABI __inet_addr_nid_postfix(const char* text) {
     std::uint32_t address;
     return __inet_aton_nid_postfix(text, &address) ? address : 0xffffffff;
-}
-
-
-
-
-
-
-int APS5_VABI ffs_nid_postfix(int mask) {
-    return mask == 0 ? 0 : std::countr_zero(static_cast<unsigned>(mask)) + 1;
-}
-
-int APS5_VABI ffsl_nid_postfix(std::int64_t mask) {
-    return mask == 0 ? 0 : std::countr_zero(static_cast<std::uint64_t>(mask)) + 1;
-}
-
-int APS5_VABI ffsll_nid_postfix(long long mask) {
-    return mask == 0 ? 0 : std::countr_zero(static_cast<unsigned long long>(mask)) + 1;
-}
-
-int APS5_VABI fls_nid_postfix(int mask) {
-    return mask == 0 ? 0 : std::bit_width(static_cast<unsigned>(mask));
-}
-
-
-int APS5_VABI flsll_nid_postfix(long long mask) {
-    return mask == 0 ? 0 : static_cast<int>(std::bit_width(static_cast<unsigned long long>(mask)));
 }
 
 }

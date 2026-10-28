@@ -113,61 +113,6 @@ void QuickSort(char* a, std::size_t n, std::size_t es, void* thunk, ThunkCompare
     }
 }
 
-void CopyBytes(char* destination, const char* source, std::size_t size) { std::memmove(destination, source, size); }
-
-int HeapSort(void* vbase, std::size_t nmemb, std::size_t size, Compare compare) {
-    if (nmemb <= 1) return 0;
-    if (size == 0) {
-        *__error_nid_postfix() = GuestInvalidArgument;
-        return -1;
-    }
-    auto* k = static_cast<char*>(malloc_nid_postfix(size));
-    if (k == nullptr) return -1;
-    char* base = static_cast<char*>(vbase) - size;
-
-    for (std::size_t l = nmemb / 2 + 1; --l;) {
-        std::size_t parentIndex, childIndex;
-        for (parentIndex = l; (childIndex = parentIndex * 2) <= nmemb; parentIndex = childIndex) {
-            char* child = base + childIndex * size;
-            if (childIndex < nmemb && compare(child, child + size) < 0) {
-                child += size;
-                ++childIndex;
-            }
-            char* parent = base + parentIndex * size;
-            if (compare(child, parent) <= 0) break;
-            SwapBytes(parent, child, size);
-        }
-    }
-
-    while (nmemb > 1) {
-        CopyBytes(k, base + nmemb * size, size);
-        CopyBytes(base + nmemb * size, base + size, size);
-        --nmemb;
-        std::size_t parentIndex, childIndex;
-        for (parentIndex = 1; (childIndex = parentIndex * 2) <= nmemb; parentIndex = childIndex) {
-            char* child = base + childIndex * size;
-            if (childIndex < nmemb && compare(child, child + size) < 0) {
-                child += size;
-                ++childIndex;
-            }
-            CopyBytes(base + parentIndex * size, child, size);
-        }
-        for (;;) {
-            childIndex = parentIndex;
-            parentIndex = childIndex / 2;
-            char* child = base + childIndex * size;
-            char* parent = base + parentIndex * size;
-            if (childIndex == 1 || compare(k, parent) < 0) {
-                CopyBytes(child, k, size);
-                break;
-            }
-            CopyBytes(child, parent, size);
-        }
-    }
-    free_nid_postfix(k);
-    return 0;
-}
-
 int MergeSort(void* base, std::size_t nmemb, std::size_t size, Compare compare) {
     if (size < sizeof(void*) / 2) {
         *__error_nid_postfix() = GuestInvalidArgument;
@@ -391,12 +336,6 @@ void APS5_VABI qsort_r_nid_postfix(void* base, std::size_t count, std::size_t si
     if (count > std::numeric_limits<std::size_t>::max() / size) throw std::overflow_error("qsort_r: array size overflow");
     QuickSort(static_cast<char*>(base), count, size, thunk, compare);
 }
-
-int APS5_VABI heapsort_nid_postfix(void* base, std::size_t count, std::size_t size, Compare compare) {
-    if (compare == nullptr) throw std::invalid_argument("heapsort: null comparison");
-    return HeapSort(base, count, size, compare);
-}
-
 
 int APS5_VABI radixsort_nid_postfix(const Byte** strings, int count, const Byte* table, unsigned endByte) {
     if (endByte > 255) throw std::invalid_argument("radixsort: end byte out of range");
