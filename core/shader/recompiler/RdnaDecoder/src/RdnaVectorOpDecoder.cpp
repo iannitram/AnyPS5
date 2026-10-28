@@ -1849,7 +1849,13 @@ void applyNativeVop3I16TernarySelectors(RdnaInstruction& instruction, std::uint3
     for (std::uint32_t i = 0; i < 3u; ++i) {
         sources[i]->opSel = ((opSel >> i) & 1u) != 0u;
     }
-    instruction.destination.sdwaSel = (opSel & 0x8u) != 0u ? 5u : 4u;
+    if (instruction.op == RdnaOpcode::VMadU32U16 || instruction.op == RdnaOpcode::VMadI32I16) {
+        if ((opSel & 0x8u) != 0u) {
+            instruction.destination.sdwaSel = 5u;
+        }
+    } else {
+        instruction.destination.sdwaSel = (opSel & 0x8u) != 0u ? 5u : 4u;
+    }
 }
 
 void applyNativeVop3AlignSelectors(RdnaInstruction& instruction, std::uint32_t opSel) {
