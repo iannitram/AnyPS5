@@ -1846,7 +1846,6 @@ void applyNativeVop3TernaryModifiers(RdnaInstruction& instruction, std::uint32_t
 
 void applyNativeVop3I16TernarySelectors(RdnaInstruction& instruction, std::uint32_t opSel) {
     RdnaOperand* sources[] = {&instruction.source0, &instruction.source1, &instruction.source2};
-    const bool wideResult = instruction.op == RdnaOpcode::VMadU32U16 || instruction.op == RdnaOpcode::VMadI32I16;
     for (std::uint32_t i = 0; i < 3u; ++i) {
         sources[i]->opSel = ((opSel >> i) & 1u) != 0u;
     }
