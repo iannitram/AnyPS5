@@ -21,8 +21,6 @@ struct GuestFloatingEnvironment {
 static_assert(sizeof(GuestFloatingEnvironment) == 32);
 static_assert(offsetof(GuestFloatingEnvironment, mxcsr) == 28);
 
-using GuestExceptionFlags = std::uint16_t;
-
 constexpr int AllExceptions = 0x3f;
 constexpr int RoundMask = 0x0c00;
 constexpr int SseRoundShift = 3;
@@ -60,8 +58,6 @@ std::uint32_t Mxcsr() {
 
 void SetMxcsr(std::uint32_t mxcsr) { asm volatile("ldmxcsr %0" : : "m"(mxcsr)); }
 
-void Wait() { asm volatile("fwait"); }
-
 template<typename T>
 T* Require(T* pointer, const char* function) {
     if (pointer == nullptr) throw std::invalid_argument(std::string(function) + ": null pointer");
@@ -72,36 +68,11 @@ T* Require(T* pointer, const char* function) {
 
 extern "C" {
 
-extern const GuestFloatingEnvironment __fe_dfl_env_nid_postfix;
-const GuestFloatingEnvironment __fe_dfl_env_nid_postfix {
-    {0xffff0000u | 0x037f, 0xffff0000u, 0xffffffffu, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '\xff', '\xff'}},
-    0x1f80,
-};
-
-
-
-
-int APS5_VABI feraiseexcept_nid_postfix(int excepts) {
-    const GuestExceptionFlags flags = static_cast<GuestExceptionFlags>(excepts);
-    fesetexceptflag_nid_postfix(&flags, excepts);
-    Wait();
-    return 0;
-}
-
-
-
-
-
-
 int APS5_VABI fesetenv_nid_postfix(const GuestFloatingEnvironment* environment) {
     Require(environment, __func__);
     LoadEnvironment(environment);
     SetMxcsr(environment->mxcsr);
     return 0;
 }
-
-
-
-
 
 }
