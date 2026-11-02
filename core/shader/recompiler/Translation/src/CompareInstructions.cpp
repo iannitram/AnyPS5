@@ -99,9 +99,9 @@ void TranslationContext::emitCompareConstant(const RdnaInstruction& inst, bool v
     emitCompareResult(inst, IrU1(ir.ConstantBool(value)), scalar, cmpx);
 }
 
-void TranslationContext::emitIntegerCompare(const RdnaInstruction& inst, IrOpcode opcode, IrType type, bool scalar, bool cmpx) {
-    IrValue* lhs = readOperand(sourceAt(inst, 0u), type);
-    IrValue* rhs = readOperand(sourceAt(inst, 1u), type);
+void TranslationContext::emitIntegerCompare(const RdnaInstruction& inst, IrOpcode opcode, IrType type, bool scalar, bool cmpx, bool signedValue) {
+    IrValue* lhs = type == IrType::U64 ? &readU64(sourceAt(inst, 0u), signedValue).Value() : readOperand(sourceAt(inst, 0u), type);
+    IrValue* rhs = type == IrType::U64 ? &readU64(sourceAt(inst, 1u), signedValue).Value() : readOperand(sourceAt(inst, 1u), type);
     emitCompareResult(inst, IrU1(ir.Emit(opcode, IrType::U1, {lhs, rhs})), scalar, cmpx);
 }
 
@@ -188,8 +188,8 @@ IrU1 TranslationContext::floatCompareWithConstant(IrOpcode opcode, IrU32 variabl
 }
 
 void TranslationContext::emitInteger64Order(const RdnaInstruction& inst, bool signedValue, bool swap, bool negate, bool cmpx) {
-    IrValue* lhs = readOperand(sourceAt(inst, swap ? 1u : 0u), IrType::U64);
-    IrValue* rhs = readOperand(sourceAt(inst, swap ? 0u : 1u), IrType::U64);
+    IrValue* lhs = &readU64(sourceAt(inst, swap ? 1u : 0u), signedValue).Value();
+    IrValue* rhs = &readU64(sourceAt(inst, swap ? 0u : 1u), signedValue).Value();
     IrValue& less = ir.Emit(signedValue ? IrOpcode::SLessThan64 : IrOpcode::ULessThan64, IrType::U1, {lhs, rhs});
     emitCompareResult(inst, IrU1(negate ? ir.LogicalNot(less) : less), false, cmpx);
 }

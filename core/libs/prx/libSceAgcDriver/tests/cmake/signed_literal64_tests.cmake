@@ -1,0 +1,10 @@
+if(BUILD_TESTING)
+    add_test_executable(signed_literal64_tests ${LIBS_INCLUDE_DIR}/tests/SignedLiteral64.cpp)
+    target_link_libraries(signed_literal64_tests PRIVATE shader_recompiler_agc_driver libc)
+    configure_windows_unwind(signed_literal64_tests)
+    add_test(NAME signed_literal64 COMMAND signed_literal64_tests)
+    if(WIN32)
+        set_tests_properties(signed_literal64 PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+endif()

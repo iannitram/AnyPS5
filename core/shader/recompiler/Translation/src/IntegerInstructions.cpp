@@ -256,7 +256,8 @@ bool TranslationContext::simpleInteger(const RdnaInstruction& inst, IrOpcode opc
     for (std::uint32_t index = 0u; index < inst.sourceCount; ++index) {
         const IrType argType = IrOpcodeArgumentType(opcode, index);
         const RdnaOperand& operand = sourceAt(inst, reverse && index < 2u ? 1u - index : index);
-        args[index] = readOperand(operand, argType == IrType::Void ? type : argType);
+        const bool signedValue = opcode == IrOpcode::ShiftRightArithmetic64 && index == 0u;
+        args[index] = signedValue ? &readU64(operand, true).Value() : readOperand(operand, argType == IrType::Void ? type : argType);
         if (maskShiftCount && index == 1u) {
             args[index] = &ir.BitwiseAnd(*args[index], ir.Constant(31u));
         }
@@ -357,7 +358,7 @@ bool TranslationContext::vFfbh32(const RdnaInstruction& inst, bool sign) {
 }
 
 bool TranslationContext::sFlbitI32B64(const RdnaInstruction& inst, bool sign) {
-    IrU64 source = readU64(sourceAt(inst, 0u));
+    IrU64 source = readU64(sourceAt(inst, 0u), sign);
     if (sign) {
         const std::array<IrU32, 2> halves = extractU64(source);
         IrValue& mask = ir.ShiftRightArithmetic(halves[1].Value(), ir.Constant(31u));
@@ -396,7 +397,7 @@ bool TranslationContext::integer24(const RdnaInstruction& inst, bool sign, bool 
 bool TranslationContext::vMad64x32(const RdnaInstruction& inst, bool sign) {
     const IrU32 lhs = readU32(sourceAt(inst, 0u));
     const IrU32 rhs = readU32(sourceAt(inst, 1u));
-    const std::array<IrU32, 2> add = extractU64(readU64(sourceAt(inst, 2u)));
+    const std::array<IrU32, 2> add = extractU64(readU64(sourceAt(inst, 2u), sign));
     const IrU32 mulLow(ir.IMul(lhs.Value(), rhs.Value()));
     const IrU32 mulHigh(ir.Emit(sign ? IrOpcode::SMulHi : IrOpcode::UMulHi, IrType::U32, {&lhs.Value(), &rhs.Value()}));
     const IrU32 low(ir.IAdd(mulLow.Value(), add[0].Value()));
@@ -708,7 +709,7 @@ bool TranslationContext::sBfeU32(const RdnaInstruction& inst, bool sign) {
 }
 
 bool TranslationContext::sBfeU64(const RdnaInstruction& inst, bool sign) {
-    const IrU64 source = readU64(sourceAt(inst, 0u));
+    const IrU64 source = readU64(sourceAt(inst, 0u), sign);
     const IrU32 field = readU32(sourceAt(inst, 1u));
     const IrU32 offset(ir.Emit(IrOpcode::BitFieldUExtract, IrType::U32, {&field.Value(), &ir.Constant(0u), &ir.Constant(6u)}));
     const IrU32 rawCount(ir.Emit(IrOpcode::BitFieldUExtract, IrType::U32, {&field.Value(), &ir.Constant(16u), &ir.Constant(7u)}));
