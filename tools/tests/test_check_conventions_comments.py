@@ -250,12 +250,11 @@ class QuotedPathTests(unittest.TestCase):
             def git(*args):
                 return subprocess.run(
                     ["git", "-c", "user.name=Conventions Test", "-c", "user.email=test@example.com",
-                     "-c", "commit.gpgsign=false", *args],
+                     "-c", "commit.gpgsign=false", "-c", "core.quotePath=true", *args],
                     cwd=root, capture_output=True, text=True, check=True,
                 )
 
             git("init", "-q")
-            git("config", "core.quotePath", "true")
             readme = root / "README.md"
             readme.write_text("# Example\n", encoding="utf-8")
             git("add", ".")

@@ -128,12 +128,17 @@ class SanitizerReportTests(unittest.TestCase):
 
     def test_summary_write_failure_is_reported_without_a_successful_report(self):
         summary = Path(self.directory.name) / "missing" / "summary.md"
-        code, stdout, stderr = self.run_main(self.write(suite(case("passes"))), "--summary", summary)
-        self.assertEqual(code, 2)
-        self.assertEqual(stdout, "")
-        self.assertIn(summary.name, stderr)
-        self.assertTrue(stderr.startswith("sanitizer_report: "))
-        self.assertNotIn("Traceback", stderr)
+        for test in (case("passes"), case("fails", "fail", "<failure/>")):
+            with self.subTest(test=test):
+                junit = self.write(suite(test))
+                result = subprocess.run([sys.executable, str(Path(sanitizer_report.__file__)), str(junit),
+                                         "--summary", str(summary)], capture_output=True, text=True, encoding="utf-8")
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(summary.name, result.stderr)
+                self.assertTrue(result.stderr.startswith("sanitizer_report: "))
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse(summary.parent.exists())
 
     def test_summary_symlink_loop_resolution_failure_exits_with_2(self):
         junit = self.write(suite(case("passes")), "report.xml")

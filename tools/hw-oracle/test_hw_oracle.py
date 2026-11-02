@@ -747,15 +747,33 @@ class HipOracleTests(unittest.TestCase):
         for index, name in ((1, "THREADS"), (4, "OUT_DWORDS")):
             argv = ["code", "1", "in", "out", "1"]
             argv[index] = "not-an-int"
-            with self.subTest(argument=name), patch.object(Path, "read_bytes", side_effect=AssertionError("input read")) as read, \
+            with self.subTest(argument=name), patch.object(self.oracle_hip, "Path", side_effect=AssertionError("file access")) as path, \
+                    patch.object(self.oracle_hip, "hip", side_effect=AssertionError("HIP access")) as hip, \
                     patch.object(self.oracle_hip, "dispatch", side_effect=AssertionError("dispatch called")) as dispatch, \
                     contextlib.redirect_stderr(io.StringIO()) as errors, self.assertRaises(SystemExit) as exited:
                 self.oracle_hip.main(argv)
             self.assertEqual(exited.exception.code, 2)
             self.assertIn(f"{name} must be an integer", errors.getvalue())
             self.assertNotIn("Traceback", errors.getvalue())
-            read.assert_not_called()
+            path.assert_not_called()
+            hip.assert_not_called()
             dispatch.assert_not_called()
+
+    def test_cli_noninteger_dispatch_sizes_exit_with_2_without_a_traceback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, name in ((1, "THREADS"), (4, "OUT_DWORDS")):
+                for value in ("not-an-int", "1.5", ""):
+                    with self.subTest(argument=name, value=value):
+                        argv = ["code", "1", "in", "out", "1"]
+                        argv[index] = value
+                        result = subprocess.run([sys.executable, str(Path(self.oracle_hip.__file__)), *argv],
+                                                cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=10)
+                        self.assertEqual(result.returncode, 2, result.stderr)
+                        self.assertEqual(result.stdout, "")
+                        self.assertIn(f"{name} must be an integer", result.stderr)
+                        self.assertNotIn("Traceback", result.stderr)
+                        self.assertEqual(list(root.iterdir()), [])
 
     def test_cli_rejects_short_dispatch_input_before_oracle_work(self):
         with tempfile.TemporaryDirectory() as directory:
