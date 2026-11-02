@@ -21,8 +21,6 @@ class CheckCompileFixture(unittest.TestCase):
         self.addCleanup(holder.cleanup)
         self.root = Path(holder.name).resolve()
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
-        subprocess.run(["git", "-C", str(self.root), "config", "user.email", "tests@example.com"], check=True)
-        subprocess.run(["git", "-C", str(self.root), "config", "user.name", "tests"], check=True)
         self.build = self.root / "build"
         self.build.mkdir()
 
@@ -261,7 +259,8 @@ class CheckCompilePathSelectionTests(CheckCompileFixture):
     def test_a_changed_file_with_a_non_ascii_name_is_checked(self):
         self.failing("caf\u00e9.cpp")
         subprocess.run(["git", "-C", str(self.root), "add", "caf\u00e9.cpp"], check=True)
-        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "add"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=tests", "-c", "user.email=tests@example.com",
+                        "-c", "commit.gpgsign=false", "commit", "-qm", "add"], check=True)
         self.source("caf\u00e9.cpp", "int y;\n")
         result = self.tool("--base", "HEAD")
         self.assertEqual(result.returncode, 1)
@@ -330,7 +329,8 @@ class CheckCompilePathSelectionTests(CheckCompileFixture):
     def test_a_new_untracked_translation_unit_is_checked(self):
         self.source("base.cpp")
         subprocess.run(["git", "-C", str(self.root), "add", "base.cpp"], check=True)
-        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "add"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=tests", "-c", "user.email=tests@example.com",
+                        "-c", "commit.gpgsign=false", "commit", "-qm", "add"], check=True)
         self.failing("brandnew.cpp")
         result = self.tool("--base", "HEAD")
         self.assertEqual(result.returncode, 1)
@@ -344,7 +344,8 @@ class CheckCompilePathSelectionTests(CheckCompileFixture):
     def test_the_changed_translation_units_are_taken_from_the_base(self):
         self.failing("changed.cpp")
         subprocess.run(["git", "-C", str(self.root), "add", "changed.cpp"], check=True)
-        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "add"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=tests", "-c", "user.email=tests@example.com",
+                        "-c", "commit.gpgsign=false", "commit", "-qm", "add"], check=True)
         self.source("changed.cpp", "int y;\n")
         result = self.tool("--base", "HEAD")
         self.assertEqual(result.returncode, 1)
@@ -375,7 +376,8 @@ class CheckCompilePathSelectionTests(CheckCompileFixture):
     def test_no_changed_translation_unit_is_not_a_failure(self):
         self.source("clean.cpp")
         subprocess.run(["git", "-C", str(self.root), "add", "clean.cpp"], check=True)
-        subprocess.run(["git", "-C", str(self.root), "commit", "-qm", "add"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=tests", "-c", "user.email=tests@example.com",
+                        "-c", "commit.gpgsign=false", "commit", "-qm", "add"], check=True)
         self.manifest([])
         result = self.tool("--base", "HEAD")
         self.assertEqual(result.returncode, 0)

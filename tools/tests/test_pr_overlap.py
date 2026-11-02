@@ -149,11 +149,11 @@ class ConflictTests(unittest.TestCase):
 
         def git(*args):
             return subprocess.run(
-                ["git", "-c", "user.name=Overlap Test", "-c", "user.email=test@example.com", *args],
+                ["git", "-c", "user.name=Overlap Test", "-c", "user.email=test@example.com",
+                 "-c", "commit.gpgsign=false", *args],
                 capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
 
         git("init", "-q")
-        git("config", "commit.gpgsign", "false")
         for name in ("shared.cpp", "other.cpp", "unrelated.cpp"):
             (root / name).write_text("int value = 0;\n", encoding="utf-8")
         git("add", ".")
@@ -275,7 +275,7 @@ class UnicodePathTests(unittest.TestCase):
             def git(*args):
                 return subprocess.run(
                     ["git", "-c", "user.name=Overlap Test", "-c", "user.email=test@example.com",
-                     "-c", "commit.gpgsign=false", *args], cwd=root,
+                     "-c", "commit.gpgsign=false", "-c", "core.quotePath=true", *args], cwd=root,
                     capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
 
             filename = "core/libs/prx/libSceExample/caf\u00e9 #1 (%20).cpp"
@@ -283,7 +283,6 @@ class UnicodePathTests(unittest.TestCase):
             source.parent.mkdir(parents=True)
             source.write_text("int value = 0;\n", encoding="utf-8")
             git("init", "-q")
-            git("config", "core.quotePath", "true")
             git("add", ".")
             git("commit", "-qm", "test: create base")
             base = git("rev-parse", "HEAD")

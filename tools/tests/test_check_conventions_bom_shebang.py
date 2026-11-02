@@ -6,6 +6,33 @@ import unittest
 from pathlib import Path
 
 
+class ToolExecutableTests(unittest.TestCase):
+    def test_tracked_python_tools_with_shebangs_are_executable(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(["git", "ls-files", "--stage", "-z", "--", "tools/*.py"], cwd=root,
+                                capture_output=True, text=True, encoding="utf-8", check=True)
+        scripts = []
+        for entry in result.stdout.split("\0"):
+            if not entry:
+                continue
+            metadata, name = entry.split("\t", 1)
+            path = root / name
+            if path.parent == root / "tools" and path.read_bytes().startswith(b"#!"):
+                scripts.append((metadata.split()[0], path))
+        self.assertTrue(scripts)
+        for mode, path in scripts:
+            with self.subTest(script=path.name):
+                self.assertEqual(mode, "100755")
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX executable file modes")
+    def test_stubgen_can_run_directly(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run([str(root / "tools/stubgen.py"), "--help"], cwd=root,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("usage:", result.stdout)
+
+
 class BomShebangTests(unittest.TestCase):
     def check(self, header):
         checker = Path(__file__).resolve().parents[1] / "check_conventions.py"

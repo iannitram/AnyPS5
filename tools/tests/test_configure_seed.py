@@ -201,6 +201,14 @@ class ConfigureSeedPathTests(unittest.TestCase):
                 self.assertEqual(seed.read_text(encoding="utf-8"), expected)
                 self.assertEqual(self.cache.read_bytes(), self.original)
 
+    def test_quoted_colon_key_is_written_to_the_seed(self):
+        self.cache.write_text('//Test A:B\n"A:B":INTERNAL=1\n', encoding="utf-8")
+        seed = self.root / "seed.cmake"
+        result = self.run_seed(seed)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "1 check results\n")
+        self.assertEqual(seed.read_text(encoding="utf-8"), 'set("A:B" "1" CACHE INTERNAL "Test A:B")\n')
+
 
 @unittest.skipUnless(shutil.which("ninja") and (shutil.which("gcc") or shutil.which("cc")), "needs ninja and a C compiler")
 class ConfigureSeedProject(unittest.TestCase):
