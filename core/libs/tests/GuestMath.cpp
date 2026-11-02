@@ -129,7 +129,7 @@ static void CheckNearbyint() {
     Require(nearbyint_nid_postfix(0x1p53) == 0x1p53);
     Require(nearbyint_nid_postfix(INFINITY) == INFINITY && nearbyint_nid_postfix(-INFINITY) == -INFINITY);
     Require(std::isnan(nearbyint_nid_postfix(NAN)));
-    Require(std::fetestexcept(FE_INEXACT) != 0);
+    Require(std::fetestexcept(FE_INEXACT) == 0);
     std::feclearexcept(FE_ALL_EXCEPT);
     std::uint16_t savedControl;
     asm volatile("fnstcw %0" : "=m"(savedControl));
@@ -138,12 +138,12 @@ static void CheckNearbyint() {
     _mm_setcsr((_mm_getcsr() & ~0x6000u) | 0x0000u);
     std::feclearexcept(FE_ALL_EXCEPT);
     Require(nearbyintf_nid_postfix(2.5f) == 2.0f);
-    Require(std::fetestexcept(FE_INEXACT) != 0);
+    Require(std::fetestexcept(FE_INEXACT) == 0);
     Require(std::fesetround(FE_TONEAREST) == 0);
     _mm_setcsr((_mm_getcsr() & ~0x6000u) | 0x4000u);
     std::feclearexcept(FE_ALL_EXCEPT);
     Require(nearbyintf_nid_postfix(2.5f) == 3.0f);
-    Require(std::fetestexcept(FE_INEXACT) != 0);
+    Require(std::fetestexcept(FE_INEXACT) == 0);
     struct RoundingCase {
         unsigned mode;
         std::uint32_t positiveHalf;
@@ -165,7 +165,7 @@ static void CheckNearbyint() {
                                   RoundingValue{2.5f, test.positiveTwoHalf}, RoundingValue{-2.5f, test.negativeTwoHalf}}) {
             std::feclearexcept(FE_ALL_EXCEPT);
             Require(std::bit_cast<std::uint32_t>(nearbyintf_nid_postfix(value.input)) == value.expected);
-            Require(std::fetestexcept(FE_INEXACT) != 0);
+            Require(std::fetestexcept(FE_INEXACT) == 0);
         }
         for (const float zeroValue : {0.0f, -0.0f}) {
             std::feclearexcept(FE_ALL_EXCEPT);
@@ -741,7 +741,7 @@ static void CheckNearbyintEnvironment() {
             Require(std::feraiseexcept(FE_DIVBYZERO) == 0);
             errno = 1234;
             Require(std::bit_cast<std::uint64_t>(nearbyint_nid_postfix(input)) == std::bit_cast<std::uint64_t>(expected));
-            Require(std::fetestexcept(FE_DIVBYZERO | FE_INEXACT) == (FE_DIVBYZERO | FE_INEXACT));
+            Require(std::fetestexcept(FE_DIVBYZERO | FE_INEXACT) == FE_DIVBYZERO);
             Require(std::fegetround() == mode.mode && errno == 1234);
         }
         for (const double input : {0.0, -0.0, 2.0, -2.0, 0x1p52, -0x1p52, 0x1p53, -0x1p53,

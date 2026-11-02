@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <bit>
 #include <cerrno>
+#include <cfenv>
 #include <climits>
 #include <cmath>
 #include <cstdint>
@@ -186,6 +187,16 @@ TFloat FusedPolynomial(TFloat x, const TFloat* table, int degree) {
 
 }
 
+template <typename T>
+static T RoundWithoutInexact(T x) {
+    if (std::isnan(x)) return x + x;
+    const bool wasRaised = std::fetestexcept(FE_INEXACT) != 0;
+    const T result = std::rint(x);
+    if (!wasRaised) std::feclearexcept(FE_INEXACT);
+    return result;
+}
+
+
 extern "C" {
 
 long double APS5_VABI copysignl_nid_postfix(long double x, long double y) { return std::copysign(x, y); }
@@ -284,8 +295,8 @@ long double APS5_VABI fmal_nid_postfix(long double x, long double y, long double
 
 double APS5_VABI rint_nid_postfix(double x) { return std::isnan(x) ? x + x : std::rint(x); }
 float APS5_VABI rintf_nid_postfix(float x) { return std::isnan(x) ? x + x : std::rint(x); }
-float APS5_VABI nearbyintf_nid_postfix(float x) { return std::isnan(x) ? x + x : std::rintf(x); }
-double APS5_VABI nearbyint_nid_postfix(double x) { return std::isnan(x) ? x + x : std::rint(x); }
+float APS5_VABI nearbyintf_nid_postfix(float x) { return RoundWithoutInexact(x); }
+double APS5_VABI nearbyint_nid_postfix(double x) { return RoundWithoutInexact(x); }
 
 std::int64_t APS5_VABI lrint_nid_postfix(double x) { return _mm_cvtsd_si64(_mm_set_sd(x)); }
 
