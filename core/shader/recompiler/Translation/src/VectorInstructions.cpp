@@ -316,6 +316,8 @@ bool TranslationContext::emitVector(const RdnaInstruction& inst) {
         emitIntegerCompare(inst, IrOpcode::SLessThanEqual32, IrType::U32, false, true);
         return true;
     case RdnaOpcode::VCmpEqI64:
+        emitIntegerCompare(inst, IrOpcode::IEqual64, IrType::U64, false, false, true);
+        return true;
     case RdnaOpcode::VCmpEqU64:
         emitIntegerCompare(inst, IrOpcode::IEqual64, IrType::U64, false, false);
         return true;
@@ -329,6 +331,8 @@ bool TranslationContext::emitVector(const RdnaInstruction& inst) {
         emitIntegerCompare(inst, IrOpcode::INotEqual64, IrType::U64, false, false);
         return true;
     case RdnaOpcode::VCmpxNeI64:
+        emitIntegerCompare(inst, IrOpcode::INotEqual64, IrType::U64, false, true, true);
+        return true;
     case RdnaOpcode::VCmpxNeU64:
         emitIntegerCompare(inst, IrOpcode::INotEqual64, IrType::U64, false, true);
         return true;
@@ -369,7 +373,7 @@ bool TranslationContext::emitVector(const RdnaInstruction& inst) {
         emitInteger64Order(inst, true, true, false, false);
         return true;
     case RdnaOpcode::VCmpNeI64:
-        emitIntegerCompare(inst, IrOpcode::INotEqual64, IrType::U64, false, false);
+        emitIntegerCompare(inst, IrOpcode::INotEqual64, IrType::U64, false, false, true);
         return true;
     case RdnaOpcode::VCmpGeI64:
         emitInteger64Order(inst, true, false, true, false);
@@ -384,7 +388,7 @@ bool TranslationContext::emitVector(const RdnaInstruction& inst) {
         emitInteger64Order(inst, true, false, false, true);
         return true;
     case RdnaOpcode::VCmpxEqI64:
-        emitIntegerCompare(inst, IrOpcode::IEqual64, IrType::U64, false, true);
+        emitIntegerCompare(inst, IrOpcode::IEqual64, IrType::U64, false, true, true);
         return true;
     case RdnaOpcode::VCmpxLeI64:
         emitInteger64Order(inst, true, true, true, true);
