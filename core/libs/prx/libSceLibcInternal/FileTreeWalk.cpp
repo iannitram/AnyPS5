@@ -46,7 +46,7 @@ struct GuestFtsEntry {
     std::uint32_t inode;
     std::uint32_t device;
     std::uint16_t linkCount;
-    long level;
+    std::int64_t level;
     int info;
     unsigned flags;
     int instruction;
@@ -312,7 +312,7 @@ GuestFtsEntry* Build(GuestFts* fts, int type) {
     *cursor++ = '/';
     length++;
     std::size_t maxLength = fts->pathLength - length;
-    const long level = current->level + 1;
+    const std::int64_t level = current->level + 1;
 
     bool adjust = false;
     GuestFtsEntry* head = nullptr;
