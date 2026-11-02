@@ -21,6 +21,8 @@ class CheckCompileFixture(unittest.TestCase):
         self.addCleanup(holder.cleanup)
         self.root = Path(holder.name).resolve()
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        subprocess.run(["git", "-C", str(self.root), "config", "user.email", "tests@example.com"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "config", "user.name", "tests"], check=True)
         self.build = self.root / "build"
         self.build.mkdir()
 
