@@ -83,9 +83,9 @@ void CheckDefault() {
     Require(environment.status == 0xffff0000, "default status word");
     Require(environment.tag == 0xffffffff, "default tag word");
     Require(static_cast<unsigned char>(environment.other[14]) == 0xff && static_cast<unsigned char>(environment.other[15]) == 0xff, "default operand selector");
-    Require(environment.mxcsr == 0x1f80, "default mxcsr");
+    Require(environment.mxcsr == 0x9fc0, "default mxcsr");
     Reset();
-    Require((Control() & 0x0f3f) == 0x033f && (Mxcsr() & 0xffbf) == 0x1f80, "default loaded");
+    Require((Control() & 0x0f3f) == 0x033f && (Mxcsr() & 0xffbf) == 0x9f80, "default loaded");
     Require(fegetround_nid_postfix() == ToNearest && fegetexcept_nid_postfix() == 0 && fetestexcept_nid_postfix(AllExceptions) == 0, "default state");
 }
 
