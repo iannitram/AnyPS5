@@ -131,6 +131,7 @@ std::u16string FormatWide(const char16_t* format, VaList* source, bool secure = 
         if (*format != u'%') { out.push_back(*format++); continue; }
         ++format;
         if (*format == u'%') { out.push_back(*format++); continue; }
+        const bool trailingPercent = *format == 0;
         if (const std::size_t found = position()) args.Seek(found);
         std::string spec = "%";
         bool left = false;
@@ -163,16 +164,32 @@ std::u16string FormatWide(const char16_t* format, VaList* source, bool secure = 
             }
         }
         std::string length;
-        if (In(*format, "hljztL")) {
+        if (In(*format, "hljztLq")) {
             length += static_cast<char>(*format++);
             if ((length == "h" && *format == u'h') || (length == "l" && *format == u'l')) length += static_cast<char>(*format++);
         }
-        const char16_t conversion = *format;
-        if (!conversion) throw std::invalid_argument("Incomplete format conversion");
+        const char16_t raw = *format;
+        if (!raw) {
+            if (secure || !trailingPercent) throw std::invalid_argument("Incomplete format conversion");
+            break;
+        }
         ++format;
+        std::u16string verbatim(1, raw);
+        if (raw >= 0xd800 && raw < 0xdc00 && *format >= 0xdc00 && *format < 0xe000) verbatim.push_back(*format++);
+        const bool longForm = !secure && (raw == u'D' || raw == u'O' || raw == u'U');
+        const char16_t conversion = longForm ? static_cast<char16_t>(raw | 0x20) : raw;
+        if (longForm) length = "l";
+        if (!secure && length == "q") length = "ll";
         if (!secure && conversion < 0x80) length = LibcDetail::ApplicableLength(length, static_cast<char>(conversion));
         const bool integerLength = length.empty() || length == "h" || length == "hh" || length == "l" || length == "ll" ||
             length == "j" || length == "z" || length == "t";
+        if (!In(conversion, "diouxXeEfFgGaAcCsSpn")) {
+            if (secure || conversion == u'm' || conversion == u'q') throw std::invalid_argument("Unsupported format conversion");
+            std::u16string text = u"%";
+            if (raw != u'%') text += verbatim;
+            AppendPadded(out, text, left, width);
+            continue;
+        }
         if (conversion == u'd' || conversion == u'i') {
             if (!integerLength) throw std::invalid_argument("Invalid integer length");
             long long value;

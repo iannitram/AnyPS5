@@ -232,6 +232,27 @@ static void CheckSwprintf() {
     Require(swprintf_nid_postfix(wide, 16, u"%*d", -5, 7) == 5 && wide == std::u16string(u"7    "), "swprintf negative width");
 }
 
+static void CheckFreeBsdConversions() {
+    char16_t buffer[32];
+    Require(swprintf_nid_postfix(buffer, 32, u"%qd", 5000000000LL) == 10 && buffer == std::u16string(u"5000000000"), "swprintf %qd");
+    Require(swprintf_nid_postfix(buffer, 32, u"%D", 5000000000LL) == 10 && buffer == std::u16string(u"5000000000"), "swprintf %D");
+    Require(swprintf_nid_postfix(buffer, 32, u"%O", 0x100000000LL) == 11 && buffer == std::u16string(u"40000000000"), "swprintf %O");
+    Require(swprintf_nid_postfix(buffer, 32, u"%U", 5000000000LL) == 10 && buffer == std::u16string(u"5000000000"), "swprintf %U");
+    Require(swprintf_nid_postfix(buffer, 32, u"%y") == 2 && buffer == std::u16string(u"%y"), "swprintf unknown conversion");
+    Require(swprintf_nid_postfix(buffer, 32, u"%5y|%-3y|") == 10 && buffer == std::u16string(u"   %y|%y |"), "swprintf unknown conversion width");
+    Require(swprintf_nid_postfix(buffer, 32, u"%5%") == 5 && buffer == std::u16string(u"    %"), "swprintf percent width");
+    Require(swprintf_nid_postfix(buffer, 32, u"100%") == 3 && buffer == std::u16string(u"100"), "swprintf trailing percent");
+    Require(swprintf_nid_postfix(buffer, 32, u"%\U0001F600") == 3 && buffer == std::u16string(u"%\U0001F600"), "swprintf surrogate conversion");
+    for (const char16_t* format : {u"%m", u"%lqd", u"%qqd", u"%lm", u"%q", u"%5", u"%l"}) {
+        buffer[0] = u'x';
+        Require(swprintf_nid_postfix(buffer, 32, format, 7LL) < 0 && buffer[0] == 0, "swprintf refused conversion");
+    }
+    for (const char16_t* format : {u"%qd", u"%D", u"%y", u"%5%", u"100%"}) {
+        buffer[0] = u'x';
+        Require(snwprintf_s_nid_postfix(buffer, 32, format, 5000000000LL) < 0 && buffer[0] == 0, "snwprintf_s refused FreeBSD conversion");
+    }
+}
+
 static bool WcsftimeThrows(char16_t* buffer, const char16_t* format, const GuestTm* time) {
     try {
         wcsftime_nid_postfix(reinterpret_cast<std::uint16_t*>(buffer), 16, reinterpret_cast<const std::uint16_t*>(format), time);
@@ -442,6 +463,7 @@ int main() {
     CheckPointer();
     CheckCount();
     CheckSwprintf();
+    CheckFreeBsdConversions();
     CheckFloat();
     CheckSecureWideBoundary();
     CheckWcsftime();
