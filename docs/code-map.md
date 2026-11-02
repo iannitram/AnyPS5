@@ -65,7 +65,7 @@ This is the approved fork delta from #87. Every module below is **planned**; exi
 
 | Module | Proposed owner / existing seam | Status | Issues |
 |---|---|---|---|
-| Session contracts | tools/companion/contracts.py; tools/tests/test_companion_contracts.py | planned | #88 |
+| Session contracts | tools/companion/contracts.py; tools/tests/test_companion_contracts.py | present (G0 contract/scaffold slice) | #89-#104 |
 | Diagnostics | tools/companion/{recorder,diagnosis,report}.py; existing FailureReport/VideoOut/tracing | planned | #89-#91 |
 | Test lab | tools/companion/{routes,runner,compare}.py; existing pad_timeline/trace_digest/performance_compare | planned | #92-#94 |
 | Game library | tools/companion/{install,library,service}.py and ui/; existing audit_dump/import_audit/relinker CLI | planned | #95-#97 |
@@ -75,9 +75,9 @@ This is the approved fork delta from #87. Every module below is **planned**; exi
 
 ### Session contracts
 
-G0 (#88) creates the importable skeleton and v1 installation/session/evidence contracts. Installation records identify source locally, generated output, title/content version, executable/library revisions and patch/config fingerprints. Session records add process identity, monotonic events, hardware/driver/OS, instrumentation and cache mode. Evidence records carry source, method, timestamp and explicit unknown/partial/dropped states. An allowlisted export view excludes private paths and arbitrary data.
+G0 (#88) supplies an importable skeleton and v1 installation/session/milestone/failure contracts. Installation records identify local source and generated output paths, title/content version, relinker/library revisions and patch/config fingerprints. Session records add process identity, monotonic milestones, hardware/driver/OS, instrumentation and cache mode. Evidence records carry source, method, timestamp and explicit unknown/partial/dropped capture states. The allowlisted export omits local paths, free-text failure messages and capture details.
 
-Other modules consume these records rather than scraping each other's UI text. Parsing rejects unsupported versions; unused scaffold operations fail explicitly. The scaffold does not implement a macOS runtime.
+Other modules consume these records rather than scraping each other's UI text. Parsing rejects malformed records and unsupported versions; unused scaffold operations fail explicitly. I tested the portable contract and CLI on Windows with synthetic records. Linux and macOS test runs remain outstanding; the scaffold does not implement a macOS runtime. Diagnosis, test-route, library and compatibility workflows remain for #89-#104.
 
 ### Diagnostics
 
