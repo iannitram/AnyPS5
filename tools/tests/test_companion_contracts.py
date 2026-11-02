@@ -81,6 +81,33 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ContractError, "sha256 fingerprint"):
             validate(record)
 
+    def test_validates_milestone_and_rejects_malformed_records(self):
+        record = {
+            "schema_version": 1,
+            "record_type": "milestone",
+            "id": new_id("milestone"),
+            "session_id": new_id("session"),
+            "name": "boot",
+            "result": "unknown",
+            "monotonic_seconds": 12.5,
+            "evidence": {"source": "log", "method": "observed", "timestamp": "unknown"},
+            "capture": {"state": "dropped", "provenance": "log"},
+        }
+        self.assertEqual(validate(record), record)
+        self.assertEqual(export_record(record)["result"], "unknown")
+        for value, pattern in ((-1, "nonnegative number"), (True, "nonnegative number"), (float("nan"), "nonnegative number")):
+            broken = dict(record, monotonic_seconds=value)
+            with self.assertRaisesRegex(ContractError, pattern):
+                validate(broken)
+        with self.assertRaisesRegex(ContractError, "must be one of"):
+            validate(dict(record, evidence={"source": "guess", "method": "observed", "timestamp": "unknown"}))
+        with self.assertRaisesRegex(ContractError, "missing fields: evidence"):
+            validate({key: value for key, value in record.items() if key != "evidence"})
+        with self.assertRaisesRegex(ContractError, "invalid stable ID"):
+            validate(dict(record, session_id=record["id"]))
+        with self.assertRaisesRegex(ContractError, "must be an object"):
+            validate(["not", "a", "record"])
+
     def test_export_omits_local_paths_and_rejects_unlisted_data(self):
         local = installation()
         exported = export_record(local)
