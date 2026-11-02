@@ -17,101 +17,8 @@ void APS5_VABI free_nid_postfix(void* pointer);
 namespace {
 
 using Compare = int (APS5_VABI *)(const void*, const void*);
-using ThunkCompare = int (APS5_VABI *)(void*, const void*, const void*);
 
 constexpr int GuestInvalidArgument = 22;
-
-void SwapBytes(char* a, char* b, std::size_t size) {
-    do {
-        const char t = *a;
-        *a++ = *b;
-        *b++ = t;
-    } while (--size > 0);
-}
-
-char* MedianOfThree(char* a, char* b, char* c, ThunkCompare compare, void* thunk) {
-    return compare(thunk, a, b) < 0 ? (compare(thunk, b, c) < 0 ? b : (compare(thunk, a, c) < 0 ? c : a))
-                                    : (compare(thunk, b, c) > 0 ? b : (compare(thunk, a, c) < 0 ? a : c));
-}
-
-void InsertionSort(char* a, std::size_t n, std::size_t es, ThunkCompare compare, void* thunk) {
-    for (char* pm = a + es; pm < a + n * es; pm += es)
-        for (char* pl = pm; pl > a && compare(thunk, pl - es, pl) > 0; pl -= es) SwapBytes(pl, pl - es, es);
-}
-
-void QuickSort(char* a, std::size_t n, std::size_t es, void* thunk, ThunkCompare compare) {
-    for (;;) {
-        bool swapped = false;
-        if (n < 7) {
-            InsertionSort(a, n, es, compare, thunk);
-            return;
-        }
-        char* pm = a + (n / 2) * es;
-        if (n > 7) {
-            char* pl = a;
-            char* pn = a + (n - 1) * es;
-            if (n > 40) {
-                const std::size_t d = (n / 8) * es;
-                pl = MedianOfThree(pl, pl + d, pl + 2 * d, compare, thunk);
-                pm = MedianOfThree(pm - d, pm, pm + d, compare, thunk);
-                pn = MedianOfThree(pn - 2 * d, pn - d, pn, compare, thunk);
-            }
-            pm = MedianOfThree(pl, pm, pn, compare, thunk);
-        }
-        SwapBytes(a, pm, es);
-        char* pa = a + es;
-        char* pb = pa;
-        char* pc = a + (n - 1) * es;
-        char* pd = pc;
-        for (;;) {
-            int result;
-            while (pb <= pc && (result = compare(thunk, pb, a)) <= 0) {
-                if (result == 0) {
-                    swapped = true;
-                    SwapBytes(pa, pb, es);
-                    pa += es;
-                }
-                pb += es;
-            }
-            while (pb <= pc && (result = compare(thunk, pc, a)) >= 0) {
-                if (result == 0) {
-                    swapped = true;
-                    SwapBytes(pc, pd, es);
-                    pd -= es;
-                }
-                pc -= es;
-            }
-            if (pb > pc) break;
-            SwapBytes(pb, pc, es);
-            swapped = true;
-            pb += es;
-            pc -= es;
-        }
-        if (!swapped) {
-            InsertionSort(a, n, es, compare, thunk);
-            return;
-        }
-
-        char* pn = a + n * es;
-        std::size_t d1 = std::min<std::size_t>(pa - a, pb - pa);
-        if (d1 > 0) SwapBytes(a, pb - d1, d1);
-        d1 = std::min<std::size_t>(pd - pc, pn - pd - es);
-        if (d1 > 0) SwapBytes(pb, pn - d1, d1);
-
-        d1 = pb - pa;
-        const std::size_t d2 = pd - pc;
-        if (d1 <= d2) {
-            if (d1 > es) QuickSort(a, d1 / es, es, thunk, compare);
-            if (d2 <= es) return;
-            a = pn - d2;
-            n = d2 / es;
-        } else {
-            if (d2 > es) QuickSort(pn - d2, d2 / es, es, thunk, compare);
-            if (d1 <= es) return;
-            n = d1 / es;
-        }
-    }
-}
 
 int MergeSort(void* base, std::size_t nmemb, std::size_t size, Compare compare) {
     if (size < sizeof(void*) / 2) {
@@ -326,16 +233,6 @@ bool RadixTable(const Byte* table, unsigned& endch, Byte* own, const Byte*& tr) 
 }
 
 extern "C" {
-
-void APS5_VABI qsort_r_nid_postfix(void* base, std::size_t count, std::size_t size, void* thunk, ThunkCompare compare) {
-    if (compare == nullptr) throw std::invalid_argument("qsort_r: null comparison");
-    if (count < 2) return;
-    if (size == 0 && count < 7) return;
-    if (size == 0) throw std::invalid_argument("qsort_r: zero element size");
-    if (base == nullptr) throw std::invalid_argument("qsort_r: null base");
-    if (count > std::numeric_limits<std::size_t>::max() / size) throw std::overflow_error("qsort_r: array size overflow");
-    QuickSort(static_cast<char*>(base), count, size, thunk, compare);
-}
 
 int APS5_VABI radixsort_nid_postfix(const Byte** strings, int count, const Byte* table, unsigned endByte) {
     if (endByte > 255) throw std::invalid_argument("radixsort: end byte out of range");

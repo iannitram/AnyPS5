@@ -80,7 +80,6 @@ target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ComplexMath.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathSpecial.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatingEnvironment.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/MathIeee.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Search.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Sorting.cpp
