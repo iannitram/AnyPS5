@@ -89,8 +89,8 @@ constexpr int OptionMask = 0x0ff;
 constexpr int NameOnly = 0x100;
 constexpr int Stop = 0x200;
 
-constexpr long RootParentLevel = -1;
-constexpr long RootLevel = 0;
+constexpr std::int64_t RootParentLevel = -1;
+constexpr std::int64_t RootLevel = 0;
 
 constexpr int InfoDirectory = 1;
 constexpr int InfoCycle = 2;
