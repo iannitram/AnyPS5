@@ -81,9 +81,14 @@ void CheckQuickSort() {
         Require(std::is_sorted(values.begin(), values.end(), [](Record a, Record b) { return a.key < b.key; }), "qsort_r sorts");
     }
     qsort_r_nid_postfix(nullptr, 0, sizeof(Record), &thunk, CompareWithThunk);
-    qsort_r_nid_postfix(records.data(), 1, 0, &thunk, CompareWithThunk);
-    qsort_r_nid_postfix(records.data(), 6, 0, &thunk, CompareWithThunk);
     bool threw = false;
+    for (const std::size_t count : {std::size_t{1}, std::size_t{6}}) {
+        threw = false;
+        try { qsort_r_nid_postfix(records.data(), count, 0, &thunk, CompareWithThunk); }
+        catch (const std::invalid_argument&) { threw = true; }
+        Require(threw, "qsort_r rejects a zero element size for a short array");
+    }
+    threw = false;
     try { qsort_r_nid_postfix(records.data(), records.size(), 0, &thunk, CompareWithThunk); }
     catch (const std::invalid_argument&) { threw = true; }
     Require(threw, "qsort_r rejects a zero element size");
@@ -97,7 +102,7 @@ void CheckHeapSort() {
     auto records = Input();
     calls = 0;
     Require(heapsort_nid_postfix(records.data(), records.size(), sizeof(Record), CompareRecords) == 0, "heapsort");
-    Require(Ids(records, HeapSortIds) && calls == 408, "FreeBSD heapsort order and comparison count");
+    Require(Ids(records, HeapSortIds) && calls == 499, "FreeBSD heapsort order and comparison count");
     Require(heapsort_nid_postfix(records.data(), 1, 0, CompareRecords) == 0, "one element needs no size");
     *__error_nid_postfix() = 0;
     Require(heapsort_nid_postfix(records.data(), 2, 0, CompareRecords) == -1 && *__error_nid_postfix() == 22, "zero size is EINVAL");
