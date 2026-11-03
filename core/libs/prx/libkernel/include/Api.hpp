@@ -6,6 +6,7 @@
 #include "prx/libkernel/Apr/include/AprCommandBuffer.hpp"
 #include "prx/libc/include/specifics/linux/ElfTypes.hpp"
 #include "SceTypes.hpp"
+#include <cstddef>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
@@ -140,6 +141,58 @@ struct SceKernelSystemSwVersion {
     char versionString[0x1C];
     std::uint32_t version;
 };
+
+struct GuestTermios {
+    std::uint32_t flags[4];
+    std::uint8_t controlCharacters[20];
+    std::uint32_t inputSpeed;
+    std::uint32_t outputSpeed;
+};
+static_assert(sizeof(GuestTermios) == 44 && alignof(GuestTermios) == 4);
+static_assert(offsetof(GuestTermios, inputSpeed) == 36 && offsetof(GuestTermios, outputSpeed) == 40);
+
+struct GuestQueueAttributes {
+    std::int64_t flags;
+    std::int64_t maximumMessages;
+    std::int64_t messageSize;
+    std::int64_t currentMessages;
+    std::int64_t reserved[4];
+};
+static_assert(sizeof(GuestQueueAttributes) == 64);
+
+struct GuestSignalEvent {
+    int notify;
+    int signal;
+};
+
+struct GuestIpcPermissions {
+    std::uint32_t creatorUser;
+    std::uint32_t creatorGroup;
+    std::uint32_t user;
+    std::uint32_t group;
+    std::uint16_t mode;
+    std::uint16_t sequence;
+    std::int64_t key;
+};
+
+struct GuestSegmentStatus {
+    GuestIpcPermissions permissions;
+    std::size_t size;
+    int lastProcess;
+    int creatorProcess;
+    int attachments;
+    std::int64_t attachTime;
+    std::int64_t detachTime;
+    std::int64_t changeTime;
+};
+static_assert(sizeof(GuestIpcPermissions) == 32 && sizeof(GuestSegmentStatus) == 80);
+
+struct SignalVector {
+    std::uintptr_t handler;
+    int mask;
+    int flags;
+};
+static_assert(sizeof(SignalVector) == 16);
 
 
 extern "C" {

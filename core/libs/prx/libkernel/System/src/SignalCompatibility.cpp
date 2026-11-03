@@ -11,13 +11,6 @@ using SignalSet = GuestSignalSet;
 using SignalAction = GuestSigaction;
 static_assert(sizeof(SignalAction) == 32);
 
-struct SignalVector {
-    std::uintptr_t handler;
-    int mask;
-    int flags;
-};
-static_assert(sizeof(SignalVector) == 16);
-
 constexpr int Block = 1;
 constexpr int Unblock = 2;
 constexpr int SetMask = 3;

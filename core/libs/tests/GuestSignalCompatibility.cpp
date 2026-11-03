@@ -17,11 +17,6 @@ struct SignalAction {
     int flags;
     SignalSet mask;
 };
-struct SignalVector {
-    std::uintptr_t handler;
-    int mask;
-    int flags;
-};
 using Handler = void (APS5_VABI *)(int);
 }
 

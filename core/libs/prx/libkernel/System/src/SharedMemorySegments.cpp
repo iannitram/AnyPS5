@@ -16,28 +16,6 @@
 
 namespace {
 
-struct GuestIpcPermissions {
-    std::uint32_t creatorUser;
-    std::uint32_t creatorGroup;
-    std::uint32_t user;
-    std::uint32_t group;
-    std::uint16_t mode;
-    std::uint16_t sequence;
-    std::int64_t key;
-};
-
-struct GuestSegmentStatus {
-    GuestIpcPermissions permissions;
-    std::size_t size;
-    int lastProcess;
-    int creatorProcess;
-    int attachments;
-    std::int64_t attachTime;
-    std::int64_t detachTime;
-    std::int64_t changeTime;
-};
-static_assert(sizeof(GuestIpcPermissions) == 32 && sizeof(GuestSegmentStatus) == 80);
-
 constexpr int GuestNoEntry = 2;
 constexpr int GuestNoMemory = 12;
 constexpr int GuestExists = 17;
