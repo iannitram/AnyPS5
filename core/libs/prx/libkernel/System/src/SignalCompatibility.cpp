@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "prx/libc/include/General.hpp"
+#include "core/libs/prx/libc/include/Api.hpp"
 
 namespace {
 
@@ -31,13 +32,6 @@ constexpr std::uintptr_t Error = static_cast<std::uintptr_t>(-1);
 }
 
 extern "C" {
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI sigaction_nid_postfix(int signal, const SignalAction* action, SignalAction* previous);
-int APS5_VABI _sigprocmask_nid_postfix(int how, const SignalSet* set, SignalSet* previous);
-int APS5_VABI sigemptyset_nid_postfix(SignalSet* set);
-int APS5_VABI sigaddset_nid_postfix(SignalSet* set, int signal);
-int APS5_VABI sigismember_nid_postfix(const SignalSet* set, int signal);
-int APS5_VABI kill_nid_postfix(int pid, int signal);
 
 int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous) {
     SignalAction action{};

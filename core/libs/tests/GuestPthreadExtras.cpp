@@ -9,55 +9,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "prx/libScePosixForWebKit/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/Pthread/include/Atfork.hpp"
+#include "prx/libkernel/Time/include/Time.hpp"
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libkernel_sys/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI pthread_mutexattr_init_nid_postfix(void**);
-int APS5_VABI pthread_mutexattr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_mutexattr_setprotocol_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_setprioceiling_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_gettype_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutexattr_getprotocol_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutexattr_getpshared_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutexattr_setpshared_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_setkind_np_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_getkind_np_nid_postfix(void*);
-int APS5_VABI pthread_mutex_init_nid_postfix(void**, void* const*);
-int APS5_VABI pthread_mutex_destroy_nid_postfix(void**);
-int APS5_VABI pthread_mutex_lock_nid_postfix(void**);
-int APS5_VABI pthread_mutex_unlock_nid_postfix(void**);
-int APS5_VABI pthread_mutex_getprioceiling_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutex_setprioceiling_nid_postfix(void**, int, int*);
-int APS5_VABI pthread_condattr_init_nid_postfix(void**);
-int APS5_VABI pthread_condattr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_condattr_setclock_nid_postfix(void**, int);
-int APS5_VABI pthread_condattr_getclock_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_condattr_getpshared_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_condattr_setpshared_nid_postfix(void**, int);
-int APS5_VABI pthread_rwlockattr_init_nid_postfix(void**);
-int APS5_VABI pthread_rwlockattr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_rwlockattr_getpshared_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_rwlockattr_setpshared_nid_postfix(void**, int);
-int APS5_VABI pthread_getconcurrency_nid_postfix(void);
-int APS5_VABI pthread_setconcurrency_nid_postfix(int);
-int APS5_VABI pthread_atfork_nid_postfix(void (APS5_VABI *)(), void (APS5_VABI *)(), void (APS5_VABI *)());
-void* APS5_VABI pthread_self_nid_postfix(void);
-int APS5_VABI pthread_setname_np_nid_postfix(void*, const char*);
-int APS5_VABI pthread_getname_np_nid_postfix(void*, char*);
-int APS5_VABI pthread_attr_init_nid_postfix(void**);
-int APS5_VABI pthread_attr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_attr_setstackaddr_nid_postfix(void**, void*);
-int APS5_VABI pthread_attr_getstackaddr_nid_postfix(void* const*, void**);
-int APS5_VABI pthread_attr_getaffinity_np_nid_postfix(void* const*, std::size_t, void*);
-int APS5_VABI pthread_attr_setaffinity_np_nid_postfix(void**, std::size_t, const void*);
-int APS5_VABI pthread_setaffinity_np_nid_postfix(void*, std::size_t, const void*);
-int APS5_VABI pthread_getaffinity_np_nid_postfix(void*, std::size_t, void*);
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI pthread_create_nid_postfix(void**, void* const*, void* (APS5_VABI *)(void*), void*);
-int APS5_VABI pthread_join_nid_postfix(void*, void**);
-int APS5_VABI pthread_detach_nid_postfix(void*);
-int APS5_VABI pthread_timedjoin_np_nid_postfix(void*, void**, const KernelTimespec*);
-int APS5_VABI clock_gettime_nid_postfix(int, KernelTimespec*);
-}
+
 
 namespace {
 

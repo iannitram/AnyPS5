@@ -7,7 +7,6 @@
 
 #include "prx/libc/include/General.hpp"
 
-extern "C" char* APS5_VABI getenv_nid_postfix(const char* name);
 
 namespace {
 

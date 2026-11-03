@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
+
 
 namespace {
 
@@ -25,24 +27,6 @@ struct Passwd {
 
 }
 
-extern "C" {
-int APS5_VABI getpwnam_r_nid_postfix(const char*, Passwd*, char*, std::size_t, Passwd**);
-int APS5_VABI getpwuid_r_nid_postfix(std::uint32_t, Passwd*, char*, std::size_t, Passwd**);
-int APS5_VABI getpwent_r_nid_postfix(Passwd*, char*, std::size_t, Passwd**);
-Passwd* APS5_VABI getpwnam_nid_postfix(const char*);
-Passwd* APS5_VABI getpwuid_nid_postfix(std::uint32_t);
-Passwd* APS5_VABI getpwent_nid_postfix(void);
-void APS5_VABI setpwent_nid_postfix(void);
-void APS5_VABI endpwent_nid_postfix(void);
-int APS5_VABI getgrnam_r_nid_postfix(const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getgrgid_r_nid_postfix(std::uint32_t, void*, char*, std::size_t, void**);
-void* APS5_VABI getgrnam_nid_postfix(const char*);
-void* APS5_VABI getgrgid_nid_postfix(std::uint32_t);
-void* APS5_VABI getgrent_nid_postfix(void);
-int APS5_VABI setgrent_nid_postfix(void);
-void APS5_VABI endgrent_nid_postfix(void);
-int APS5_VABI getgrouplist_nid_postfix(const char*, std::uint32_t, std::uint32_t*, int*);
-}
 
 namespace {
 

@@ -9,6 +9,8 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/GuestDirectory.hpp"
+#include "core/libs/prx/libc/include/Api.hpp"
+#include "core/libs/prx/libkernel/include/Api.hpp"
 
 namespace {
 
@@ -64,16 +66,6 @@ struct GuestFtw {
 }
 
 extern "C" {
-void* APS5_VABI opendir_nid_postfix(const char* path);
-GuestDirectoryEntry* APS5_VABI readdir_nid_postfix(void* directory);
-int APS5_VABI closedir_nid_postfix(void* directory);
-int APS5_VABI stat_nid_postfix(const char* path, FileStat* status);
-int APS5_VABI lstat_nid_postfix(const char* path, FileStat* status);
-void* APS5_VABI malloc_nid_postfix(std::size_t size);
-void* APS5_VABI calloc_nid_postfix(std::size_t count, std::size_t size);
-void* APS5_VABI reallocf_nid_postfix(void* pointer, std::size_t size);
-void APS5_VABI free_nid_postfix(void* pointer);
-void APS5_VABI qsort_nid_postfix(void* base, std::size_t count, std::size_t size, int (APS5_VABI *compare)(const void*, const void*));
 }
 
 namespace {

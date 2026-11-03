@@ -9,7 +9,6 @@
 #include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 
-extern "C" void* APS5_VABI realloc_nid_postfix(void* pointer, std::size_t size);
 
 namespace {
 

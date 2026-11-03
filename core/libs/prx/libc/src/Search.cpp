@@ -9,10 +9,6 @@
 #include "prx/libc/include/HostEntropy.hpp"
 
 extern "C" {
-int* APS5_VABI __error_nid_postfix();
-void* APS5_VABI malloc_nid_postfix(std::size_t size);
-void* APS5_VABI calloc_nid_postfix(std::size_t count, std::size_t size);
-void APS5_VABI free_nid_postfix(void* pointer);
 }
 
 namespace {

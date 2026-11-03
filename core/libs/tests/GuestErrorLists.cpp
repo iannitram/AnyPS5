@@ -6,6 +6,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+
 
 extern "C" {
 extern const char* const sys_errlist_nid_postfix[];
@@ -13,8 +16,6 @@ extern const int sys_nerr_nid_postfix;
 extern const char* const sys_siglist_nid_postfix[];
 extern const char* const sys_signame_nid_postfix[];
 extern const int sys_nsig_nid_postfix;
-char* APS5_VABI strerror_nid_postfix(int);
-void APS5_VABI psignal_nid_postfix(int, const char*);
 }
 
 namespace {

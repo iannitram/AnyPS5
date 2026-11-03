@@ -8,48 +8,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-double APS5_VABI ceil_nid_postfix(double);
-float APS5_VABI floorf_nid_postfix(float);
-long double APS5_VABI ceill_nid_postfix(long double);
-long double APS5_VABI roundl_nid_postfix(long double);
-double APS5_VABI nearbyint_nid_postfix(double);
-float APS5_VABI rintf_nid_postfix(float);
-std::int64_t APS5_VABI lrint_nid_postfix(double);
-std::int64_t APS5_VABI lrintf_nid_postfix(float);
-std::int64_t APS5_VABI lrintl_nid_postfix(long double);
-long long APS5_VABI llrint_nid_postfix(double);
-std::int64_t APS5_VABI lroundl_nid_postfix(long double);
-long long APS5_VABI llroundl_nid_postfix(long double);
-float APS5_VABI fabsf_nid_postfix(float);
-double APS5_VABI copysign_nid_postfix(double, double);
-long double APS5_VABI copysignl_nid_postfix(long double, long double);
-double APS5_VABI fmax_nid_postfix(double, double);
-float APS5_VABI fminf_nid_postfix(float, float);
-long double APS5_VABI fmaxl_nid_postfix(long double, long double);
-double APS5_VABI fmin_nid_postfix(double, double);
-double APS5_VABI fdim_nid_postfix(double, double);
-long double APS5_VABI fdiml_nid_postfix(long double, long double);
-double APS5_VABI nextafter_nid_postfix(double, double);
-double APS5_VABI nexttoward_nid_postfix(double, long double);
-float APS5_VABI nexttowardf_nid_postfix(float, long double);
-int APS5_VABI ilogb_nid_postfix(double);
-int APS5_VABI ilogbf_nid_postfix(float);
-int APS5_VABI ilogbl_nid_postfix(long double);
-long double APS5_VABI logbl_nid_postfix(long double);
-long double APS5_VABI modfl_nid_postfix(long double, long double*);
-long double APS5_VABI fmodl_nid_postfix(long double, long double);
-long double APS5_VABI remainderl_nid_postfix(long double, long double);
-double APS5_VABI remquo_nid_postfix(double, double, int*);
-float APS5_VABI remquof_nid_postfix(float, float, int*);
-long double APS5_VABI remquol_nid_postfix(long double, long double, int*);
-double APS5_VABI scalbln_nid_postfix(double, std::int64_t);
-long double APS5_VABI scalbnl_nid_postfix(long double, int);
-float APS5_VABI fmaf_nid_postfix(float, float, float);
-long double APS5_VABI fmal_nid_postfix(long double, long double, long double);
-long double APS5_VABI sqrtl_nid_postfix(long double);
-}
+
 
 namespace {
 
