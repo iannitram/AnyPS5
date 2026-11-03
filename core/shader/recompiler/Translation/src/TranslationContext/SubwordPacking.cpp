@@ -12,9 +12,16 @@ IrU32 TranslationContext::readU32(const RdnaOperand& operand) {
     return IrU32(*readOperand(operand, IrType::U32));
 }
 
-std::array<IrU32, 2> TranslationContext::readU32Pair(const RdnaOperand& operand) {
+std::array<IrU32, 2> TranslationContext::readU32Pair(const RdnaOperand& operand, bool signExtendLiteral) {
     switch (operand.kind) {
-        case RdnaOperandKind::LiteralConstant: return {readU32(operand), IrU32(ir.Constant(0u))};
+        case RdnaOperandKind::LiteralConstant: {
+            const IrU32 low = readU32(operand);
+            if (!signExtendLiteral) return {low, IrU32(ir.Constant(0u))};
+            if (low.Value().HasImmediate()) {
+                return {low, IrU32(ir.Constant((low.Value().ImmediateU32() & 0x80000000u) != 0u ? 0xffffffffu : 0u))};
+            }
+            return {low, IrU32(ir.ShiftRightArithmetic(low.Value(), ir.Constant(31u)))};
+        }
         case RdnaOperandKind::IntegerInlineConstant: return {readU32(operand), IrU32(ir.Constant(operand.signedVal < 0 ? 0xffffffffu : 0u))};
         case RdnaOperandKind::FloatInlineConstant: {
             const auto bits = std::bit_cast<std::uint64_t>(static_cast<double>(std::bit_cast<float>(operand.value)));
@@ -28,8 +35,8 @@ std::array<IrU32, 2> TranslationContext::readU32Pair(const RdnaOperand& operand)
     }
 }
 
-IrU64 TranslationContext::readU64(const RdnaOperand& operand) {
-    const std::array<IrU32, 2> pair = readU32Pair(operand);
+IrU64 TranslationContext::readU64(const RdnaOperand& operand, bool signExtendLiteral) {
+    const std::array<IrU32, 2> pair = readU32Pair(operand, signExtendLiteral);
     return IrU64(ir.ConstructU64(pair[0].Value(), pair[1].Value()));
 }
 
