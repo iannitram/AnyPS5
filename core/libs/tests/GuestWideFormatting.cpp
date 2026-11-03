@@ -232,6 +232,29 @@ static void CheckSwprintf() {
     Require(swprintf_nid_postfix(wide, 16, u"%*d", -5, 7) == 5 && wide == std::u16string(u"7    "), "swprintf negative width");
 }
 
+static void CheckConsoleConversions() {
+    char16_t buffer[32];
+    Require(swprintf_nid_postfix(buffer, 32, u"%qd", 5000000000LL) == 3 && buffer == std::u16string(u"%qd"), "swprintf %qd");
+    Require(swprintf_nid_postfix(buffer, 32, u"%q") == 2 && buffer == std::u16string(u"%q"), "swprintf %q");
+    Require(swprintf_nid_postfix(buffer, 32, u"%lqd", 7LL) == 3 && buffer == std::u16string(u"%qd"), "swprintf %lqd");
+    Require(swprintf_nid_postfix(buffer, 32, u"%qqd", 7LL) == 4 && buffer == std::u16string(u"%qqd"), "swprintf %qqd");
+    Require(swprintf_nid_postfix(buffer, 32, u"%D", 5000000000LL) == 2 && buffer == std::u16string(u"%D"), "swprintf %D");
+    Require(swprintf_nid_postfix(buffer, 32, u"%5O|%-4U|") == 11 && buffer == std::u16string(u"   %O|%U  |"), "swprintf %O %U");
+    Require(swprintf_nid_postfix(buffer, 32, u"%y") == 2 && buffer == std::u16string(u"%y"), "swprintf unknown conversion");
+    Require(swprintf_nid_postfix(buffer, 32, u"%5y|%-3y|") == 10 && buffer == std::u16string(u"   %y|%y |"), "swprintf unknown conversion width");
+    Require(swprintf_nid_postfix(buffer, 32, u"%5%") == 5 && buffer == std::u16string(u"    %"), "swprintf percent width");
+    Require(swprintf_nid_postfix(buffer, 32, u"100%") == 3 && buffer == std::u16string(u"100"), "swprintf trailing percent");
+    Require(swprintf_nid_postfix(buffer, 32, u"%\U0001F600") == 3 && buffer == std::u16string(u"%\U0001F600"), "swprintf surrogate conversion");
+    for (const char16_t* format : {u"%m", u"%lm", u"%5", u"%l"}) {
+        buffer[0] = u'x';
+        Require(swprintf_nid_postfix(buffer, 32, format, 7LL) < 0 && buffer[0] == 0, "swprintf refused conversion");
+    }
+    for (const char16_t* format : {u"%qd", u"%D", u"%O", u"%U", u"%y", u"%5%", u"100%"}) {
+        buffer[0] = u'x';
+        Require(snwprintf_s_nid_postfix(buffer, 32, format, 5000000000LL) < 0 && buffer[0] == 0, "snwprintf_s refused conversion");
+    }
+}
+
 static bool WcsftimeThrows(char16_t* buffer, const char16_t* format, const GuestTm* time) {
     try {
         wcsftime_nid_postfix(reinterpret_cast<std::uint16_t*>(buffer), 16, reinterpret_cast<const std::uint16_t*>(format), time);
@@ -442,6 +465,7 @@ int main() {
     CheckPointer();
     CheckCount();
     CheckSwprintf();
+    CheckConsoleConversions();
     CheckFloat();
     CheckSecureWideBoundary();
     CheckWcsftime();
