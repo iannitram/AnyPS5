@@ -6,6 +6,7 @@
 #include <array>
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -31,6 +32,7 @@ struct Stream {
     int options;
     void* clientPointer;
 };
+static_assert(offsetof(Stream, compare) == 64 && sizeof(Stream) == 88);
 
 struct Entry {
     Entry* cycle;
@@ -47,7 +49,7 @@ struct Entry {
     std::uint32_t inode;
     std::uint32_t device;
     std::uint16_t linkCount;
-    long level;
+    std::int64_t level;
     int info;
     unsigned flags;
     int instruction;
@@ -55,6 +57,7 @@ struct Entry {
     char* name;
     Stream* fts;
 };
+static_assert(offsetof(Entry, level) == 96 && offsetof(Entry, status) == 120 && sizeof(Entry) == 144);
 
 struct Position {
     int base;
