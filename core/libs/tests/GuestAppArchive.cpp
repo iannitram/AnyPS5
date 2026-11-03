@@ -3,6 +3,7 @@
 #include "prx/libc/include/General.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -11,6 +12,8 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -149,6 +152,29 @@ void Damaged(const std::filesystem::path& root) {
     Require(thrown, "a damaged block did not fail the read");
 }
 
+void Concurrent(const std::filesystem::path& root) {
+    AppArchiveFixture::WriteArchive(root / "app0.zar", Contents(), {"Data/Unused"});
+    Require(AppArchivePath_nid_no_patch() == root / "app0.zar", "the archive beside app0 was not opened");
+
+    std::atomic<int> failures{0};
+    std::vector<std::thread> workers;
+    for (int worker = 0; worker < 4; ++worker) {
+        workers.emplace_back([&failures, &root] {
+            for (int round = 0; round < 200; ++round) {
+                AppArchiveNode node{};
+                if (!Lookup("/app0/Data/Sub/../Sub/deep.txt", node) || node.Size != 4) ++failures;
+                if (!Lookup("/app0/Data/Sub/../Big.bin", node) || node.Size != BigSize) ++failures;
+                if (Lookup("/app0/Data/Sub/../Missing.bin", node)) ++failures;
+                if (ResolveArchivedPath_nid_no_patch("/app0/Data/Sub/../Missing.bin") != root / "app0" / "Data" / "Missing.bin") ++failures;
+                if (ResolveArchivedPath_nid_no_patch("/app0/Data/Sub/../Sub") != root / "app0" / "Data" / "Sub") ++failures;
+                if (!AppArchiveHasDirectory_nid_no_patch(ResolveArchivedPath_nid_no_patch("/app0/Data/Sub/../Sub"))) ++failures;
+            }
+        });
+    }
+    for (auto& worker : workers) worker.join();
+    Require(failures == 0, "concurrent archived and .. resolutions returned wrong results");
+}
+
 void Invalid(const std::filesystem::path& root) {
     { std::ofstream archive(root / "app0.zar", std::ios::binary); archive << "not an archive"; }
     AppArchiveNode node{};
@@ -161,7 +187,7 @@ void Invalid(const std::filesystem::path& root) {
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        std::cerr << "usage: guest_app_archive_tests present|absent|damaged|invalid\n";
+        std::cerr << "usage: guest_app_archive_tests present|absent|damaged|invalid|concurrent\n";
         return 2;
     }
     const std::string mode = argv[1];
@@ -170,6 +196,7 @@ int main(int argc, char** argv) {
     else if (mode == "absent") Absent();
     else if (mode == "damaged") Damaged(root);
     else if (mode == "invalid") Invalid(root);
+    else if (mode == "concurrent") Concurrent(root);
     else return 2;
     std::error_code error;
     std::filesystem::current_path(std::filesystem::temp_directory_path(), error);

@@ -35,11 +35,15 @@ bool SameComponent(std::string_view left, std::string_view right) {
 
 Archive& Opened() {
     auto& archive = State();
-    std::lock_guard lock(archive.mutex);
-    if (archive.opened) return archive;
+    {
+        std::lock_guard lock(archive.mutex);
+        if (archive.opened) return archive;
+    }
     const auto app0 = ResolveDiskPath_nid_no_patch("/app0").lexically_normal();
     auto candidate = app0;
     candidate += ".zar";
+    std::lock_guard lock(archive.mutex);
+    if (archive.opened) return archive;
     std::error_code error;
     if (std::filesystem::is_regular_file(candidate, error)) {
         archive.reader.reset(ZArchiveReader::OpenFromFile(candidate));
