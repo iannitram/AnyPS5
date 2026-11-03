@@ -61,7 +61,6 @@ void APS5_VABI __cxa_free_exception_nid_postfix(void*);
 [[noreturn]] void APS5_VABI __cxa_throw_nid_postfix(void*, std::type_info*, void (*)(void*));
 [[noreturn]] void APS5_VABI __cxa_rethrow_nid_postfix();
 void* APS5_VABI __cxa_begin_catch_nid_postfix(void*);
-[[noreturn]] void APS5_VABI __cxa_call_unexpected_nid_postfix(void*);
 void APS5_VABI __cxa_end_catch_nid_postfix();
 }
 

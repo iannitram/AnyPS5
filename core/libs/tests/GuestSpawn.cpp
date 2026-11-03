@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+
 
 namespace {
 
@@ -16,29 +18,6 @@ struct SignalSet {
 
 }
 
-extern "C" {
-int APS5_VABI posix_spawn_file_actions_init_nid_postfix(void**);
-int APS5_VABI posix_spawn_file_actions_destroy_nid_postfix(void**);
-int APS5_VABI posix_spawn_file_actions_addopen_nid_postfix(void**, int, const char*, int, std::uint16_t);
-int APS5_VABI posix_spawn_file_actions_adddup2_nid_postfix(void**, int, int);
-int APS5_VABI posix_spawn_file_actions_addclose_nid_postfix(void**, int);
-int APS5_VABI posix_spawnattr_init_nid_postfix(void**);
-int APS5_VABI posix_spawnattr_destroy_nid_postfix(void**);
-int APS5_VABI posix_spawnattr_getflags_nid_postfix(void* const*, short*);
-int APS5_VABI posix_spawnattr_setflags_nid_postfix(void**, short);
-int APS5_VABI posix_spawnattr_getpgroup_nid_postfix(void* const*, int*);
-int APS5_VABI posix_spawnattr_setpgroup_nid_postfix(void**, int);
-int APS5_VABI posix_spawnattr_getschedparam_nid_postfix(void* const*, int*);
-int APS5_VABI posix_spawnattr_setschedparam_nid_postfix(void**, const int*);
-int APS5_VABI posix_spawnattr_getschedpolicy_nid_postfix(void* const*, int*);
-int APS5_VABI posix_spawnattr_setschedpolicy_nid_postfix(void**, int);
-int APS5_VABI posix_spawnattr_getsigdefault_nid_postfix(void* const*, SignalSet*);
-int APS5_VABI posix_spawnattr_setsigdefault_nid_postfix(void**, const SignalSet*);
-int APS5_VABI posix_spawnattr_getsigmask_nid_postfix(void* const*, SignalSet*);
-int APS5_VABI posix_spawnattr_setsigmask_nid_postfix(void**, const SignalSet*);
-int APS5_VABI posix_spawn_nid_postfix(int*, const char*, void* const*, void* const*, char* const*, char* const*);
-int APS5_VABI posix_spawnp_nid_postfix(int*, const char*, void* const*, void* const*, char* const*, char* const*);
-}
 
 namespace {
 

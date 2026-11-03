@@ -11,12 +11,9 @@
 
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/GuestTime.hpp"
+#include "core/libs/prx/libc/include/SonyCrt.hpp"
 
 extern "C" {
-GuestTm* APS5_VABI gmtime_s_nid_postfix(const std::int64_t* timer, GuestTm* result);
-GuestTm* APS5_VABI localtime_s_nid_postfix(const std::int64_t* timer, GuestTm* result);
-std::int64_t APS5_VABI mktime_nid_postfix(GuestTm* time);
-void APS5_VABI tzset_nid_postfix(void);
 }
 
 namespace {

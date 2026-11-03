@@ -12,18 +12,9 @@
 #include "prx/libc/include/General.hpp"
 #include "SceTypes.hpp"
 #include "prx/libc/include/GuestTime.hpp"
+#include "core/libs/prx/libc/include/SonyCrt.hpp"
 
 extern "C" {
-GuestTm* APS5_VABI localtime_s_nid_postfix(const std::int64_t* timer, GuestTm* result);
-GuestTm* APS5_VABI gmtime_s_nid_postfix(const std::int64_t* timer, GuestTm* result);
-std::size_t APS5_VABI fread_nid_postfix(void* buffer, std::size_t size, std::size_t count, FileStream* stream);
-std::size_t APS5_VABI fwrite_nid_postfix(const void* buffer, std::size_t size, std::size_t count, FileStream* stream);
-void* APS5_VABI memalign_nid_postfix(std::size_t alignment, std::size_t size);
-char* APS5_VABI getcwd_nid_postfix(char* buffer, std::size_t size);
-int APS5_VABI strerror_r_nid_postfix(int error, char* buffer, std::size_t length);
-int APS5_VABI getc_unlocked_nid_postfix(FileStream* stream);
-void APS5_VABI flockfile_nid_postfix(FileStream* stream);
-void APS5_VABI funlockfile_nid_postfix(FileStream* stream);
 extern FileStream* __stdinp_nid_postfix;
 }
 

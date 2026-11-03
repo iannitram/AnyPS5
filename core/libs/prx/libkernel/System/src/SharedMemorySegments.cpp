@@ -13,7 +13,6 @@
 #include "prx/libc/include/General.hpp"
 #include "prx/libkernel/DirectMemory/DirectMemory.hpp"
 
-extern "C" int APS5_VABI getpid_nid_postfix(void);
 
 namespace {
 

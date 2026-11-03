@@ -8,15 +8,9 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI fwprintf_nid_postfix(FileStream*, const char16_t*, ...);
-int APS5_VABI vfwprintf_nid_postfix(FileStream*, const char16_t*, void*);
-int APS5_VABI putwc_nid_postfix(char16_t, FileStream*);
-std::int32_t APS5_VABI getwc_nid_postfix(FileStream*);
-char16_t* APS5_VABI fgetws_nid_postfix(char16_t*, int, FileStream*);
-int APS5_VABI fwide_nid_postfix(FileStream*, int);
-}
+
 
 namespace {
 

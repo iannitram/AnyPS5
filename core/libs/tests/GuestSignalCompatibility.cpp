@@ -3,6 +3,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libkernel_sys/include/Api.hpp"
+
 
 namespace {
 struct SignalSet {
@@ -21,26 +25,6 @@ struct SignalVector {
 using Handler = void (APS5_VABI *)(int);
 }
 
-extern "C" {
-int APS5_VABI sigqueue_nid_postfix(int, int, void*);
-int APS5_VABI killpg_nid_postfix(int, int);
-int APS5_VABI sigpause_nid_postfix(int);
-int APS5_VABI getpid_nid_postfix(void);
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI sigaction_nid_postfix(int, const SignalAction*, SignalAction*);
-int APS5_VABI _sigprocmask_nid_postfix(int, const SignalSet*, SignalSet*);
-Handler APS5_VABI signal_nid_postfix(int, Handler);
-int APS5_VABI sigvec_nid_postfix(int, const SignalVector*, SignalVector*);
-int APS5_VABI sigsetmask_nid_postfix(int);
-int APS5_VABI sigblock_nid_postfix(int);
-int APS5_VABI sighold_nid_postfix(int);
-int APS5_VABI sigrelse_nid_postfix(int);
-int APS5_VABI sigignore_nid_postfix(int);
-std::uintptr_t APS5_VABI sigset_nid_postfix(int, std::uintptr_t);
-int APS5_VABI siginterrupt_nid_postfix(int, int);
-int APS5_VABI sigpending_nid_postfix(SignalSet*);
-int APS5_VABI raise_nid_postfix(int);
-}
 
 namespace {
 

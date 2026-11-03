@@ -354,10 +354,6 @@ char* APS5_VABI ether_ntoa_nid_postfix(const GuestEtherAddress* address) {
     return ether_ntoa_r_nid_postfix(address, text);
 }
 
-FileStream* APS5_VABI fopen_nid_postfix(const char* filename, const char* mode);
-int APS5_VABI fclose_nid_postfix(FileStream* stream);
-char* APS5_VABI fgets_nid_postfix(char* buffer, int size, FileStream* stream);
-int APS5_VABI ether_line_nid_postfix(const char* line, GuestEtherAddress* address, char* hostname);
 
 }
 

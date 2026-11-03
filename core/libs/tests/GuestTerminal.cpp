@@ -9,18 +9,9 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include "prx/libkernel_sys/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI tcgetsid_nid_postfix(int);
-std::uint32_t APS5_VABI cfgetispeed_nid_postfix(const void*);
-std::uint32_t APS5_VABI cfgetospeed_nid_postfix(const void*);
-int APS5_VABI cfsetispeed_nid_postfix(void*, std::uint32_t);
-int APS5_VABI cfsetospeed_nid_postfix(void*, std::uint32_t);
-void APS5_VABI cfmakeraw_nid_postfix(void*);
-int APS5_VABI ttyname_r_nid_postfix(int, char*, std::size_t);
-char* APS5_VABI ttyname_nid_postfix(int);
-char* APS5_VABI ctermid_nid_postfix(char*);
-}
+
 
 static void Check(bool value, int line) {
     if (!value) {

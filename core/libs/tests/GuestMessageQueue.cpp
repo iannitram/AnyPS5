@@ -9,6 +9,10 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/Time/include/Time.hpp"
+#include "prx/libkernel/include/Api.hpp"
+
 
 namespace {
 
@@ -30,20 +34,6 @@ struct SignalEvent {
 
 }
 
-extern "C" {
-void* APS5_VABI mq_open_nid_postfix(const char*, int, ...);
-int APS5_VABI mq_close_nid_postfix(void*);
-int APS5_VABI mq_unlink_nid_postfix(const char*);
-int APS5_VABI mq_send_nid_postfix(void*, const char*, std::size_t, unsigned);
-int APS5_VABI mq_timedsend_nid_postfix(void*, const char*, std::size_t, unsigned, const KernelTimespec*);
-std::int64_t APS5_VABI mq_receive_nid_postfix(void*, char*, std::size_t, unsigned*);
-std::int64_t APS5_VABI mq_timedreceive_nid_postfix(void*, char*, std::size_t, unsigned*, const KernelTimespec*);
-int APS5_VABI mq_getattr_nid_postfix(void*, Attributes*);
-int APS5_VABI mq_setattr_nid_postfix(void*, const Attributes*, Attributes*);
-int APS5_VABI mq_notify_nid_postfix(void*, const SignalEvent*);
-int APS5_VABI clock_gettime_nid_postfix(int, KernelTimespec*);
-int* APS5_VABI __error_nid_postfix();
-}
 
 namespace {
 

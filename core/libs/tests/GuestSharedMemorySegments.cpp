@@ -6,6 +6,9 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
+
 
 namespace {
 
@@ -32,15 +35,6 @@ struct Status {
 
 }
 
-extern "C" {
-int APS5_VABI shmget_nid_postfix(std::int64_t, std::size_t, int);
-void* APS5_VABI shmat_nid_postfix(int, const void*, int);
-int APS5_VABI shmdt_nid_postfix(const void*);
-int APS5_VABI shmctl_nid_postfix(int, int, Status*);
-int APS5_VABI getpid_nid_postfix(void);
-int APS5_VABI mprotect_nid_postfix(void*, std::size_t, int);
-int* APS5_VABI __error_nid_postfix();
-}
 
 namespace {
 

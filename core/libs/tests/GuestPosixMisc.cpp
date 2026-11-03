@@ -12,33 +12,11 @@
 #include <cstring>
 #include <filesystem>
 #include <string>
+#include "prx/libScePosixForWebKit/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
-extern "C" {
-GuestTm* APS5_VABI localtime_r_nid_postfix(const std::int64_t*, GuestTm*);
-GuestTm* APS5_VABI gmtime_r_nid_postfix(const std::int64_t*, GuestTm*);
-char* APS5_VABI asctime_r_nid_postfix(const GuestTm*, char*);
-char* APS5_VABI ctime_r_nid_postfix(const std::int64_t*, char*);
-int APS5_VABI isascii_nid_postfix(int);
-int APS5_VABI getw_nid_postfix(FileStream*);
-int APS5_VABI putw_nid_postfix(int, FileStream*);
-void* APS5_VABI valloc_nid_postfix(std::size_t);
-void APS5_VABI free_nid_postfix(void*);
-int APS5_VABI timespec_get_nid_postfix(KernelTimespec*, int);
-std::uint16_t* APS5_VABI seed48_nid_postfix(const std::uint16_t*);
-void APS5_VABI lcong48_nid_postfix(const std::uint16_t*);
-void APS5_VABI srand48_nid_postfix(std::int64_t);
-std::int64_t APS5_VABI lrand48_nid_postfix();
-std::int64_t APS5_VABI nrand48_nid_postfix(std::uint16_t*);
-std::uint32_t APS5_VABI arc4random_uniform_nid_postfix(std::uint32_t);
-int APS5_VABI mkstemps_nid_postfix(char*, int);
-char* APS5_VABI mkdtemp_nid_postfix(char*);
-int APS5_VABI close_nid_postfix(int);
-int* APS5_VABI __error_nid_postfix();
-std::size_t APS5_VABI confstr_nid_postfix(int, char*, std::size_t);
-char* APS5_VABI getwd_nid_postfix(char*);
-char* APS5_VABI gets_nid_postfix(char*);
-char* APS5_VABI getcwd_nid_postfix(char*, std::size_t);
-}
+
 
 namespace {
 

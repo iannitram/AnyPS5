@@ -14,10 +14,6 @@
 #include "prx/libkernel/KernelErrors.hpp"
 
 extern "C" {
-int APS5_VABI scePthreadSetaffinity(Pthread thread, KernelCpumask mask);
-int APS5_VABI scePthreadAttrGetaffinity(const PthreadAttr* attr, KernelCpumask* mask);
-int APS5_VABI scePthreadAttrSetaffinity(PthreadAttr* attr, KernelCpumask mask);
-int APS5_VABI scePthreadRename(Pthread thread, const char* name);
 }
 
 namespace {

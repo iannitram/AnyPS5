@@ -3,8 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" char* APS5_VABI nl_langinfo_nid_postfix(int);
+
 
 namespace {
 

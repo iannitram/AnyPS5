@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "prx/libc/include/Api.hpp"
+
 
 namespace {
 struct Division {
@@ -18,21 +20,6 @@ struct Division {
 
 extern "C" {
 extern char* suboptarg_nid_postfix;
-std::int64_t APS5_VABI labs_nid_postfix(std::int64_t);
-long long APS5_VABI llabs_nid_postfix(long long);
-std::int64_t APS5_VABI imaxabs_nid_postfix(std::int64_t);
-Division APS5_VABI imaxdiv_nid_postfix(std::int64_t, std::int64_t);
-long long APS5_VABI strtoq_nid_postfix(const char*, char**, int);
-unsigned long long APS5_VABI strtouq_nid_postfix(const char*, char**, int);
-std::int64_t APS5_VABI wcstoimax_nid_postfix(const char16_t*, char16_t**, int);
-std::uint64_t APS5_VABI wcstoumax_nid_postfix(const char16_t*, char16_t**, int);
-int APS5_VABI toascii_nid_postfix(int);
-void* APS5_VABI reallocarray_nid_postfix(void*, std::size_t, std::size_t);
-void APS5_VABI free_nid_postfix(void*);
-std::int64_t APS5_VABI a64l_nid_postfix(const char*);
-char* APS5_VABI l64a_nid_postfix(std::int64_t);
-int APS5_VABI l64a_r_nid_postfix(std::int64_t, char*, int);
-int APS5_VABI getsubopt_nid_postfix(char**, char* const*, char**);
 }
 
 namespace {

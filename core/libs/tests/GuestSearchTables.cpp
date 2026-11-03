@@ -11,6 +11,8 @@
 #include <random>
 #include <string>
 #include <vector>
+#include "prx/libc/include/Api.hpp"
+
 
 namespace {
 struct Entry {
@@ -32,20 +34,6 @@ using Compare = int (APS5_VABI *)(const void*, const void*);
 using Walker = void (APS5_VABI *)(const Node*, int, int);
 }
 
-extern "C" {
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI hcreate_nid_postfix(std::size_t);
-void APS5_VABI hdestroy_nid_postfix();
-Entry* APS5_VABI hsearch_nid_postfix(Entry, int);
-void* APS5_VABI lfind_nid_postfix(const void*, const void*, std::size_t*, std::size_t, Compare);
-void* APS5_VABI lsearch_nid_postfix(const void*, void*, std::size_t*, std::size_t, Compare);
-void APS5_VABI insque_nid_postfix(void*, void*);
-void APS5_VABI remque_nid_postfix(void*);
-Node* APS5_VABI tsearch_nid_postfix(const void*, Node**, Compare);
-Node* APS5_VABI tfind_nid_postfix(const void*, Node* const*, Compare);
-void* APS5_VABI tdelete_nid_postfix(const void*, Node**, Compare);
-void APS5_VABI twalk_nid_postfix(const Node*, Walker);
-}
 
 namespace {
 

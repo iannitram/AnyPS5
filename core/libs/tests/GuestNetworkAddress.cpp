@@ -5,6 +5,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
+
 
 namespace {
 
@@ -24,42 +28,6 @@ struct ControlMessage {
 
 }
 
-extern "C" {
-std::uint32_t APS5_VABI htonl_nid_postfix(std::uint32_t);
-std::uint16_t APS5_VABI ntohs_nid_postfix(std::uint16_t);
-int APS5_VABI inet_aton_nid_postfix(const char*, InAddress*);
-std::uint32_t APS5_VABI inet_addr_nid_postfix(const char*);
-std::uint32_t APS5_VABI inet_network_nid_postfix(const char*);
-std::uint32_t APS5_VABI inet_lnaof_nid_postfix(InAddress);
-std::uint32_t APS5_VABI inet_netof_nid_postfix(InAddress);
-InAddress APS5_VABI inet_makeaddr_nid_postfix(std::uint32_t, std::uint32_t);
-char* APS5_VABI inet_ntoa_nid_postfix(InAddress);
-unsigned APS5_VABI inet_nsap_addr_nid_postfix(const char*, std::uint8_t*, int);
-char* APS5_VABI inet_nsap_ntoa_nid_postfix(int, const std::uint8_t*, char*);
-int APS5_VABI ether_line_nid_postfix(const char*, EtherAddress*, char*);
-EtherAddress* APS5_VABI ether_aton_nid_postfix(const char*);
-char* APS5_VABI ether_ntoa_nid_postfix(const EtherAddress*);
-int APS5_VABI ether_hostton_nid_postfix(const char*, EtherAddress*);
-int APS5_VABI inet6_option_space_nid_postfix(int);
-int APS5_VABI inet6_option_init_nid_postfix(void*, ControlMessage**, int);
-int APS5_VABI inet6_option_append_nid_postfix(ControlMessage*, const std::uint8_t*, int, int);
-std::uint8_t* APS5_VABI inet6_option_alloc_nid_postfix(ControlMessage*, int, int, int);
-int APS5_VABI inet6_option_next_nid_postfix(const ControlMessage*, std::uint8_t**);
-int APS5_VABI inet6_option_find_nid_postfix(const ControlMessage*, std::uint8_t**, int);
-int APS5_VABI inet6_opt_init_nid_postfix(void*, std::uint32_t);
-int APS5_VABI inet6_opt_append_nid_postfix(void*, std::uint32_t, int, std::uint8_t, std::uint32_t, std::uint8_t, void**);
-int APS5_VABI inet6_opt_finish_nid_postfix(void*, std::uint32_t, int);
-int APS5_VABI inet6_opt_set_val_nid_postfix(void*, int, const void*, std::uint32_t);
-int APS5_VABI inet6_opt_get_val_nid_postfix(const void*, int, void*, std::uint32_t);
-int APS5_VABI inet6_opt_next_nid_postfix(void*, std::uint32_t, int, std::uint8_t*, std::uint32_t*, void**);
-int APS5_VABI inet6_opt_find_nid_postfix(void*, std::uint32_t, int, std::uint8_t, std::uint32_t*, void**);
-std::uint32_t APS5_VABI inet6_rth_space_nid_postfix(int, int);
-void* APS5_VABI inet6_rth_init_nid_postfix(void*, std::uint32_t, int, int);
-int APS5_VABI inet6_rth_add_nid_postfix(void*, const void*);
-int APS5_VABI inet6_rth_reverse_nid_postfix(const void*, void*);
-int APS5_VABI inet6_rth_segments_nid_postfix(const void*);
-std::uint8_t* APS5_VABI inet6_rth_getaddr_nid_postfix(const void*, int);
-}
 
 namespace {
 
