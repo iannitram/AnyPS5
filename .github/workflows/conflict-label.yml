@@ -3,8 +3,8 @@ name: Conflict label
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '0 * * * *'
+  pull_request_target:
+    types: [synchronize]
   workflow_dispatch:
 
 permissions: {}
