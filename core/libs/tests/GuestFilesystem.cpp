@@ -479,6 +479,22 @@ int main() {
     Require(std::strcmp(debugText, "[debug:3] %s%d literal\n") == 0);
     Require(std::fclose(captured) == 0);
     Require(pipe_nid_postfix(nullptr) == -1 && *__error_nid_postfix() == 14);
+#ifdef __linux__
+    {
+        const auto lowestFreeDescriptor = [] {
+            const int probe = ::dup(2);
+            Require(probe >= 0);
+            ::close(probe);
+            return probe;
+        };
+        const int before = lowestFreeDescriptor();
+        *__error_nid_postfix() = 0;
+        Require(pipe_nid_postfix(reinterpret_cast<int*>(1)) == -1 && *__error_nid_postfix() == 14);
+        *__error_nid_postfix() = 0;
+        Require(pipe_nid_postfix(reinterpret_cast<int*>(0xfffffffffffff000ull)) == -1 && *__error_nid_postfix() == 14);
+        Require(lowestFreeDescriptor() == before);
+    }
+#endif
     int descriptors[2] = {-1, -1};
     Require(pipe_nid_postfix(descriptors) == 0 && descriptors[0] >= 0 && descriptors[1] >= 0);
     const char payload[] = {'A', '\0', '\r', '\n', '\x1a', 'Z'};
