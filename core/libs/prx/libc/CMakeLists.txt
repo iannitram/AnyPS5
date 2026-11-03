@@ -1180,7 +1180,7 @@ if(BUILD_TESTING)
     add_test(NAME guest_math_ieee COMMAND guest_math_ieee_tests)
     if(WIN32)
         set_tests_properties(guest_math_ieee PROPERTIES ENVIRONMENT_MODIFICATION
-            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>;$<TARGET_FILE_DIR:libSceLibcInternal>")
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>;PATH=path_list_prepend:$<TARGET_FILE_DIR:libSceLibcInternal>")
     endif()
     add_test_executable(guest_search_tables_tests ${LIBS_INCLUDE_DIR}/tests/GuestSearchTables.cpp)
     target_include_directories(guest_search_tables_tests PRIVATE ${LIBS_INCLUDE_DIR})
