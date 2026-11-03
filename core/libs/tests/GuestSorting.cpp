@@ -174,8 +174,8 @@ void CheckRadixSort() {
     for (auto& word : many) manyPointers.push_back(reinterpret_cast<const unsigned char*>(word.c_str()));
     Require(radixsort_nid_postfix(manyPointers.data(), static_cast<int>(manyPointers.size()), nullptr, '/') == 0, "end byte without table");
     for (std::size_t i = 1; i < manyPointers.size(); i++) {
-        const std::string previous(reinterpret_cast<const char*>(manyPointers[i - 1]), std::strchr(reinterpret_cast<const char*>(manyPointers[i - 1]), '/'));
-        const std::string current(reinterpret_cast<const char*>(manyPointers[i]), std::strchr(reinterpret_cast<const char*>(manyPointers[i]), '/'));
+        const std::string previous(reinterpret_cast<const char*>(manyPointers[i - 1]), static_cast<const char*>(std::strchr(reinterpret_cast<const char*>(manyPointers[i - 1]), '/')));
+        const std::string current(reinterpret_cast<const char*>(manyPointers[i]), static_cast<const char*>(std::strchr(reinterpret_cast<const char*>(manyPointers[i]), '/')));
         Require(previous <= current, "radixsort sorts large inputs");
     }
 }
