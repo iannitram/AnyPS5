@@ -143,8 +143,19 @@ struct SceKernelSystemSwVersion {
 };
 
 struct GuestTermios {
-    std::uint32_t flags[4];
-    std::uint8_t controlCharacters[20];
+    union {
+        std::uint32_t flags[4];
+        struct {
+            std::uint32_t input;
+            std::uint32_t output;
+            std::uint32_t control;
+            std::uint32_t local;
+        };
+    };
+    union {
+        std::uint8_t controlCharacters[20];
+        unsigned char characters[20];
+    };
     std::uint32_t inputSpeed;
     std::uint32_t outputSpeed;
 };
@@ -892,6 +903,7 @@ int APS5_VABI sysKernelGetIntdevModeForInternalLibc_nid_postfix(void);
 int APS5_VABI sysKernelGetIntdevModeForRcmgr_nid_postfix(void);
 
 
+int APS5_VABI tcgetsid_nid_postfix(int descriptor);
 char* APS5_VABI ctermid_nid_postfix(char* buffer);
 int APS5_VABI ttyname_r_nid_postfix(int descriptor, char* buffer, std::size_t length);
 void APS5_VABI cfmakeraw_nid_postfix(GuestTermios* attributes);

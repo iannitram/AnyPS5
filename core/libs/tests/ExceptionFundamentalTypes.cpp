@@ -9,7 +9,6 @@
 
 
 extern "C" {
-[[noreturn]] void __cxa_throw_nid_postfix(void*, std::type_info*, void (*)(void*));
 extern char _ZTVN10__cxxabiv119__pointer_type_infoE_nid_postfix[];
 extern char _ZTVN10__cxxabiv120__function_type_infoE_nid_postfix[];
 extern char _ZTVN10__cxxabiv123__fundamental_type_infoE_nid_postfix[];

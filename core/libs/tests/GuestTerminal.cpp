@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
-#include "prx/libkernel_sys/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
 
 
@@ -80,11 +80,7 @@ static void RequireIdentityCalls(int descriptor, int error) {
 }
 
 static void CheckAttributeHelpers() {
-    struct {
-        std::uint32_t input, output, control, local;
-        unsigned char characters[20];
-        std::uint32_t inputSpeed, outputSpeed;
-    } attributes;
+    GuestTermios attributes;
     std::memset(&attributes, 0xff, sizeof(attributes));
     static_assert(sizeof(attributes) == 44);
     Require(cfsetispeed_nid_postfix(&attributes, 9600) == 0 && cfgetispeed_nid_postfix(&attributes) == 9600);

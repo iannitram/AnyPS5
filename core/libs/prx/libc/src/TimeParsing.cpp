@@ -11,7 +11,7 @@
 
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/GuestTime.hpp"
-#include "core/libs/prx/libc/include/SonyCrt.hpp"
+#include "prx/libc/include/SonyCrt.hpp"
 
 extern "C" {
 }

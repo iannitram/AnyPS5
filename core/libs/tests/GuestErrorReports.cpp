@@ -10,13 +10,12 @@
 #ifndef _WIN32
 #include <sys/wait.h>
 #include <unistd.h>
-#include "prx/libSceLibcInternal/include/Api.hpp"
-
 #endif
+#include "prx/libSceLibcInternal/include/Api.hpp"
 
 extern "C" {
 using ExitHook = void (APS5_VABI *)(int);
-[[noreturn]] void [[noreturn]] void [[noreturn]] void }
+}
 
 namespace {
 

@@ -13,7 +13,6 @@
 
 extern "C" {
 using Handler = void (*)();
-[[noreturn]] void _ZSt10unexpectedv_nid_postfix();
 extern char _ZTISt13bad_exception_nid_postfix[];
 }
 

@@ -3,7 +3,7 @@
 
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
-#include "core/libs/prx/libkernel/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
 extern "C" {
 

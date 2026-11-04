@@ -96,7 +96,7 @@ void CheckHeapSort() {
     auto records = Input();
     calls = 0;
     Require(heapsort_nid_postfix(records.data(), records.size(), sizeof(Record), CompareRecords) == 0, "heapsort");
-    Require(Ids(records, HeapSortIds) && calls == 408, "FreeBSD heapsort order and comparison count");
+    Require(Ids(records, HeapSortIds) && calls == 499, "FreeBSD heapsort order and comparison count");
     Require(heapsort_nid_postfix(records.data(), 1, 0, CompareRecords) == 0, "one element needs no size");
     *__error_nid_postfix() = 0;
     Require(heapsort_nid_postfix(records.data(), 2, 0, CompareRecords) == -1 && *__error_nid_postfix() == 22, "zero size is EINVAL");

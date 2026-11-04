@@ -3,7 +3,8 @@
 #include <cstdint>
 
 #include "prx/libc/include/General.hpp"
-#include "core/libs/prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
 
 namespace {
 

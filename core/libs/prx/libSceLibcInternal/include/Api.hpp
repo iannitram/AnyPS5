@@ -141,5 +141,5 @@ int APS5_VABI nftw_nid_postfix(const char* path, int (APS5_VABI *callback)(const
 int APS5_VABI ftw_nid_postfix(const char* path, int (APS5_VABI *callback)(const char*, const FileStat*, int), int descriptors);
 int APS5_VABI glob_nid_postfix(const char* pattern, int flags, int (APS5_VABI *errorFunction)(const char*, int), GuestGlob* result);
 void APS5_VABI globfree_nid_postfix(GuestGlob* glob);
-int APS5_VABI ftok_nid_postfix(const char* path, int id);
+std::int64_t APS5_VABI ftok_nid_postfix(const char* path, int id);
 }

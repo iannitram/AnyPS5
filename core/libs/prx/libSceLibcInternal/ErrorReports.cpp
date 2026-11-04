@@ -5,7 +5,7 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/General.hpp"
-#include "core/libs/prx/libc/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
 
 extern "C" {
 extern FileStream* __stderrp_nid_postfix;
