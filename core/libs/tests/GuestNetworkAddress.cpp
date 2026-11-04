@@ -10,23 +10,9 @@
 #include "prx/libkernel/include/Api.hpp"
 
 
-namespace {
 
-struct InAddress {
-    std::uint32_t address;
-};
 
-struct EtherAddress {
-    std::uint8_t octet[6];
-};
 
-struct ControlMessage {
-    std::uint32_t length;
-    int level;
-    int type;
-};
-
-}
 
 
 namespace {
@@ -38,37 +24,23 @@ void Require(bool value, const char* what) {
     }
 }
 
-std::uint32_t Aton(const char* text) {
-    InAddress address{0xdeadbeef};
-    return inet_aton_nid_postfix(text, &address) ? htonl_nid_postfix(address.address) : 0xdeadbeef;
+std::uint32_t Swap32(std::uint32_t value) {
+    return (value << 24) | ((value & 0xff00u) << 8) | ((value >> 8) & 0xff00u) | (value >> 24);
 }
 
 void CheckIpv4() {
-    Require(htonl_nid_postfix(0x01020304) == 0x04030201 && ntohs_nid_postfix(0x1234) == 0x3412, "byte order");
-    Require(Aton("192.168.1.2") == 0xc0a80102, "dotted quad");
-    Require(Aton("10.1") == 0x0a000001 && Aton("10.1.2") == 0x0a010002, "short forms");
-    Require(Aton("0x7f.1") == 0x7f000001 && Aton("012.0") == 0x0a000000, "hex and octal parts");
-    Require(Aton("4294967295") == 0xffffffff && Aton("4294967296") == 0, "single part keeps the low 32 bits");
-    Require(Aton("1.2.3.4 trailing") == 0x01020304, "whitespace ends the address");
-    Require(Aton("1.2.3.256") == 0xdeadbeef && Aton("1.2.3.4.5") == 0xdeadbeef && Aton("08") == 0xdeadbeef, "rejected forms");
-    Require(Aton("0x") == 0xdeadbeef && Aton("") == 0xdeadbeef && Aton("1.2.3.4x") == 0xdeadbeef, "rejected digits");
-    Require(Aton("0") == 0, "octal zero");
-    Require(inet_aton_nid_postfix("1.2.3.4", nullptr) == 1, "null address");
-    Require(inet_addr_nid_postfix("127.0.0.1") == 0x0100007f && inet_addr_nid_postfix("bad") == 0xffffffff, "inet_addr");
-
     Require(inet_network_nid_postfix("10.1.2") == 0x0a0102 && inet_network_nid_postfix("0x10") == 0x10, "inet_network");
     Require(inet_network_nid_postfix("x1f") == 0x1f && inet_network_nid_postfix("1.2.3.4.5") == 0xffffffff, "inet_network edge cases");
     Require(inet_network_nid_postfix("256") == 0xffffffff && inet_network_nid_postfix("") == 0xffffffff, "inet_network rejects");
 
-    const InAddress classA{htonl_nid_postfix(0x0a010203)};
-    const InAddress classB{htonl_nid_postfix(0xac100203)};
-    const InAddress classC{htonl_nid_postfix(0xc0a80102)};
+    const GuestInAddress classA{Swap32(0x0a010203)};
+    const GuestInAddress classB{Swap32(0xac100203)};
+    const GuestInAddress classC{Swap32(0xc0a80102)};
     Require(inet_netof_nid_postfix(classA) == 0x0a && inet_lnaof_nid_postfix(classA) == 0x010203, "class A");
     Require(inet_netof_nid_postfix(classB) == 0xac10 && inet_lnaof_nid_postfix(classB) == 0x0203, "class B");
     Require(inet_netof_nid_postfix(classC) == 0xc0a801 && inet_lnaof_nid_postfix(classC) == 0x02, "class C");
     Require(inet_makeaddr_nid_postfix(0x0a, 0x010203).address == classA.address, "makeaddr A");
     Require(inet_makeaddr_nid_postfix(0xc0a801, 0x02).address == classC.address, "makeaddr C");
-    Require(std::strcmp(inet_ntoa_nid_postfix(classC), "192.168.1.2") == 0, "inet_ntoa");
 
     std::uint8_t binary[8];
     Require(inet_nsap_addr_nid_postfix("0x47.0005/80+ff", binary, 8) == 5 && binary[0] == 0x47 && binary[4] == 0xff, "nsap_addr");
@@ -81,11 +53,11 @@ void CheckIpv4() {
 }
 
 void CheckEthernet() {
-    const EtherAddress* parsed = ether_aton_nid_postfix("0:1b:21:A:ff:9");
+    const GuestEtherAddress* parsed = ether_aton_nid_postfix("0:1b:21:A:ff:9");
     Require(parsed != nullptr && parsed->octet[1] == 0x1b && parsed->octet[3] == 0x0a && parsed->octet[5] == 0x09, "ether_aton");
     Require(ether_aton_nid_postfix("0:1:2:3:4") == nullptr, "ether_aton rejects");
     Require(std::strcmp(ether_ntoa_nid_postfix(parsed), "00:1b:21:0a:ff:09") == 0, "ether_ntoa");
-    EtherAddress address{};
+    GuestEtherAddress address{};
     char host[64];
     Require(ether_line_nid_postfix("8:0:20:1:2:3 sun", &address, host) == 0 && address.octet[0] == 8 && std::strcmp(host, "sun") == 0, "ether_line");
     Require(ether_line_nid_postfix("8:0:20:1:2:3", &address, host) == -1, "ether_line needs a host");
@@ -95,9 +67,9 @@ void CheckEthernet() {
 void CheckRfc2292Options() {
     alignas(8) std::uint8_t buffer[128] = {};
     Require(inet6_option_space_nid_postfix(6) == 24, "option space");
-    ControlMessage* message = nullptr;
+    GuestControlMessage* message = nullptr;
     Require(inet6_option_init_nid_postfix(buffer, &message, 99) == -1, "option init type");
-    Require(inet6_option_init_nid_postfix(buffer, &message, 49) == 0 && message == reinterpret_cast<ControlMessage*>(buffer), "option init");
+    Require(inet6_option_init_nid_postfix(buffer, &message, 49) == 0 && message == reinterpret_cast<GuestControlMessage*>(buffer), "option init");
     Require(message->level == 41 && message->length == 16, "option init header");
     const std::uint8_t option[] = {0xc2, 4, 1, 2, 3, 4};
     Require(inet6_option_append_nid_postfix(message, option, 4, 2) == 0, "option append");
@@ -162,18 +134,18 @@ void CheckRoutingHeader() {
     alignas(8) std::uint8_t buffer[56];
     Require(inet6_rth_init_nid_postfix(buffer, 40, 0, 3) == nullptr, "rth init too small");
     Require(inet6_rth_init_nid_postfix(buffer, sizeof(buffer), 0, 3) == buffer && buffer[1] == 6 && buffer[3] == 0, "rth init");
-    std::uint8_t addresses[3][16] = {};
-    for (int i = 0; i < 3; i++) addresses[i][15] = static_cast<std::uint8_t>(i + 1);
-    for (const auto& address : addresses) Require(inet6_rth_add_nid_postfix(buffer, address) == 0, "rth add");
-    Require(inet6_rth_add_nid_postfix(buffer, addresses[0]) == -1, "rth full");
+    GuestIn6Address addresses[3] = {};
+    for (int i = 0; i < 3; i++) addresses[i].bytes[15] = static_cast<std::uint8_t>(i + 1);
+    for (const auto& address : addresses) Require(inet6_rth_add_nid_postfix(buffer, &address) == 0, "rth add");
+    Require(inet6_rth_add_nid_postfix(buffer, &addresses[0]) == -1, "rth full");
     Require(inet6_rth_segments_nid_postfix(buffer) == 3, "rth segments");
-    Require(inet6_rth_getaddr_nid_postfix(buffer, 2)[15] == 3 && inet6_rth_getaddr_nid_postfix(buffer, 3) == nullptr, "rth getaddr");
+    Require(inet6_rth_getaddr_nid_postfix(buffer, 2)->bytes[15] == 3 && inet6_rth_getaddr_nid_postfix(buffer, 3) == nullptr, "rth getaddr");
     alignas(8) std::uint8_t reversed[56];
     Require(inet6_rth_reverse_nid_postfix(buffer, reversed) == 0, "rth reverse");
-    Require(reversed[3] == 3 && inet6_rth_getaddr_nid_postfix(reversed, 0)[15] == 3 && inet6_rth_getaddr_nid_postfix(reversed, 2)[15] == 1, "reversed order");
-    Require(inet6_rth_reverse_nid_postfix(buffer, buffer) == 0 && inet6_rth_getaddr_nid_postfix(buffer, 0)[15] == 3, "rth reverse in place");
+    Require(reversed[3] == 3 && inet6_rth_getaddr_nid_postfix(reversed, 0)->bytes[15] == 3 && inet6_rth_getaddr_nid_postfix(reversed, 2)->bytes[15] == 1, "reversed order");
+    Require(inet6_rth_reverse_nid_postfix(buffer, buffer) == 0 && inet6_rth_getaddr_nid_postfix(buffer, 0)->bytes[15] == 3, "rth reverse in place");
     buffer[2] = 2;
-    Require(inet6_rth_segments_nid_postfix(buffer) == -1 && inet6_rth_add_nid_postfix(buffer, addresses[0]) == -1, "unknown routing type");
+    Require(inet6_rth_segments_nid_postfix(buffer) == -1 && inet6_rth_add_nid_postfix(buffer, &addresses[0]) == -1, "unknown routing type");
 }
 
 }

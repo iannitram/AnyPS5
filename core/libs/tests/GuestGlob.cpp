@@ -13,18 +13,6 @@
 #include "prx/libc/include/Api.hpp"
 
 
-namespace {
-
-struct GuestGlob {
-    std::size_t pathCount;
-    std::size_t matchCount;
-    std::size_t offsets;
-    int flags;
-    char** paths;
-    void* functions[6];
-};
-
-}
 
 
 namespace {

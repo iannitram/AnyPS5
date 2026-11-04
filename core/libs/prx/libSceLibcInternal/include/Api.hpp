@@ -4,6 +4,7 @@
 #include "prx/libSceLibcInternal/include/Spawn.hpp"
 #include "prx/libkernel/System/include/UserContext.hpp"
 #include "prx/libc/include/FileStream.hpp"
+#include "prx/libc/include/GuestDirectory.hpp"
 #include "SceTypes.hpp"
 #include <cstddef>
 
@@ -24,10 +25,65 @@ struct LibcUtimbuf {
 using ThreadDestructorFunction = void (APS5_VABI*)(void*);
 
 
-struct GuestFts;
 struct GuestFtsEntry;
-struct GuestFtw;
-struct GuestGlob;
+using EntryCompare = int (APS5_VABI *)(const GuestFtsEntry* const*, const GuestFtsEntry* const*);
+
+struct GuestFts {
+    GuestFtsEntry* current;
+    GuestFtsEntry* children;
+    GuestFtsEntry** array;
+    std::uint32_t device;
+    char* path;
+    int rootDescriptor;
+    std::size_t pathLength;
+    std::size_t arrayItems;
+    EntryCompare compare;
+    int options;
+    void* clientPointer;
+};
+static_assert(offsetof(GuestFts, compare) == 64 && sizeof(GuestFts) == 88);
+struct GuestFtsEntry {
+    GuestFtsEntry* cycle;
+    GuestFtsEntry* parent;
+    GuestFtsEntry* link;
+    long long number;
+    void* pointer;
+    char* accessPath;
+    char* path;
+    int error;
+    int symbolicDescriptor;
+    std::size_t pathLength;
+    std::size_t nameLength;
+    std::uint32_t inode;
+    std::uint32_t device;
+    std::uint16_t linkCount;
+    std::int64_t level;
+    int info;
+    unsigned flags;
+    int instruction;
+    FileStat* status;
+    char* name;
+    GuestFts* fts;
+};
+static_assert(offsetof(GuestFtsEntry, level) == 96 && offsetof(GuestFtsEntry, status) == 120 && sizeof(GuestFtsEntry) == 144);
+struct GuestFtw {
+    int base;
+    int level;
+};
+struct GuestGlob {
+    std::size_t pathCount;
+    std::size_t matchCount;
+    std::size_t offsets;
+    int flags;
+    char** paths;
+    int (APS5_VABI *errorFunction)(const char*, int);
+    void (APS5_VABI *closeDirectory)(void*);
+    GuestDirectoryEntry* (APS5_VABI *readDirectory)(void*);
+    void* (APS5_VABI *openDirectory)(const char*);
+    int (APS5_VABI *linkStatus)(const char*, FileStat*);
+    int (APS5_VABI *status)(const char*, FileStat*);
+};
+static_assert(offsetof(GuestGlob, paths) == 32 && sizeof(GuestGlob) == 88);
 
 extern "C" {
 

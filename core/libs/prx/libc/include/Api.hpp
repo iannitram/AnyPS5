@@ -103,14 +103,43 @@ struct FutureErrorObject { const void* vtable; GuestLocale::String message; Erro
 }
 
 
-struct GuestInAddress;
-struct GuestIn6Address;
-struct GuestEtherAddress;
-struct GuestControlMessage;
-struct GuestProtocolEntry;
-struct GuestServiceEntry;
-struct GuestPasswd;
-struct GuestGroup;
+struct GuestInAddress {
+    std::uint32_t address;
+};
+struct GuestIn6Address {
+    std::uint8_t bytes[16];
+};
+struct GuestEtherAddress {
+    std::uint8_t octet[6];
+};
+struct GuestControlMessage {
+    std::uint32_t length;
+    int level;
+    int type;
+};
+struct GuestProtocolEntry {
+    char storage[64];
+};
+struct GuestServiceEntry {
+    char storage[64];
+};
+struct GuestPasswd {
+    char* name;
+    char* password;
+    std::uint32_t user;
+    std::uint32_t group;
+    std::int64_t change;
+    char* loginClass;
+    char* gecos;
+    char* directory;
+    char* shell;
+    std::int64_t expire;
+    int fields;
+};
+static_assert(sizeof(GuestPasswd) == 80);
+struct GuestGroup {
+    char storage[64];
+};
 struct GuestRegex {
     int magic;
     std::size_t subexpressions;
@@ -121,8 +150,16 @@ struct GuestMatch {
     std::int64_t start;
     std::int64_t end;
 };
-struct TreeNode;
-struct GuestSearchEntry;
+struct TreeNode {
+    void* key;
+    TreeNode* left;
+    TreeNode* right;
+    signed char balance;
+};
+struct GuestSearchEntry {
+    char* key;
+    void* data;
+};
 
 enum GuestSearchAction { GuestSearchFind = 0, GuestSearchEnter = 1 };
 enum WalkAction { preorder, postorder, endorder, leaf };
@@ -221,7 +258,7 @@ void APS5_VABI remque_nid_postfix(void* element);
 int APS5_VABI hcreate_nid_postfix(std::size_t);
 void* APS5_VABI lfind_nid_postfix(const void* key, const void* base, std::size_t* count, std::size_t width, Compare compare);
 void APS5_VABI hdestroy_nid_postfix();
-void APS5_VABI twalk_nid_postfix(const TreeNode* root, WalkAction action);
+void APS5_VABI twalk_nid_postfix(const TreeNode* root, Walker action);
 int APS5_VABI sradixsort_nid_postfix(const Byte** strings, int count, const Byte* table, unsigned endByte);
 int APS5_VABI radixsort_nid_postfix(const Byte** strings, int count, const Byte* table, unsigned endByte);
 int APS5_VABI getsubopt_nid_postfix(char** option, char* const* tokens, char** value);

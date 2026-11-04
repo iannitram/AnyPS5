@@ -17,7 +17,6 @@ constexpr int Unblock = 2;
 constexpr int SetMask = 3;
 constexpr int Restart = 0x2;
 constexpr int Interrupt = Restart;
-constexpr int MaxSignal = 128;
 constexpr std::uintptr_t Ignore = 1;
 constexpr std::uintptr_t Hold = 3;
 constexpr std::uintptr_t Error = static_cast<std::uintptr_t>(-1);
@@ -101,15 +100,6 @@ std::uintptr_t APS5_VABI sigset_nid_postfix(int signal, std::uintptr_t dispositi
     action.handler = disposition;
     if (sigaction_nid_postfix(signal, &action, &previous) == -1) return Error;
     return sigismember_nid_postfix(&previousMask, signal) ? Hold : previous.handler;
-}
-
-int APS5_VABI sigqueue_nid_postfix(int pid, int signal, void* value) {
-    (void)value;
-    if (signal < 0 || signal > MaxSignal || pid <= 0) {
-        *__error_nid_postfix() = 22;
-        return -1;
-    }
-    return kill_nid_postfix(pid, signal);
 }
 
 int APS5_VABI sigpause_nid_postfix(int mask) {

@@ -9,14 +9,8 @@
 
 
 namespace {
-struct SignalSet {
-    std::uint32_t bits[4];
-};
-struct SignalAction {
-    std::uintptr_t handler;
-    int flags;
-    SignalSet mask;
-};
+using SignalSet = GuestSignalSet;
+using SignalAction = GuestSigaction;
 using Handler = void (APS5_VABI *)(int);
 }
 

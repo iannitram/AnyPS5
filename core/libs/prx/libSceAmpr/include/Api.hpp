@@ -2,7 +2,6 @@
 
 #include "prx/libkernel/Apr/include/AprCommandBuffer.hpp"
 #include "prx/libc/include/GuestTime.hpp"
-#include "prx/libc/include/exceptions/Runtime.hpp"
 #include "SceTypes.hpp"
 
 struct AmmSubmitResult {

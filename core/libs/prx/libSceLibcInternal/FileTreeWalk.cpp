@@ -12,58 +12,9 @@
 #include "prx/libc/include/Api.hpp"
 #include "prx/libkernel/include/Api.hpp"
 
-namespace {
 
-struct GuestFtsEntry;
 
-using EntryCompare = int (APS5_VABI *)(const GuestFtsEntry* const*, const GuestFtsEntry* const*);
 
-struct GuestFts {
-    GuestFtsEntry* current;
-    GuestFtsEntry* children;
-    GuestFtsEntry** array;
-    std::uint32_t device;
-    char* path;
-    int rootDescriptor;
-    std::size_t pathLength;
-    std::size_t arrayItems;
-    EntryCompare compare;
-    int options;
-    void* clientPointer;
-};
-static_assert(offsetof(GuestFts, compare) == 64 && sizeof(GuestFts) == 88);
-
-struct GuestFtsEntry {
-    GuestFtsEntry* cycle;
-    GuestFtsEntry* parent;
-    GuestFtsEntry* link;
-    long long number;
-    void* pointer;
-    char* accessPath;
-    char* path;
-    int error;
-    int symbolicDescriptor;
-    std::size_t pathLength;
-    std::size_t nameLength;
-    std::uint32_t inode;
-    std::uint32_t device;
-    std::uint16_t linkCount;
-    std::int64_t level;
-    int info;
-    unsigned flags;
-    int instruction;
-    FileStat* status;
-    char* name;
-    GuestFts* fts;
-};
-static_assert(offsetof(GuestFtsEntry, level) == 96 && offsetof(GuestFtsEntry, status) == 120 && sizeof(GuestFtsEntry) == 144);
-
-struct GuestFtw {
-    int base;
-    int level;
-};
-
-}
 
 extern "C" {
 }

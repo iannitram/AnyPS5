@@ -17,55 +17,14 @@
 #include "prx/libSceLibcInternal/include/Api.hpp"
 
 
+
+
+
 namespace {
 
-struct Entry;
-
-struct Stream {
-    Entry* current;
-    Entry* children;
-    Entry** array;
-    std::uint32_t device;
-    char* path;
-    int rootDescriptor;
-    std::size_t pathLength;
-    std::size_t arrayItems;
-    void* compare;
-    int options;
-    void* clientPointer;
-};
-static_assert(offsetof(Stream, compare) == 64 && sizeof(Stream) == 88);
-
-struct Entry {
-    Entry* cycle;
-    Entry* parent;
-    Entry* link;
-    long long number;
-    void* pointer;
-    char* accessPath;
-    char* path;
-    int error;
-    int symbolicDescriptor;
-    std::size_t pathLength;
-    std::size_t nameLength;
-    std::uint32_t inode;
-    std::uint32_t device;
-    std::uint16_t linkCount;
-    std::int64_t level;
-    int info;
-    unsigned flags;
-    int instruction;
-    FileStat* status;
-    char* name;
-    Stream* fts;
-};
-static_assert(offsetof(Entry, level) == 96 && offsetof(Entry, status) == 120 && sizeof(Entry) == 144);
-
-struct Position {
-    int base;
-    int level;
-};
-
+using Stream = GuestFts;
+using Entry = GuestFtsEntry;
+using Position = GuestFtw;
 using Compare = int (APS5_VABI *)(const Entry* const*, const Entry* const*);
 
 }

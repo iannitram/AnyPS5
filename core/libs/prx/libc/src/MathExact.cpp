@@ -172,7 +172,7 @@ short NormalizeFraction(void* value) {
 }
 
 template<typename TFloat>
-int Compare(TFloat x, TFloat y) {
+int CompareValues(TFloat x, TFloat y) {
     if (x < y) return 1;
     if (x > y) return 4;
     return 2;
@@ -434,9 +434,9 @@ short APS5_VABI _LDnorm_nid_postfix(std::uint16_t* words) {
     return static_cast<short>(-shift);
 }
 
-int APS5_VABI _Fpcomp_nid_postfix(double x, double y) { return std::isnan(x) || std::isnan(y) ? 0 : Compare(x, y); }
-int APS5_VABI _FFpcomp_nid_postfix(float x, float y) { return std::isnan(x) || std::isnan(y) ? 0 : Compare(x, y); }
-int APS5_VABI _LFpcomp_nid_postfix(long double x, long double y) { return ExtendedNan(Bits(x)) || ExtendedNan(Bits(y)) ? 0 : Compare(x, y); }
+int APS5_VABI _Fpcomp_nid_postfix(double x, double y) { return std::isnan(x) || std::isnan(y) ? 0 : CompareValues(x, y); }
+int APS5_VABI _FFpcomp_nid_postfix(float x, float y) { return std::isnan(x) || std::isnan(y) ? 0 : CompareValues(x, y); }
+int APS5_VABI _LFpcomp_nid_postfix(long double x, long double y) { return ExtendedNan(Bits(x)) || ExtendedNan(Bits(y)) ? 0 : CompareValues(x, y); }
 
 double APS5_VABI _Poly_nid_postfix(double x, const double* table, int degree) { return FusedPolynomial(x, table, degree); }
 float APS5_VABI _FPoly_nid_postfix(float x, const float* table, int degree) { return FusedPolynomial(x, table, degree); }

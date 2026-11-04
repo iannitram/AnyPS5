@@ -15,22 +15,8 @@
 extern "C" {
 }
 
-namespace {
 
-struct GuestGlob {
-    std::size_t pathCount;
-    std::size_t matchCount;
-    std::size_t offsets;
-    int flags;
-    char** paths;
-    int (APS5_VABI *errorFunction)(const char*, int);
-    void (APS5_VABI *closeDirectory)(void*);
-    GuestDirectoryEntry* (APS5_VABI *readDirectory)(void*);
-    void* (APS5_VABI *openDirectory)(const char*);
-    int (APS5_VABI *linkStatus)(const char*, FileStat*);
-    int (APS5_VABI *status)(const char*, FileStat*);
-};
-static_assert(offsetof(GuestGlob, paths) == 32 && sizeof(GuestGlob) == 88);
+namespace {
 
 constexpr int Append = 0x0001;
 constexpr int DoOffsets = 0x0002;

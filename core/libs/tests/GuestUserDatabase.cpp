@@ -9,23 +9,7 @@
 #include "prx/libc/include/Api.hpp"
 
 
-namespace {
 
-struct Passwd {
-    char* name;
-    char* password;
-    std::uint32_t user;
-    std::uint32_t group;
-    std::int64_t change;
-    char* loginClass;
-    char* gecos;
-    char* directory;
-    char* shell;
-    std::int64_t expire;
-    int fields;
-};
-
-}
 
 
 namespace {
@@ -40,10 +24,10 @@ void Require(bool value, const char* what) {
 }
 
 int main() {
-    Passwd entry;
+    GuestPasswd entry;
     std::memset(&entry, 0x5a, sizeof(entry));
     char buffer[256];
-    Passwd* result = &entry;
+    GuestPasswd* result = &entry;
     Require(getpwnam_r_nid_postfix("root", &entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getpwnam_r");
     Require(entry.user == 0xffffffffu && entry.group == 0xffffffffu && entry.name[0] == 0 && entry.shell[0] == 0 && entry.change == 0 && entry.fields == 0, "passwd is reset");
     result = &entry;
@@ -57,10 +41,11 @@ int main() {
     Require(getpwent_nid_postfix() == nullptr, "getpwent");
     endpwent_nid_postfix();
 
-    void* group = &entry;
-    Require(getgrnam_r_nid_postfix("wheel", buffer, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrnam_r");
-    group = &entry;
-    Require(getgrgid_r_nid_postfix(0, buffer, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrgid_r");
+    GuestGroup groupStorage;
+    GuestGroup* group = &groupStorage;
+    Require(getgrnam_r_nid_postfix("wheel", &groupStorage, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrnam_r");
+    group = &groupStorage;
+    Require(getgrgid_r_nid_postfix(0, &groupStorage, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrgid_r");
     Require(setgrent_nid_postfix() == 1, "setgrent returns 1, as getgrent.c does");
     errno = 0;
     Require(getgrnam_nid_postfix("wheel") == nullptr && getgrgid_nid_postfix(0) == nullptr && getgrent_nid_postfix() == nullptr && errno == ENOENT, "group lookups");

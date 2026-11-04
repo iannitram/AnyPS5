@@ -14,24 +14,15 @@
 #include "prx/libc/include/Api.hpp"
 
 
+
 namespace {
-struct Entry {
-    char* key;
-    void* data;
-};
-struct Node {
-    void* key;
-    Node* left;
-    Node* right;
-    signed char balance;
-};
+using Entry = GuestSearchEntry;
+using Node = TreeNode;
 struct Queue {
     Queue* next;
     Queue* previous;
     int value;
 };
-using Compare = int (APS5_VABI *)(const void*, const void*);
-using Walker = void (APS5_VABI *)(const Node*, int, int);
 }
 
 
@@ -59,23 +50,23 @@ void CheckHash() {
     std::vector<std::string> keys;
     for (int i = 0; i < 2000; i++) keys.push_back("key" + std::to_string(i));
     for (int i = 0; i < 2000; i++) {
-        Entry* entry = hsearch_nid_postfix({keys[i].data(), reinterpret_cast<void*>(std::intptr_t(i))}, 1);
+        Entry* entry = hsearch_nid_postfix({keys[i].data(), reinterpret_cast<void*>(std::intptr_t(i))}, GuestSearchEnter);
         Require(entry != nullptr && entry->key == keys[i].data(), "enter");
     }
     std::string copy = "key1234";
-    Entry* found = hsearch_nid_postfix({copy.data(), nullptr}, 0);
+    Entry* found = hsearch_nid_postfix({copy.data(), nullptr}, GuestSearchFind);
     Require(found != nullptr && found->data == reinterpret_cast<void*>(std::intptr_t(1234)) && found->key == keys[1234].data(), "find after growth");
-    Entry* again = hsearch_nid_postfix({copy.data(), reinterpret_cast<void*>(std::intptr_t(-1))}, 1);
+    Entry* again = hsearch_nid_postfix({copy.data(), reinterpret_cast<void*>(std::intptr_t(-1))}, GuestSearchEnter);
     Require(again == found && again->data == reinterpret_cast<void*>(std::intptr_t(1234)), "enter of an existing key keeps it");
     for (int i = 0; i < 2000; i += 97) {
-        Entry* entry = hsearch_nid_postfix({keys[i].data(), nullptr}, 0);
+        Entry* entry = hsearch_nid_postfix({keys[i].data(), nullptr}, GuestSearchFind);
         Require(entry != nullptr && entry->data == reinterpret_cast<void*>(std::intptr_t(i)), "every key found");
     }
     *__error_nid_postfix() = 0;
     std::string missing = "absent";
-    Require(hsearch_nid_postfix({missing.data(), nullptr}, 0) == nullptr && *__error_nid_postfix() == 3, "find miss sets ESRCH");
+    Require(hsearch_nid_postfix({missing.data(), nullptr}, GuestSearchFind) == nullptr && *__error_nid_postfix() == 3, "find miss sets ESRCH");
     hdestroy_nid_postfix();
-    Require(hsearch_nid_postfix({copy.data(), nullptr}, 0) == nullptr, "hdestroy empties the table");
+    Require(hsearch_nid_postfix({copy.data(), nullptr}, GuestSearchFind) == nullptr, "hdestroy empties the table");
     hdestroy_nid_postfix();
     hdestroy_nid_postfix();
 }
@@ -123,7 +114,7 @@ int Height(const Node* node) {
 std::vector<std::intptr_t> visited;
 int maximumLevel = 0;
 
-void APS5_VABI Record(const Node* node, int visit, int level) {
+void APS5_VABI Record(const Node* node, WalkAction visit, int level) {
     maximumLevel = std::max(maximumLevel, level);
     if (visit == 1 || visit == 3) visited.push_back(reinterpret_cast<std::intptr_t>(*reinterpret_cast<void* const*>(node)));
 }
