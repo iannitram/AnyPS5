@@ -11,12 +11,6 @@
 #include "prx/libc/include/Api.hpp"
 
 
-namespace {
-struct Division {
-    std::int64_t quotient;
-    std::int64_t remainder;
-};
-}
 
 extern "C" {
 extern char* suboptarg_nid_postfix;
@@ -33,10 +27,10 @@ void Require(bool value, const char* what) {
 
 void CheckIntegers() {
     Require(labs_nid_postfix(-5) == 5 && labs_nid_postfix(INT64_MIN) == INT64_MIN && llabs_nid_postfix(-7) == 7 && imaxabs_nid_postfix(9) == 9, "absolute values");
-    const Division division = imaxdiv_nid_postfix(-7, 2);
-    Require(division.quotient == -3 && division.remainder == -1, "imaxdiv truncates");
-    const Division positive = imaxdiv_nid_postfix(INT64_MAX, -10);
-    Require(positive.quotient == INT64_MAX / -10 && positive.remainder == 7, "imaxdiv with a negative divisor");
+    const std::lldiv_t division = imaxdiv_nid_postfix(-7, 2);
+    Require(division.quot == -3 && division.rem == -1, "imaxdiv truncates");
+    const std::lldiv_t positive = imaxdiv_nid_postfix(INT64_MAX, -10);
+    Require(positive.quot == INT64_MAX / -10 && positive.rem == 7, "imaxdiv with a negative divisor");
     char* end = nullptr;
     const char text[] = "  -0x1fz";
     Require(strtoq_nid_postfix(text, &end, 0) == -31 && end == text + 7, "strtoq");

@@ -39,7 +39,7 @@ void Require(bool value, const char* what) {
 int APS5_VABI CallVfscanf(FileStream* stream, const char* format, ...) {
     APS5_TEST_VA_LIST args;
     APS5_TEST_VA_START(args, format);
-    const int result = vfscanf_nid_postfix(stream, format, args);
+    const int result = vfscanf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
     APS5_TEST_VA_END(args);
     return result;
 }
@@ -47,7 +47,7 @@ int APS5_VABI CallVfscanf(FileStream* stream, const char* format, ...) {
 int APS5_VABI CallVscanf(const char* format, ...) {
     APS5_TEST_VA_LIST args;
     APS5_TEST_VA_START(args, format);
-    const int result = vscanf_nid_postfix(format, args);
+    const int result = vscanf_nid_postfix(format, reinterpret_cast<VaList*>(args));
     APS5_TEST_VA_END(args);
     return result;
 }

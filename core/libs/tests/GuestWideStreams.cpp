@@ -34,7 +34,7 @@ void Require(bool value, const char* what) {
 int APS5_VABI CallVfwprintf(FileStream* stream, const char16_t* format, ...) {
     APS5_TEST_VA_LIST args;
     APS5_TEST_VA_START(args, format);
-    const int result = vfwprintf_nid_postfix(stream, format, args);
+    const int result = vfwprintf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
     APS5_TEST_VA_END(args);
     return result;
 }

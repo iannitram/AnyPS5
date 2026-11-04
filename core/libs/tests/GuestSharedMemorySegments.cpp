@@ -10,31 +10,6 @@
 #include "prx/libkernel/include/Api.hpp"
 
 
-namespace {
-
-struct Permissions {
-    std::uint32_t creatorUser;
-    std::uint32_t creatorGroup;
-    std::uint32_t user;
-    std::uint32_t group;
-    std::uint16_t mode;
-    std::uint16_t sequence;
-    std::int64_t key;
-};
-
-struct Status {
-    Permissions permissions;
-    std::size_t size;
-    int lastProcess;
-    int creatorProcess;
-    int attachments;
-    std::int64_t attachTime;
-    std::int64_t detachTime;
-    std::int64_t changeTime;
-};
-
-}
-
 
 namespace {
 
@@ -66,7 +41,7 @@ void CheckKeys() {
     const int third = shmget_nid_postfix(0, 4096, Create);
     Require(other >= 0 && other != first && third >= 0 && third != other, "private keys are always new");
 
-    Status status{};
+    GuestSegmentStatus status{};
     Require(shmctl_nid_postfix(first, Stat, &status) == 0, "stat");
     Require(status.size == 4096 && status.permissions.key == 0x5150 && status.permissions.mode == (0640 | 0x0800), "stat values keep SHMSEG_ALLOCATED, as sysv_shm.c copies the kernel mode");
     Require(status.creatorProcess == getpid_nid_postfix() && status.attachments == 0 && status.changeTime > 0, "stat creator");
@@ -96,7 +71,7 @@ void CheckAttach() {
     std::memset(memory, 0x5a, 100000);
     auto* second = static_cast<unsigned char*>(shmat_nid_postfix(identifier, nullptr, 0));
     Require(second != Failed && second[12345] == 0x5a, "attachments share memory");
-    Status status{};
+    GuestSegmentStatus status{};
     Require(shmctl_nid_postfix(identifier, Stat, &status) == 0 && status.attachments == 2 && status.attachTime > 0 && status.lastProcess == getpid_nid_postfix(), "attach count");
 
     Require(shmctl_nid_postfix(identifier, Remove, nullptr) == 0, "remove while attached");

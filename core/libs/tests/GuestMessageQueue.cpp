@@ -14,26 +14,6 @@
 #include "prx/libkernel/include/Api.hpp"
 
 
-namespace {
-
-struct Attributes {
-    std::int64_t flags;
-    std::int64_t maximumMessages;
-    std::int64_t messageSize;
-    std::int64_t currentMessages;
-    std::int64_t reserved[4];
-};
-
-struct SignalEvent {
-    int notify;
-    int signal;
-    std::uint64_t value;
-    std::uint64_t function;
-    std::uint64_t attributes;
-};
-
-}
-
 
 namespace {
 
@@ -72,7 +52,7 @@ void CheckOpen() {
     void* queue = mq_open_nid_postfix(longest.c_str(), ReadWrite | Create, 0600, nullptr);
     Require(queue != Failed && mq_close_nid_postfix(queue) == 0 && mq_unlink_nid_postfix(longest.c_str()) == 0, "255-byte name");
     Require(mq_open_nid_postfix((longest + "q").c_str(), ReadWrite | Create, 0600, nullptr) == Failed && *__error_nid_postfix() == 63, "name too long");
-    Attributes bad{0, 0, 16, 0, {}};
+    GuestQueueAttributes bad{0, 0, 16, 0, {}};
     Require(mq_open_nid_postfix("/anyps5-bad", ReadWrite | Create, 0600, &bad) == Failed && *__error_nid_postfix() == 22, "zero messages");
     bad = {0, 101, 16, 0, {}};
     Require(mq_open_nid_postfix("/anyps5-bad", ReadWrite | Create, 0600, &bad) == Failed && *__error_nid_postfix() == 22, "too many messages");
@@ -80,7 +60,7 @@ void CheckOpen() {
     Require(mq_open_nid_postfix("/anyps5-bad", ReadWrite | Create, 0600, &bad) == Failed && *__error_nid_postfix() == 22, "message too large");
 
     void* fresh = mq_open_nid_postfix("/anyps5-defaults", ReadWrite | Create | Exclusive, 0600, nullptr);
-    Attributes attributes{};
+    GuestQueueAttributes attributes{};
     Require(fresh != Failed && mq_getattr_nid_postfix(fresh, &attributes) == 0, "defaults");
     Require(attributes.maximumMessages == 10 && attributes.messageSize == 1024 && attributes.currentMessages == 0 && attributes.flags == 0, "default attributes");
     Require(mq_open_nid_postfix("/anyps5-defaults", ReadWrite | Create | Exclusive, 0600, nullptr) == Failed && *__error_nid_postfix() == 17, "exclusive");
@@ -96,7 +76,7 @@ void CheckOpen() {
 }
 
 void CheckMessages() {
-    Attributes requested{0, 3, 8, 0, {}};
+    GuestQueueAttributes requested{0, 3, 8, 0, {}};
     void* queue = mq_open_nid_postfix("/anyps5-messages", ReadWrite | Create, 0600, &requested);
     Require(queue != Failed, "create small queue");
     Require(mq_send_nid_postfix(queue, "low", 3, 1) == 0, "send low");
@@ -104,15 +84,15 @@ void CheckMessages() {
     Require(mq_send_nid_postfix(queue, "low2", 4, 1) == 0, "send second low");
     Require(Fails(mq_send_nid_postfix(queue, "123456789", 9, 0), 40), "message size");
     Require(Fails(mq_send_nid_postfix(queue, "x", 1, 64), 22), "priority limit");
-    Attributes attributes{};
+    GuestQueueAttributes attributes{};
     Require(mq_getattr_nid_postfix(queue, &attributes) == 0 && attributes.currentMessages == 3 && attributes.maximumMessages == 3 && attributes.messageSize == 8, "current messages");
 
     KernelTimespec soon = In(30);
     Require(Fails(mq_timedsend_nid_postfix(queue, "full", 4, 0, &soon), 60), "timed send times out on a full queue");
     KernelTimespec invalid{0, 2000000000};
     Require(Fails(mq_timedsend_nid_postfix(queue, "full", 4, 0, &invalid), 22), "invalid timeout");
-    Attributes nonblocking{NonBlocking, 0, 0, 0, {}};
-    Attributes previous{};
+    GuestQueueAttributes nonblocking{NonBlocking, 0, 0, 0, {}};
+    GuestQueueAttributes previous{};
     Require(mq_setattr_nid_postfix(queue, &nonblocking, &previous) == 0 && previous.flags == 0, "set nonblocking");
     Require(Fails(mq_send_nid_postfix(queue, "full", 4, 0), 35), "nonblocking full queue");
 
@@ -163,12 +143,12 @@ void CheckMessages() {
     void* writer = mq_open_nid_postfix("/anyps5-messages", WriteOnly);
     Require(Fails(mq_send_nid_postfix(reader, "x", 1, 0), 9) && Fails(mq_receive_nid_postfix(writer, buffer, sizeof(buffer), nullptr), 9), "access modes");
 
-    Attributes state{};
+    GuestQueueAttributes state{};
     while (mq_getattr_nid_postfix(queue, &state) == 0 && state.currentMessages > 0) mq_receive_nid_postfix(queue, buffer, sizeof(buffer), nullptr);
-    SignalEvent none{0, 0, 0, 0, 0};
+    GuestSignalEvent none{0, 0};
     Require(mq_notify_nid_postfix(queue, &none) == 0 && Fails(mq_notify_nid_postfix(reader, &none), 16), "one notification registration");
     Require(mq_notify_nid_postfix(queue, nullptr) == 0 && mq_notify_nid_postfix(reader, &none) == 0, "unregister and register again");
-    SignalEvent signal{1, 30, 0, 0, 0};
+    GuestSignalEvent signal{1, 30};
     Require(mq_notify_nid_postfix(reader, nullptr) == 0, "unregister");
     bool threw = false;
     try {
@@ -177,7 +157,7 @@ void CheckMessages() {
         threw = true;
     }
     Require(threw, "signal notification throws");
-    SignalEvent unknown{7, 0, 0, 0, 0};
+    GuestSignalEvent unknown{7, 0};
     Require(Fails(mq_notify_nid_postfix(queue, &unknown), 22), "unknown notification is EINVAL");
     Require(mq_send_nid_postfix(queue, "n", 1, 0) == 0, "queue a message");
     Require(mq_notify_nid_postfix(queue, &none) == 0 && mq_notify_nid_postfix(reader, &none) == 0, "registering on a non-empty queue with no receiver is consumed at once, as kern_kmq_notify does");

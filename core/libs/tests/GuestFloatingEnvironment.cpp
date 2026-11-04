@@ -9,22 +9,6 @@
 
 namespace {
 
-struct Environment {
-    std::uint32_t control;
-    std::uint32_t status;
-    std::uint32_t tag;
-    char other[16];
-    std::uint32_t mxcsr;
-};
-
-}
-
-extern "C" {
-extern const Environment __fe_dfl_env_nid_postfix;
-}
-
-namespace {
-
 constexpr int Invalid = 0x01;
 constexpr int DivideByZero = 0x04;
 constexpr int Overflow = 0x08;
@@ -118,7 +102,7 @@ void CheckFlags() {
 void CheckEnvironment() {
     fesetround_nid_postfix(TowardZero);
     feraiseexcept_nid_postfix(Inexact);
-    Environment saved {};
+    GuestFloatingPointEnvironment saved {};
     const std::uint16_t controlBefore = Control();
     Require(fegetenv_nid_postfix(&saved) == 0, "get environment");
     Require(Control() == controlBefore, "get environment keeps control word");
@@ -134,7 +118,7 @@ void CheckHold() {
     fesetround_nid_postfix(Upward);
     feraiseexcept_nid_postfix(Overflow);
     feenableexcept_nid_postfix(Invalid);
-    Environment held {};
+    GuestFloatingPointEnvironment held {};
     Require(feholdexcept_nid_postfix(&held) == 0, "hold");
     Require(fetestexcept_nid_postfix(AllExceptions) == 0, "hold clears flags");
     Require((Mxcsr() & (AllExceptions << 7)) == static_cast<std::uint32_t>(AllExceptions << 7), "hold masks sse exceptions");
