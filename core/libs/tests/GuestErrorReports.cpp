@@ -51,7 +51,7 @@ void APS5_VABI CallVwarn(const char* format, ...) {
     std::va_list arguments;
     va_start(arguments, format);
 #endif
-    vwarn_nid_postfix(format, arguments);
+    vwarn_nid_postfix(format, reinterpret_cast<VaList*>(arguments));
 #ifdef _WIN32
     __builtin_sysv_va_end(arguments);
 #else
@@ -67,7 +67,7 @@ void APS5_VABI CallVwarnx(const char* format, ...) {
     std::va_list arguments;
     va_start(arguments, format);
 #endif
-    vwarnx_nid_postfix(format, arguments);
+    vwarnx_nid_postfix(format, reinterpret_cast<VaList*>(arguments));
 #ifdef _WIN32
     __builtin_sysv_va_end(arguments);
 #else
