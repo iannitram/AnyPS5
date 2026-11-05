@@ -14,6 +14,7 @@
 #include "prx/libc/include/SonyCrt.hpp"
 
 extern "C" {
+extern char* tzname_nid_postfix[2];
 }
 
 namespace {
@@ -343,14 +344,10 @@ const char* Parse(const char* text, const char* format, GuestTm* time, bool* uni
             if (end != text) {
                 const std::string zone(text, end);
                 tzset_nid_postfix();
-#ifdef _WIN32
-                char** names = _tzname;
-#else
-                char** names = ::tzname;
-#endif
+                char** names = tzname_nid_postfix;
                 if (zone == "GMT" || zone == "UTC") *universal = true;
-                else if (zone == names[0]) time->tm_isdst = 0;
-                else if (zone == names[1]) time->tm_isdst = 1;
+                else if (names[0] != nullptr && zone == names[0]) time->tm_isdst = 0;
+                else if (names[1] != nullptr && zone == names[1]) time->tm_isdst = 1;
                 else return nullptr;
                 text = end;
             }
@@ -445,15 +442,6 @@ extern "C" {
 
 std::int64_t APS5_VABI timeoff_nid_postfix(GuestTm* time, std::int64_t offset) {
     return UniversalTime(time, offset);
-}
-
-std::int64_t APS5_VABI timelocal_nid_postfix(GuestTm* time) {
-    if (time == nullptr) {
-        errno = GuestInvalidArgument;
-        return -1;
-    }
-    time->tm_isdst = -1;
-    return mktime_nid_postfix(time);
 }
 
 char* APS5_VABI strptime_nid_postfix(const char* text, const char* format, GuestTm* time) {

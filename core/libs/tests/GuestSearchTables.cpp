@@ -17,7 +17,7 @@
 
 namespace {
 using Entry = GuestSearchEntry;
-using Node = TreeNode;
+using Node = SearchTreeNode;
 struct Queue {
     Queue* next;
     Queue* previous;

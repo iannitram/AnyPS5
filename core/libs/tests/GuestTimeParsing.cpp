@@ -105,8 +105,6 @@ void CheckConversions() {
     errno = 0;
     errno = 0;
     Require(timeoff_nid_postfix(nullptr, 60) == -1 && errno == 22, "timeoff null time");
-    errno = 0;
-    Require(timelocal_nid_postfix(nullptr) == -1 && errno == 22, "timelocal null time");
 
     time = {};
     time.tm_year = 124;

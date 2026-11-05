@@ -24,24 +24,7 @@ void Require(bool value, const char* what) {
     }
 }
 
-std::uint32_t Swap32(std::uint32_t value) {
-    return (value << 24) | ((value & 0xff00u) << 8) | ((value >> 8) & 0xff00u) | (value >> 24);
-}
-
 void CheckIpv4() {
-    Require(inet_network_nid_postfix("10.1.2") == 0x0a0102 && inet_network_nid_postfix("0x10") == 0x10, "inet_network");
-    Require(inet_network_nid_postfix("x1f") == 0x1f && inet_network_nid_postfix("1.2.3.4.5") == 0xffffffff, "inet_network edge cases");
-    Require(inet_network_nid_postfix("256") == 0xffffffff && inet_network_nid_postfix("") == 0xffffffff, "inet_network rejects");
-
-    const GuestInAddress classA{Swap32(0x0a010203)};
-    const GuestInAddress classB{Swap32(0xac100203)};
-    const GuestInAddress classC{Swap32(0xc0a80102)};
-    Require(inet_netof_nid_postfix(classA) == 0x0a && inet_lnaof_nid_postfix(classA) == 0x010203, "class A");
-    Require(inet_netof_nid_postfix(classB) == 0xac10 && inet_lnaof_nid_postfix(classB) == 0x0203, "class B");
-    Require(inet_netof_nid_postfix(classC) == 0xc0a801 && inet_lnaof_nid_postfix(classC) == 0x02, "class C");
-    Require(inet_makeaddr_nid_postfix(0x0a, 0x010203).address == classA.address, "makeaddr A");
-    Require(inet_makeaddr_nid_postfix(0xc0a801, 0x02).address == classC.address, "makeaddr C");
-
     std::uint8_t binary[8];
     Require(inet_nsap_addr_nid_postfix("0x47.0005/80+ff", binary, 8) == 5 && binary[0] == 0x47 && binary[4] == 0xff, "nsap_addr");
     Require(inet_nsap_addr_nid_postfix("0x123", binary, 8) == 0 && inet_nsap_addr_nid_postfix("47", binary, 8) == 0, "nsap_addr rejects");

@@ -49,27 +49,6 @@ extern "C" {
 
 
 
-char* APS5_VABI asctime_r_nid_postfix(const GuestTm* time, char* buffer) {
-    if (buffer == nullptr) throw std::invalid_argument("asctime_r: null buffer");
-    static constexpr const char* Days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    static constexpr const char* Months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    if (time == nullptr) {
-        errno = EINVAL;
-        return std::strcpy(buffer, "??? ??? ?? ??:??:?? ????\n");
-    }
-    const char* day = time->tm_wday >= 0 && time->tm_wday < 7 ? Days[time->tm_wday] : "???";
-    const char* month = time->tm_mon >= 0 && time->tm_mon < 12 ? Months[time->tm_mon] : "???";
-    const std::string year = Year(time->tm_year);
-    char result[3 * 2 + 5 * 11 + 3 + 32];
-    const char* format = year.size() <= 4 ? "%.3s %.3s%3d %.2d:%.2d:%.2d %-4s\n" : "%.3s %.3s%3d %.2d:%.2d:%.2d     %s\n";
-    const int length = std::snprintf(result, sizeof(result), format, day, month, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec, year.c_str());
-    if (length < 0 || static_cast<std::size_t>(length) >= AsctimeSize) {
-        errno = GuestOverflow;
-        return nullptr;
-    }
-    return std::strcpy(buffer, result);
-}
-
 char* APS5_VABI ctime_r_nid_postfix(const std::int64_t* timer, char* buffer) {
     GuestTm local{};
     return asctime_r_nid_postfix(localtime_r_nid_postfix(timer, &local), buffer);

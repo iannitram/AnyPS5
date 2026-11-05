@@ -26,42 +26,6 @@ constexpr std::uintptr_t Error = static_cast<std::uintptr_t>(-1);
 
 extern "C" {
 
-int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous) {
-    SignalAction action{};
-    SignalAction old{};
-    if (vector != nullptr) {
-        action.handler = vector->handler;
-        action.flags = vector->flags ^ Interrupt;
-        sigemptyset_nid_postfix(&action.mask);
-        action.mask.bits[0] = static_cast<std::uint32_t>(vector->mask);
-    }
-    const int result = sigaction_nid_postfix(signal, vector != nullptr ? &action : nullptr, previous != nullptr ? &old : nullptr);
-    if (result == 0 && previous != nullptr) {
-        previous->handler = old.handler;
-        previous->flags = old.flags ^ Interrupt;
-        previous->mask = static_cast<int>(old.mask.bits[0]);
-    }
-    return result;
-}
-
-int APS5_VABI sigsetmask_nid_postfix(int mask) {
-    SignalSet set{};
-    SignalSet old{};
-    sigemptyset_nid_postfix(&set);
-    set.bits[0] = static_cast<std::uint32_t>(mask);
-    const int result = _sigprocmask_nid_postfix(SetMask, &set, &old);
-    return result != 0 ? result : static_cast<int>(old.bits[0]);
-}
-
-int APS5_VABI sigblock_nid_postfix(int mask) {
-    SignalSet set{};
-    SignalSet old{};
-    sigemptyset_nid_postfix(&set);
-    set.bits[0] = static_cast<std::uint32_t>(mask);
-    const int result = _sigprocmask_nid_postfix(Block, &set, &old);
-    return result != 0 ? result : static_cast<int>(old.bits[0]);
-}
-
 int APS5_VABI sighold_nid_postfix(int signal) {
     SignalSet set{};
     sigemptyset_nid_postfix(&set);

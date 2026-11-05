@@ -3,7 +3,6 @@
 #include "TypeInfo.cpp"
 #include "ExceptionPointer.cpp"
 #include "StandardExceptions.cpp"
-#include "RuntimeTypes.cpp"
 #include "ArraySupport.cpp"
 #include "GuardSupport.cpp"
 #include "Personality.cpp"

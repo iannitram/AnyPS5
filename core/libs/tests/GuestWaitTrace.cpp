@@ -1,24 +1,16 @@
 #include "prx/libkernel/Time/include/Time.hpp"
+#include <array>
 #include <chrono>
-#include <cstdint>
 #include <thread>
 
-namespace {
-    constexpr std::uint64_t realWaitNanos = 3000000ULL;
-    constexpr auto reportGap = std::chrono::milliseconds(3100);
-    char siteMarks[8];
-
-    void RecordWait(std::size_t site, std::uint64_t waitedNanos) {
-        KernelTraceWait_nid_postfix("cond", &siteMarks[site], waitedNanos, false);
-    }
-}
-
 int main() {
-    for (std::size_t site = 0; site < 8; ++site) RecordWait(site, realWaitNanos);
-    std::this_thread::sleep_for(reportGap);
-    RecordWait(0, realWaitNanos);
-    RecordWait(0, realWaitNanos);
-    std::this_thread::sleep_for(reportGap);
-    RecordWait(1, 0);
+    const std::array<int, 8> inactive{};
+    const int active = 0;
+    const int zeroDuration = 0;
+    for (const auto& site : inactive) KernelTraceWait_nid_postfix("wait_trace_inactive", &site, 1000000u, false);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3100));
+    KernelTraceWait_nid_postfix("wait_trace_active", &active, 2000000u, false);
+    std::this_thread::sleep_for(std::chrono::milliseconds(3100));
+    KernelTraceWait_nid_postfix("wait_trace_active_zero", &zeroDuration, 0u, false);
     return 0;
 }
