@@ -1,8 +1,10 @@
 name: Area labels
 
 on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
   schedule:
-    - cron: '30 * * * *'
+    - cron: '30 4 * * *'
   workflow_dispatch:
 
 permissions: {}
