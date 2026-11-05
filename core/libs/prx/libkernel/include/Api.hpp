@@ -198,13 +198,6 @@ struct GuestSegmentStatus {
 };
 static_assert(sizeof(GuestIpcPermissions) == 32 && sizeof(GuestSegmentStatus) == 80);
 
-struct SignalVector {
-    std::uintptr_t handler;
-    int mask;
-    int flags;
-};
-static_assert(sizeof(SignalVector) == 16);
-
 
 extern "C" {
 int APS5_VABI sceKernelCreateEventFlag(KernelEventFlag* ef, const char* name, std::uint32_t attr, std::uint64_t initPattern, const void* param);
@@ -273,6 +266,8 @@ int APS5_VABI sceKernelWriteModifyMtypeProtectCommand(void* dst, std::uint64_t a
 int APS5_VABI sceKernelWriteRemapIntoPrtCommand(std::uint32_t* dst, std::uint64_t address, std::uint64_t source, std::uint64_t size, int protection, int opcode, std::uint64_t* outSize);
 int APS5_VABI sceKernelAllocateDirectMemory(int64_t searchStart, int64_t searchEnd, size_t len, size_t alignment, int memoryType, int64_t* physAddrOut);
 int APS5_VABI sceKernelAllocateMainDirectMemory(size_t len, size_t alignment, int memoryType, int64_t* physAddrOut);
+int APS5_VABI sceKernelAllocateDirectMemoryForApp(int64_t searchStart, int64_t searchEnd, size_t len, size_t alignment, int memoryType, int64_t* physAddrOut);
+int APS5_VABI sceKernelProtectDirectMemoryForPID(int64_t offset, size_t len, int prot, int pid);
 int APS5_VABI sceKernelAvailableDirectMemorySize(int64_t searchStart, int64_t searchEnd, size_t alignment, int64_t* physAddrOut, size_t* sizeOut);
 int APS5_VABI sceKernelDirectMemoryQuery(int64_t offset, int flags, void* info, size_t infoSize);
 int APS5_VABI sceKernelGetDirectMemoryType(int64_t offset, int* memoryType, int64_t* start, int64_t* end);
@@ -889,6 +884,8 @@ int APS5_VABI scePthreadMutexattrSetprioceiling(PthreadMutexattr* attr, int prio
 int APS5_VABI scePthreadMutexattrGetprioceiling(const PthreadMutexattr* attr, int* prioceiling);
 int APS5_VABI scePthreadMutexattrSetpshared(PthreadMutexattr* attr, int pshared);
 int APS5_VABI scePthreadMutexattrGetpshared(const PthreadMutexattr* attr, int* pshared);
+int APS5_VABI scePthreadMutexGetprioceiling(PthreadMutex* mutex, int* prioceiling);
+int APS5_VABI scePthreadMutexSetprioceiling(PthreadMutex* mutex, int ceiling, int* oldCeiling);
 int APS5_VABI pthread_rwlockattr_gettype_np_nid_postfix(const PthreadRwlockattr* attr, int* type);
 int APS5_VABI pthread_rwlockattr_settype_np_nid_postfix(PthreadRwlockattr* attr, int type);
 int APS5_VABI scePthreadRwlockattrGettype(const PthreadRwlockattr* attr, int* type);
@@ -931,10 +928,7 @@ void* APS5_VABI shmat_nid_postfix(int identifier, const void* address, int flags
 std::uintptr_t APS5_VABI sigset_nid_postfix(int signal, std::uintptr_t disposition);
 int APS5_VABI sigignore_nid_postfix(int signal);
 int APS5_VABI sighold_nid_postfix(int signal);
-int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous);
 int APS5_VABI sigrelse_nid_postfix(int signal);
 int APS5_VABI sigpause_nid_postfix(int mask);
-int APS5_VABI sigsetmask_nid_postfix(int mask);
-int APS5_VABI sigblock_nid_postfix(int mask);
 std::uint32_t APS5_VABI ualarm_nid_postfix(std::uint32_t microseconds, std::uint32_t reload);
 }

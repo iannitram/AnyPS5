@@ -123,7 +123,7 @@ struct Path {
     }
 };
 
-void Walk(const TreeNode* root, Walker action, int level) {
+void Walk(const SearchTreeNode* root, Walker action, int level) {
     if (root->left == nullptr && root->right == nullptr) {
         action(root, leaf, level);
         return;
@@ -158,23 +158,6 @@ GuestSearchEntry* APS5_VABI hsearch_nid_postfix(GuestSearchEntry item, GuestSear
     return SearchTable(globalTable, item, action);
 }
 
-void* APS5_VABI lfind_nid_postfix(const void* key, const void* base, std::size_t* count, std::size_t width, Compare compare) {
-    if (count == nullptr || compare == nullptr) throw std::invalid_argument("lfind: null count or comparison");
-    auto* element = static_cast<std::uint8_t*>(const_cast<void*>(base));
-    for (auto* end = element + width * *count; element < end; element += width) {
-        if (compare(key, element) == 0) return element;
-    }
-    return nullptr;
-}
-
-void* APS5_VABI lsearch_nid_postfix(const void* key, void* base, std::size_t* count, std::size_t width, Compare compare) {
-    if (void* found = lfind_nid_postfix(key, base, count, width, compare)) return found;
-    auto* end = static_cast<std::uint8_t*>(base) + width * *count;
-    std::memcpy(end, key, width);
-    ++*count;
-    return end;
-}
-
 void APS5_VABI insque_nid_postfix(void* element, void* predecessor) {
     if (element == nullptr) throw std::invalid_argument("insque: null element");
     auto* inserted = static_cast<QueueElement*>(element);
@@ -197,7 +180,7 @@ void APS5_VABI remque_nid_postfix(void* element) {
     if (removed->next != nullptr) removed->next->previous = removed->previous;
 }
 
-TreeNode* APS5_VABI tfind_nid_postfix(const void* key, TreeNode* const* root, Compare compare) {
+SearchTreeNode* APS5_VABI tfind_nid_postfix(const void* key, SearchTreeNode* const* root, GuestCompare compare) {
     if (root == nullptr) return nullptr;
     while (*root != nullptr) {
         const int order = compare(key, (*root)->key);
@@ -207,10 +190,10 @@ TreeNode* APS5_VABI tfind_nid_postfix(const void* key, TreeNode* const* root, Co
     return nullptr;
 }
 
-TreeNode* APS5_VABI tsearch_nid_postfix(const void* key, TreeNode** root, Compare compare) {
+SearchTreeNode* APS5_VABI tsearch_nid_postfix(const void* key, SearchTreeNode** root, GuestCompare compare) {
     if (root == nullptr) return nullptr;
     Path path;
-    TreeNode** leaf = root;
+    SearchTreeNode** leaf = root;
     while (*leaf != nullptr) {
         if ((*leaf)->balance != 0) {
             root = leaf;
@@ -227,14 +210,14 @@ TreeNode* APS5_VABI tsearch_nid_postfix(const void* key, TreeNode** root, Compar
             return *leaf;
         }
     }
-    TreeNode* result = *leaf = static_cast<TreeNode*>(malloc_nid_postfix(sizeof(TreeNode)));
+    SearchTreeNode* result = *leaf = static_cast<SearchTreeNode*>(malloc_nid_postfix(sizeof(SearchTreeNode)));
     if (result == nullptr) return nullptr;
     result->key = const_cast<void*>(key);
     result->left = nullptr;
     result->right = nullptr;
     result->balance = 0;
 
-    for (TreeNode* node = *root; node != *leaf;) {
+    for (SearchTreeNode* node = *root; node != *leaf;) {
         if (path.TookLeft()) {
             node->balance += 1;
             node = node->left;
@@ -244,11 +227,11 @@ TreeNode* APS5_VABI tsearch_nid_postfix(const void* key, TreeNode** root, Compar
         }
     }
 
-    TreeNode* x = *root;
+    SearchTreeNode* x = *root;
     if (x->balance > 1) {
-        TreeNode* y = x->left;
+        SearchTreeNode* y = x->left;
         if (y->balance < 0) {
-            TreeNode* z = y->right;
+            SearchTreeNode* z = y->right;
             y->right = z->left;
             z->left = y;
             x->left = z->right;
@@ -265,9 +248,9 @@ TreeNode* APS5_VABI tsearch_nid_postfix(const void* key, TreeNode** root, Compar
             y->balance = 0;
         }
     } else if (x->balance < -1) {
-        TreeNode* y = x->right;
+        SearchTreeNode* y = x->right;
         if (y->balance > 0) {
-            TreeNode* z = y->left;
+            SearchTreeNode* z = y->left;
             x->right = z->left;
             z->left = x;
             y->left = z->right;
@@ -287,10 +270,10 @@ TreeNode* APS5_VABI tsearch_nid_postfix(const void* key, TreeNode** root, Compar
     return result;
 }
 
-void* APS5_VABI tdelete_nid_postfix(const void* key, TreeNode** root, Compare compare) {
+void* APS5_VABI tdelete_nid_postfix(const void* key, SearchTreeNode** root, GuestCompare compare) {
     if (root == nullptr) return nullptr;
     Path path;
-    TreeNode** leaf = root;
+    SearchTreeNode** leaf = root;
     auto goLeft = [&] {
         if ((*leaf)->balance == 0 || ((*leaf)->balance < 0 && (*leaf)->right->balance == 0)) {
             root = leaf;
@@ -308,7 +291,7 @@ void* APS5_VABI tdelete_nid_postfix(const void* key, TreeNode** root, Compare co
         leaf = &(*leaf)->right;
     };
 
-    TreeNode* result = reinterpret_cast<TreeNode*>(1);
+    SearchTreeNode* result = reinterpret_cast<SearchTreeNode*>(1);
     for (;;) {
         if (*leaf == nullptr) return nullptr;
         const int order = compare(key, (*leaf)->key);
@@ -324,26 +307,26 @@ void* APS5_VABI tdelete_nid_postfix(const void* key, TreeNode** root, Compare co
     }
 
     if ((*leaf)->left == nullptr) {
-        TreeNode* old = *leaf;
+        SearchTreeNode* old = *leaf;
         *leaf = old->right;
         free_nid_postfix(old);
     } else {
         void** keySlot = &(*leaf)->key;
         goLeft();
         while ((*leaf)->right != nullptr) goRight();
-        TreeNode* old = *leaf;
+        SearchTreeNode* old = *leaf;
         *keySlot = old->key;
         *leaf = old->left;
         free_nid_postfix(old);
     }
 
-    for (TreeNode** node = root; node != leaf;) {
-        TreeNode* x = *node;
+    for (SearchTreeNode** node = root; node != leaf;) {
+        SearchTreeNode* x = *node;
         if (path.TookLeft()) {
             if (x->balance < 0) {
-                TreeNode* y = x->right;
+                SearchTreeNode* y = x->right;
                 if (y->balance > 0) {
-                    TreeNode* z = y->left;
+                    SearchTreeNode* z = y->left;
                     x->right = z->left;
                     z->left = x;
                     y->left = z->right;
@@ -370,9 +353,9 @@ void* APS5_VABI tdelete_nid_postfix(const void* key, TreeNode** root, Compare co
             node = &x->left;
         } else {
             if (x->balance > 0) {
-                TreeNode* y = x->left;
+                SearchTreeNode* y = x->left;
                 if (y->balance < 0) {
-                    TreeNode* z = y->right;
+                    SearchTreeNode* z = y->right;
                     y->right = z->left;
                     z->left = y;
                     x->left = z->right;
@@ -402,7 +385,7 @@ void* APS5_VABI tdelete_nid_postfix(const void* key, TreeNode** root, Compare co
     return result;
 }
 
-void APS5_VABI twalk_nid_postfix(const TreeNode* root, Walker action) {
+void APS5_VABI twalk_nid_postfix(const SearchTreeNode* root, Walker action) {
     if (root != nullptr && action != nullptr) Walk(root, action, 0);
 }
 

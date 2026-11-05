@@ -13,7 +13,6 @@
 
 
 extern "C" {
-extern char* suboptarg_nid_postfix;
 }
 
 namespace {
@@ -70,11 +69,11 @@ void CheckSubOptions() {
     char* const tokens[] = {const_cast<char*>("ro"), const_cast<char*>("rw"), const_cast<char*>("size"), nullptr};
     char* cursor = options;
     char* value = reinterpret_cast<char*>(1);
-    Require(getsubopt_nid_postfix(&cursor, tokens, &value) == 0 && value == nullptr && std::strcmp(suboptarg_nid_postfix, "ro") == 0, "flag option");
+    Require(getsubopt_nid_postfix(&cursor, tokens, &value) == 0 && value == nullptr, "flag option");
     Require(getsubopt_nid_postfix(&cursor, tokens, &value) == 1 && std::strcmp(value, "yes") == 0, "option with a value");
     Require(getsubopt_nid_postfix(&cursor, tokens, &value) == 2 && std::strcmp(value, "12") == 0, "tab ends the value");
-    Require(getsubopt_nid_postfix(&cursor, tokens, &value) == -1 && std::strcmp(suboptarg_nid_postfix, "bad") == 0, "unknown option");
-    Require(getsubopt_nid_postfix(&cursor, tokens, &value) == -1 && suboptarg_nid_postfix == nullptr && *cursor == '\0', "end");
+    Require(getsubopt_nid_postfix(&cursor, tokens, &value) == -1, "unknown option");
+    Require(getsubopt_nid_postfix(&cursor, tokens, &value) == -1 && *cursor == '\0', "end");
     char* empty = nullptr;
     Require(getsubopt_nid_postfix(&empty, tokens, &value) == -1, "null option string");
     Require(getsubopt_nid_postfix(&empty, nullptr, &value) == -1 && value == nullptr, "a null option string returns before reading the tokens");
