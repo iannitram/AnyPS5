@@ -5,26 +5,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
+
+
+
 
 extern "C" {
-int APS5_VABI getservbyname_r_nid_postfix(const char*, const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getservbyport_r_nid_postfix(int, const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getservent_r_nid_postfix(void*, char*, std::size_t, void**);
-void* APS5_VABI getservbyport_nid_postfix(int, const char*);
-void* APS5_VABI getservent_nid_postfix(void);
-void APS5_VABI setservent_nid_postfix(int);
-void APS5_VABI endservent_nid_postfix(void);
-int APS5_VABI getprotobyname_r_nid_postfix(const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getprotobynumber_r_nid_postfix(int, void*, char*, std::size_t, void**);
-int APS5_VABI getprotoent_r_nid_postfix(void*, char*, std::size_t, void**);
-void* APS5_VABI getprotobyname_nid_postfix(const char*);
-void* APS5_VABI getprotobynumber_nid_postfix(int);
-void* APS5_VABI getprotoent_nid_postfix(void);
-void APS5_VABI setprotoent_nid_postfix(int);
-void APS5_VABI endprotoent_nid_postfix(void);
 extern const char* const h_errlist_nid_postfix[];
 extern const int h_nerr_nid_postfix;
-const char* APS5_VABI hstrerror_nid_postfix(int);
 }
 
 namespace {
@@ -39,28 +27,29 @@ void Require(bool value, const char* what) {
 }
 
 int main() {
-    char entry[64];
+    GuestServiceEntry serviceEntry;
+    GuestProtocolEntry protocolEntry;
+    GuestServiceEntry* serviceResult = &serviceEntry;
+    GuestProtocolEntry* protocolResult = &protocolEntry;
     char buffer[256];
-    void* result = entry;
     errno = 0;
-    Require(getservbyname_r_nid_postfix("http", "tcp", entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getservbyname_r");
+    Require(getservbyname_r_nid_postfix("http", "tcp", &serviceEntry, buffer, sizeof(buffer), &serviceResult) == ENOENT && serviceResult == nullptr, "getservbyname_r");
     Require(errno == 0, "the service _r forms keep errno, as getservent.c only returns the error");
-    result = entry;
-    Require(getservbyport_r_nid_postfix(80, "tcp", entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getservbyport_r");
-    result = entry;
-    Require(getservent_r_nid_postfix(entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getservent_r");
+    serviceResult = &serviceEntry;
+    Require(getservbyport_r_nid_postfix(80, "tcp", &serviceEntry, buffer, sizeof(buffer), &serviceResult) == ENOENT && serviceResult == nullptr, "getservbyport_r");
+    serviceResult = &serviceEntry;
+    Require(getservent_r_nid_postfix(&serviceEntry, buffer, sizeof(buffer), &serviceResult) == ENOENT && serviceResult == nullptr, "getservent_r");
     setservent_nid_postfix(1);
     errno = 0;
     Require(getservbyport_nid_postfix(80, "udp") == nullptr && getservent_nid_postfix() == nullptr, "service lookups");
     endservent_nid_postfix();
 
-    result = entry;
     errno = 0;
-    Require(getprotobyname_r_nid_postfix("tcp", entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr && errno == ENOENT, "getprotobyname_r");
-    result = entry;
-    Require(getprotobynumber_r_nid_postfix(6, entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getprotobynumber_r");
-    result = entry;
-    Require(getprotoent_r_nid_postfix(entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getprotoent_r");
+    Require(getprotobyname_r_nid_postfix("tcp", &protocolEntry, buffer, sizeof(buffer), &protocolResult) == ENOENT && protocolResult == nullptr && errno == ENOENT, "getprotobyname_r");
+    protocolResult = &protocolEntry;
+    Require(getprotobynumber_r_nid_postfix(6, &protocolEntry, buffer, sizeof(buffer), &protocolResult) == ENOENT && protocolResult == nullptr, "getprotobynumber_r");
+    protocolResult = &protocolEntry;
+    Require(getprotoent_r_nid_postfix(&protocolEntry, buffer, sizeof(buffer), &protocolResult) == ENOENT && protocolResult == nullptr, "getprotoent_r");
     setprotoent_nid_postfix(0);
     errno = 0;
     Require(getprotobyname_nid_postfix("udp") == nullptr && errno == ENOENT, "getprotobyname");

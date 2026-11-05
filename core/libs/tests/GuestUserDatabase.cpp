@@ -6,43 +6,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
 
-namespace {
 
-struct Passwd {
-    char* name;
-    char* password;
-    std::uint32_t user;
-    std::uint32_t group;
-    std::int64_t change;
-    char* loginClass;
-    char* gecos;
-    char* directory;
-    char* shell;
-    std::int64_t expire;
-    int fields;
-};
 
-}
 
-extern "C" {
-int APS5_VABI getpwnam_r_nid_postfix(const char*, Passwd*, char*, std::size_t, Passwd**);
-int APS5_VABI getpwuid_r_nid_postfix(std::uint32_t, Passwd*, char*, std::size_t, Passwd**);
-int APS5_VABI getpwent_r_nid_postfix(Passwd*, char*, std::size_t, Passwd**);
-Passwd* APS5_VABI getpwnam_nid_postfix(const char*);
-Passwd* APS5_VABI getpwuid_nid_postfix(std::uint32_t);
-Passwd* APS5_VABI getpwent_nid_postfix(void);
-void APS5_VABI setpwent_nid_postfix(void);
-void APS5_VABI endpwent_nid_postfix(void);
-int APS5_VABI getgrnam_r_nid_postfix(const char*, void*, char*, std::size_t, void**);
-int APS5_VABI getgrgid_r_nid_postfix(std::uint32_t, void*, char*, std::size_t, void**);
-void* APS5_VABI getgrnam_nid_postfix(const char*);
-void* APS5_VABI getgrgid_nid_postfix(std::uint32_t);
-void* APS5_VABI getgrent_nid_postfix(void);
-int APS5_VABI setgrent_nid_postfix(void);
-void APS5_VABI endgrent_nid_postfix(void);
-int APS5_VABI getgrouplist_nid_postfix(const char*, std::uint32_t, std::uint32_t*, int*);
-}
 
 namespace {
 
@@ -56,10 +24,10 @@ void Require(bool value, const char* what) {
 }
 
 int main() {
-    Passwd entry;
+    GuestPasswd entry;
     std::memset(&entry, 0x5a, sizeof(entry));
     char buffer[256];
-    Passwd* result = &entry;
+    GuestPasswd* result = &entry;
     Require(getpwnam_r_nid_postfix("root", &entry, buffer, sizeof(buffer), &result) == ENOENT && result == nullptr, "getpwnam_r");
     Require(entry.user == 0xffffffffu && entry.group == 0xffffffffu && entry.name[0] == 0 && entry.shell[0] == 0 && entry.change == 0 && entry.fields == 0, "passwd is reset");
     result = &entry;
@@ -73,10 +41,11 @@ int main() {
     Require(getpwent_nid_postfix() == nullptr, "getpwent");
     endpwent_nid_postfix();
 
-    void* group = &entry;
-    Require(getgrnam_r_nid_postfix("wheel", buffer, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrnam_r");
-    group = &entry;
-    Require(getgrgid_r_nid_postfix(0, buffer, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrgid_r");
+    GuestGroup groupStorage;
+    GuestGroup* group = &groupStorage;
+    Require(getgrnam_r_nid_postfix("wheel", &groupStorage, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrnam_r");
+    group = &groupStorage;
+    Require(getgrgid_r_nid_postfix(0, &groupStorage, buffer, sizeof(buffer), &group) == ENOENT && group == nullptr, "getgrgid_r");
     Require(setgrent_nid_postfix() == 1, "setgrent returns 1, as getgrent.c does");
     errno = 0;
     Require(getgrnam_nid_postfix("wheel") == nullptr && getgrgid_nid_postfix(0) == nullptr && getgrent_nid_postfix() == nullptr && errno == ENOENT, "group lookups");

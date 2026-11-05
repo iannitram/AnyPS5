@@ -3,6 +3,8 @@
 #include <cstdint>
 
 #include "prx/libc/include/General.hpp"
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
 
 namespace {
 
@@ -10,19 +12,11 @@ using SignalSet = GuestSignalSet;
 using SignalAction = GuestSigaction;
 static_assert(sizeof(SignalAction) == 32);
 
-struct SignalVector {
-    std::uintptr_t handler;
-    int mask;
-    int flags;
-};
-static_assert(sizeof(SignalVector) == 16);
-
 constexpr int Block = 1;
 constexpr int Unblock = 2;
 constexpr int SetMask = 3;
 constexpr int Restart = 0x2;
 constexpr int Interrupt = Restart;
-constexpr int MaxSignal = 128;
 constexpr std::uintptr_t Ignore = 1;
 constexpr std::uintptr_t Hold = 3;
 constexpr std::uintptr_t Error = static_cast<std::uintptr_t>(-1);
@@ -31,13 +25,6 @@ constexpr std::uintptr_t Error = static_cast<std::uintptr_t>(-1);
 }
 
 extern "C" {
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI sigaction_nid_postfix(int signal, const SignalAction* action, SignalAction* previous);
-int APS5_VABI _sigprocmask_nid_postfix(int how, const SignalSet* set, SignalSet* previous);
-int APS5_VABI sigemptyset_nid_postfix(SignalSet* set);
-int APS5_VABI sigaddset_nid_postfix(SignalSet* set, int signal);
-int APS5_VABI sigismember_nid_postfix(const SignalSet* set, int signal);
-int APS5_VABI kill_nid_postfix(int pid, int signal);
 
 int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous) {
     SignalAction action{};
@@ -113,15 +100,6 @@ std::uintptr_t APS5_VABI sigset_nid_postfix(int signal, std::uintptr_t dispositi
     action.handler = disposition;
     if (sigaction_nid_postfix(signal, &action, &previous) == -1) return Error;
     return sigismember_nid_postfix(&previousMask, signal) ? Hold : previous.handler;
-}
-
-int APS5_VABI sigqueue_nid_postfix(int pid, int signal, void* value) {
-    (void)value;
-    if (signal < 0 || signal > MaxSignal || pid <= 0) {
-        *__error_nid_postfix() = 22;
-        return -1;
-    }
-    return kill_nid_postfix(pid, signal);
 }
 
 int APS5_VABI sigpause_nid_postfix(int mask) {

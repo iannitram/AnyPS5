@@ -9,37 +9,14 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/GuestDirectory.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
 extern "C" {
-void* APS5_VABI opendir_nid_postfix(const char* path);
-GuestDirectoryEntry* APS5_VABI readdir_nid_postfix(void* directory);
-int APS5_VABI closedir_nid_postfix(void* directory);
-int APS5_VABI stat_nid_postfix(const char* path, FileStat* status);
-int APS5_VABI lstat_nid_postfix(const char* path, FileStat* status);
-char* APS5_VABI getenv_nid_postfix(const char* name);
-int APS5_VABI issetugid_nid_postfix(void);
-int APS5_VABI strcoll_nid_postfix(const char* first, const char* second);
-void* APS5_VABI malloc_nid_postfix(std::size_t size);
-void* APS5_VABI realloc_nid_postfix(void* pointer, std::size_t size);
-void APS5_VABI free_nid_postfix(void* pointer);
 }
 
-namespace {
 
-struct GuestGlob {
-    std::size_t pathCount;
-    std::size_t matchCount;
-    std::size_t offsets;
-    int flags;
-    char** paths;
-    int (APS5_VABI *errorFunction)(const char*, int);
-    void (APS5_VABI *closeDirectory)(void*);
-    GuestDirectoryEntry* (APS5_VABI *readDirectory)(void*);
-    void* (APS5_VABI *openDirectory)(const char*);
-    int (APS5_VABI *linkStatus)(const char*, FileStat*);
-    int (APS5_VABI *status)(const char*, FileStat*);
-};
-static_assert(offsetof(GuestGlob, paths) == 32 && sizeof(GuestGlob) == 88);
+namespace {
 
 constexpr int Append = 0x0001;
 constexpr int DoOffsets = 0x0002;

@@ -7,24 +7,9 @@
 
 #include "prx/libc/include/General.hpp"
 
+
 namespace {
 
-struct GuestPasswd {
-    char* name;
-    char* password;
-    std::uint32_t user;
-    std::uint32_t group;
-    std::int64_t change;
-    char* loginClass;
-    char* gecos;
-    char* directory;
-    char* shell;
-    std::int64_t expire;
-    int fields;
-};
-static_assert(sizeof(GuestPasswd) == 80);
-
-struct GuestGroup;
 
 constexpr int GuestNoEntry = 2;
 

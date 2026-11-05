@@ -20,15 +20,6 @@ extern "C" _invalid_parameter_handler _set_thread_local_invalid_parameter_handle
 #endif
 
 namespace {
-struct GuestTermios {
-    std::uint32_t flags[4];
-    std::uint8_t controlCharacters[20];
-    std::uint32_t inputSpeed;
-    std::uint32_t outputSpeed;
-};
-static_assert(sizeof(GuestTermios) == 44 && alignof(GuestTermios) == 4);
-static_assert(offsetof(GuestTermios, inputSpeed) == 36 && offsetof(GuestTermios, outputSpeed) == 40);
-
 constexpr int BadDescriptor = 9;
 constexpr int BadAddress = 14;
 constexpr int InvalidArgument = 22;

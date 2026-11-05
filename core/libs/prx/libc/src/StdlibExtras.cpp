@@ -9,9 +9,6 @@
 #include "prx/libc/include/General.hpp"
 
 extern "C" {
-unsigned long long APS5_VABI strtoull_nid_postfix(const char* text, char** end, int base);
-long long APS5_VABI wcstoll_nid_postfix(const char16_t* text, char16_t** end, int base);
-unsigned long long APS5_VABI wcstoull_nid_postfix(const char16_t* text, char16_t** end, int base);
 }
 
 namespace {

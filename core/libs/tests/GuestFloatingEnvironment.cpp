@@ -4,36 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
+#include "prx/libc/include/Api.hpp"
 
-namespace {
-
-struct Environment {
-    std::uint32_t control;
-    std::uint32_t status;
-    std::uint32_t tag;
-    char other[16];
-    std::uint32_t mxcsr;
-};
-
-}
-
-extern "C" {
-extern const Environment __fe_dfl_env_nid_postfix;
-int APS5_VABI feclearexcept_nid_postfix(int);
-int APS5_VABI fegetexceptflag_nid_postfix(std::uint16_t*, int);
-int APS5_VABI fesetexceptflag_nid_postfix(const std::uint16_t*, int);
-int APS5_VABI feraiseexcept_nid_postfix(int);
-int APS5_VABI fetestexcept_nid_postfix(int);
-int APS5_VABI fegetround_nid_postfix();
-int APS5_VABI fesetround_nid_postfix(int);
-int APS5_VABI fegetenv_nid_postfix(Environment*);
-int APS5_VABI feholdexcept_nid_postfix(Environment*);
-int APS5_VABI fesetenv_nid_postfix(const Environment*);
-int APS5_VABI feupdateenv_nid_postfix(const Environment*);
-int APS5_VABI feenableexcept_nid_postfix(int);
-int APS5_VABI fedisableexcept_nid_postfix(int);
-int APS5_VABI fegetexcept_nid_postfix();
-}
 
 namespace {
 
@@ -130,7 +102,7 @@ void CheckFlags() {
 void CheckEnvironment() {
     fesetround_nid_postfix(TowardZero);
     feraiseexcept_nid_postfix(Inexact);
-    Environment saved {};
+    GuestFloatingPointEnvironment saved {};
     const std::uint16_t controlBefore = Control();
     Require(fegetenv_nid_postfix(&saved) == 0, "get environment");
     Require(Control() == controlBefore, "get environment keeps control word");
@@ -146,7 +118,7 @@ void CheckHold() {
     fesetround_nid_postfix(Upward);
     feraiseexcept_nid_postfix(Overflow);
     feenableexcept_nid_postfix(Invalid);
-    Environment held {};
+    GuestFloatingPointEnvironment held {};
     Require(feholdexcept_nid_postfix(&held) == 0, "hold");
     Require(fetestexcept_nid_postfix(AllExceptions) == 0, "hold clears flags");
     Require((Mxcsr() & (AllExceptions << 7)) == static_cast<std::uint32_t>(AllExceptions << 7), "hold masks sse exceptions");

@@ -5,17 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-char16_t* APS5_VABI wcscat_nid_postfix(char16_t*, const char16_t*);
-char16_t* APS5_VABI wcsncat_nid_postfix(char16_t*, const char16_t*, std::size_t);
-std::size_t APS5_VABI wcscspn_nid_postfix(const char16_t*, const char16_t*);
-int APS5_VABI wctomb_nid_postfix(char*, char16_t);
-int APS5_VABI wctrans_nid_postfix(const char*);
-std::uint32_t APS5_VABI towctrans_nid_postfix(std::uint32_t, int);
-std::uint32_t APS5_VABI _Towctrans_nid_postfix(std::uint32_t, std::uint64_t);
-std::size_t APS5_VABI wcsftime_nid_postfix(char16_t*, std::size_t, const char16_t*, const GuestTm*);
-}
+
 
 namespace {
 
@@ -63,9 +55,9 @@ int main() {
     time.tm_min = 7;
     time.tm_wday = 2;
     char16_t buffer[32];
-    Require(wcsftime_nid_postfix(buffer, 32, u"%Y-%m-%d %H:%M", &time) == 16 && Equal(buffer, u"2024-03-05 09:07"), "wcsftime");
-    Require(wcsftime_nid_postfix(buffer, 16, u"%Y-%m-%d %H:%M", &time) == 0, "wcsftime needs room for the terminator");
-    Require(wcsftime_nid_postfix(buffer, 32, u"%a %%", &time) == 5 && Equal(buffer, u"Tue %"), "wcsftime conversions");
+    Require(wcsftime_nid_postfix(reinterpret_cast<std::uint16_t*>(buffer), 32, reinterpret_cast<const std::uint16_t*>(u"%Y-%m-%d %H:%M"), &time) == 16 && Equal(buffer, u"2024-03-05 09:07"), "wcsftime");
+    Require(wcsftime_nid_postfix(reinterpret_cast<std::uint16_t*>(buffer), 16, reinterpret_cast<const std::uint16_t*>(u"%Y-%m-%d %H:%M"), &time) == 0, "wcsftime needs room for the terminator");
+    Require(wcsftime_nid_postfix(reinterpret_cast<std::uint16_t*>(buffer), 32, reinterpret_cast<const std::uint16_t*>(u"%a %%"), &time) == 5 && Equal(buffer, u"Tue %"), "wcsftime conversions");
     std::puts("guest wide extras tests passed");
     return 0;
 }

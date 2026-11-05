@@ -5,14 +5,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI mblen_nid_postfix(const char*, std::size_t);
-std::size_t APS5_VABI mbrtoc32_nid_postfix(std::uint32_t*, const char*, std::size_t, void*);
-std::size_t APS5_VABI c32rtomb_nid_postfix(char*, std::uint32_t, void*);
-std::size_t APS5_VABI mbrtoc16_nid_postfix(std::uint16_t*, const char*, std::size_t, void*);
-std::size_t APS5_VABI c16rtomb_nid_postfix(char*, std::uint16_t, void*);
-}
+
 
 namespace {
 

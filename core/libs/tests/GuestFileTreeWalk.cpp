@@ -14,72 +14,21 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "prx/libSceLibcInternal/include/Api.hpp"
+
+
+
+
 
 namespace {
 
-struct Entry;
-
-struct Stream {
-    Entry* current;
-    Entry* children;
-    Entry** array;
-    std::uint32_t device;
-    char* path;
-    int rootDescriptor;
-    std::size_t pathLength;
-    std::size_t arrayItems;
-    void* compare;
-    int options;
-    void* clientPointer;
-};
-static_assert(offsetof(Stream, compare) == 64 && sizeof(Stream) == 88);
-
-struct Entry {
-    Entry* cycle;
-    Entry* parent;
-    Entry* link;
-    long long number;
-    void* pointer;
-    char* accessPath;
-    char* path;
-    int error;
-    int symbolicDescriptor;
-    std::size_t pathLength;
-    std::size_t nameLength;
-    std::uint32_t inode;
-    std::uint32_t device;
-    std::uint16_t linkCount;
-    std::int64_t level;
-    int info;
-    unsigned flags;
-    int instruction;
-    FileStat* status;
-    char* name;
-    Stream* fts;
-};
-static_assert(offsetof(Entry, level) == 96 && offsetof(Entry, status) == 120 && sizeof(Entry) == 144);
-
-struct Position {
-    int base;
-    int level;
-};
-
+using Stream = GuestFts;
+using Entry = GuestFtsEntry;
+using Position = GuestFtw;
 using Compare = int (APS5_VABI *)(const Entry* const*, const Entry* const*);
 
 }
 
-extern "C" {
-Stream* APS5_VABI fts_open_nid_postfix(char* const*, int, Compare);
-Entry* APS5_VABI fts_read_nid_postfix(Stream*);
-Entry* APS5_VABI fts_children_nid_postfix(Stream*, int);
-int APS5_VABI fts_set_nid_postfix(Stream*, Entry*, int);
-int APS5_VABI fts_close_nid_postfix(Stream*);
-void APS5_VABI fts_set_clientptr_nid_postfix(Stream*, void*);
-void* APS5_VABI fts_get_clientptr_nid_postfix(Stream*);
-Stream* APS5_VABI fts_get_stream_nid_postfix(Entry*);
-int APS5_VABI nftw_nid_postfix(const char*, int (APS5_VABI *)(const char*, const FileStat*, int, Position*), int, int);
-int APS5_VABI ftw_nid_postfix(const char*, int (APS5_VABI *)(const char*, const FileStat*, int), int);
-}
 
 namespace {
 

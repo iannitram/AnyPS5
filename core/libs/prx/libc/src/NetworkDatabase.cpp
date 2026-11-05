@@ -8,9 +8,6 @@
 
 namespace {
 
-struct GuestServiceEntry;
-struct GuestProtocolEntry;
-
 constexpr int GuestNoEntry = 2;
 
 template<typename TEntry>
