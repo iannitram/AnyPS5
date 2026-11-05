@@ -331,7 +331,7 @@ void KernelTraceWait_nid_postfix(const char* kind, const void* caller, std::uint
         std::fprintf(stderr, " | %s x%llu %.1fs (avg %.1f ms, max %.0f ms, %llu timeouts, tid %lu)", hot[i].first.c_str(), static_cast<unsigned long long>(s.calls), s.nanos / 1e9, s.nanos / 1e6 / static_cast<double>(s.calls), s.longest / 1e6, static_cast<unsigned long long>(s.timeouts), s.lastThread);
     }
     std::fprintf(stderr, "\n");
-    for (auto& [name, s] : sites) s = Site{};
+    sites.clear();
 }
 
 static void CancellableSleep(std::uint64_t nanos) {
