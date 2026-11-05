@@ -5,14 +5,10 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/General.hpp"
+#include "prx/libc/include/Api.hpp"
 
 extern "C" {
 extern FileStream* __stderrp_nid_postfix;
-const char* APS5_VABI getprogname_nid_postfix();
-char* APS5_VABI strerror_nid_postfix(int error);
-int APS5_VABI fprintf_nid_postfix(FileStream* stream, const char* format, ...);
-int APS5_VABI vfprintf_nid_postfix(FileStream* stream, const char* format, VaList* arguments);
-[[noreturn]] void APS5_VABI exit_nid_postfix(int code);
 }
 
 namespace {

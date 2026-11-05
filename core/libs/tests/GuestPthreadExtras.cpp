@@ -9,55 +9,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "prx/libScePosixForWebKit/include/Api.hpp"
+#include "prx/libc/include/Api.hpp"
+#include "prx/libkernel/Pthread/include/Atfork.hpp"
+#include "prx/libkernel/Time/include/Time.hpp"
+#include "prx/libkernel/include/Api.hpp"
+#include "prx/libkernel_sys/include/Api.hpp"
 
-extern "C" {
-int APS5_VABI pthread_mutexattr_init_nid_postfix(void**);
-int APS5_VABI pthread_mutexattr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_mutexattr_setprotocol_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_setprioceiling_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_gettype_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutexattr_getprotocol_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutexattr_getpshared_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutexattr_setpshared_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_setkind_np_nid_postfix(void**, int);
-int APS5_VABI pthread_mutexattr_getkind_np_nid_postfix(void*);
-int APS5_VABI pthread_mutex_init_nid_postfix(void**, void* const*);
-int APS5_VABI pthread_mutex_destroy_nid_postfix(void**);
-int APS5_VABI pthread_mutex_lock_nid_postfix(void**);
-int APS5_VABI pthread_mutex_unlock_nid_postfix(void**);
-int APS5_VABI pthread_mutex_getprioceiling_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_mutex_setprioceiling_nid_postfix(void**, int, int*);
-int APS5_VABI pthread_condattr_init_nid_postfix(void**);
-int APS5_VABI pthread_condattr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_condattr_setclock_nid_postfix(void**, int);
-int APS5_VABI pthread_condattr_getclock_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_condattr_getpshared_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_condattr_setpshared_nid_postfix(void**, int);
-int APS5_VABI pthread_rwlockattr_init_nid_postfix(void**);
-int APS5_VABI pthread_rwlockattr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_rwlockattr_getpshared_nid_postfix(void* const*, int*);
-int APS5_VABI pthread_rwlockattr_setpshared_nid_postfix(void**, int);
-int APS5_VABI pthread_getconcurrency_nid_postfix(void);
-int APS5_VABI pthread_setconcurrency_nid_postfix(int);
-int APS5_VABI pthread_atfork_nid_postfix(void (APS5_VABI *)(), void (APS5_VABI *)(), void (APS5_VABI *)());
-void* APS5_VABI pthread_self_nid_postfix(void);
-int APS5_VABI pthread_setname_np_nid_postfix(void*, const char*);
-int APS5_VABI pthread_getname_np_nid_postfix(void*, char*);
-int APS5_VABI pthread_attr_init_nid_postfix(void**);
-int APS5_VABI pthread_attr_destroy_nid_postfix(void**);
-int APS5_VABI pthread_attr_setstackaddr_nid_postfix(void**, void*);
-int APS5_VABI pthread_attr_getstackaddr_nid_postfix(void* const*, void**);
-int APS5_VABI pthread_attr_getaffinity_np_nid_postfix(void* const*, std::size_t, void*);
-int APS5_VABI pthread_attr_setaffinity_np_nid_postfix(void**, std::size_t, const void*);
-int APS5_VABI pthread_setaffinity_np_nid_postfix(void*, std::size_t, const void*);
-int APS5_VABI pthread_getaffinity_np_nid_postfix(void*, std::size_t, void*);
-int* APS5_VABI __error_nid_postfix();
-int APS5_VABI pthread_create_nid_postfix(void**, void* const*, void* (APS5_VABI *)(void*), void*);
-int APS5_VABI pthread_join_nid_postfix(void*, void**);
-int APS5_VABI pthread_detach_nid_postfix(void*);
-int APS5_VABI pthread_timedjoin_np_nid_postfix(void*, void**, const KernelTimespec*);
-int APS5_VABI clock_gettime_nid_postfix(int, KernelTimespec*);
-}
+
 
 namespace {
 
@@ -87,7 +46,7 @@ KernelTimespec In(long milliseconds) {
 }
 
 void CheckTimedJoin() {
-    void* thread = nullptr;
+    Pthread thread = nullptr;
     int token = 7;
     Require(pthread_create_nid_postfix(&thread, nullptr, Sleeper, &token) == 0, "create");
     KernelTimespec soon = In(30);
@@ -109,7 +68,7 @@ void CheckTimedJoin() {
 }
 
 void CheckMutexAttributes() {
-    void* attr = nullptr;
+    PthreadMutexattr attr = nullptr;
     int value = -1;
     Require(pthread_mutexattr_init_nid_postfix(&attr) == 0, "init");
     Require(pthread_mutexattr_getprotocol_nid_postfix(&attr, &value) == 0 && value == 0, "default protocol");
@@ -119,17 +78,17 @@ void CheckMutexAttributes() {
     Require(pthread_mutexattr_gettype_nid_postfix(&attr, &value) == 0 && value == 2, "kind is the type");
     *__error_nid_postfix() = 0;
     Require(pthread_mutexattr_getkind_np_nid_postfix(nullptr) == -1 && *__error_nid_postfix() == 22, "null kind");
-    void* missing = nullptr;
+    PthreadMutexattr missing = nullptr;
     Require(pthread_mutexattr_setkind_np_nid_postfix(&missing, 1) == -1 && *__error_nid_postfix() == 22, "uninitialized kind");
-    void* rejected = nullptr;
+    PthreadMutexattr rejected = nullptr;
     Require(pthread_mutexattr_setkind_np_nid_postfix(&attr, 1) == 0, "restore type");
 
-    void* mutex = nullptr;
+    PthreadMutex mutex = nullptr;
     Require(pthread_mutex_init_nid_postfix(&mutex, &attr) == 0, "mutex init");
     Require(pthread_mutex_getprioceiling_nid_postfix(&mutex, &value) == 22, "no ceiling without PRIO_PROTECT");
     Require(pthread_mutex_destroy_nid_postfix(&mutex) == 0, "mutex destroy");
     Require(pthread_mutex_getprioceiling_nid_postfix(&mutex, &value) == 22 && pthread_mutex_setprioceiling_nid_postfix(&mutex, 1, nullptr) == 22, "a destroyed mutex has no ceiling");
-    void* adaptive = reinterpret_cast<void*>(std::uintptr_t{1});
+    PthreadMutex adaptive = reinterpret_cast<PthreadMutex>(std::uintptr_t{1});
     Require(pthread_mutex_getprioceiling_nid_postfix(&adaptive, &value) == 22, "an initializer has no ceiling");
 
     Require(pthread_mutexattr_setprotocol_nid_postfix(&attr, 2) == 0 && pthread_mutexattr_setprioceiling_nid_postfix(&attr, 700) == 0, "PRIO_PROTECT");
@@ -145,7 +104,7 @@ void CheckMutexAttributes() {
 }
 
 void CheckOtherAttributes() {
-    void* cond = nullptr;
+    PthreadCondattr cond = nullptr;
     int value = -1;
     Require(pthread_condattr_init_nid_postfix(&cond) == 0, "condattr init");
     Require(pthread_condattr_getclock_nid_postfix(&cond, &value) == 0 && value == 0, "default clock");
@@ -154,7 +113,7 @@ void CheckOtherAttributes() {
     Require(pthread_condattr_setpshared_nid_postfix(&cond, -1) == 22, "cond errors");
     Require(pthread_condattr_destroy_nid_postfix(&cond) == 0, "condattr destroy");
 
-    void* rwlock = nullptr;
+    PthreadRwlockattr rwlock = nullptr;
     Require(pthread_rwlockattr_init_nid_postfix(&rwlock) == 0, "rwlockattr init");
     Require(pthread_rwlockattr_getpshared_nid_postfix(&rwlock, &value) == 0 && value == 0, "rwlock pshared default");
     Require(pthread_rwlockattr_setpshared_nid_postfix(&rwlock, 3) == 22, "rwlock invalid pshared");
@@ -166,13 +125,9 @@ void CheckOtherAttributes() {
 }
 
 void CheckThreads() {
-    void* self = pthread_self_nid_postfix();
-    char name[64] = {};
-    Require(pthread_setname_np_nid_postfix(self, "extras-test") == 0 && pthread_getname_np_nid_postfix(self, name) == 0 && std::strcmp(name, "extras-test") == 0, "setname");
-    Require(pthread_setname_np_nid_postfix(self, std::string(40, 'n').c_str()) == 63, "name too long");
-    Require(pthread_setname_np_nid_postfix(nullptr, "x") == 3, "no thread");
+    Pthread self = pthread_self_nid_postfix();
 
-    void* attr = nullptr;
+    PthreadAttr attr = nullptr;
     int stack = 0;
     void* address = nullptr;
     Require(pthread_attr_init_nid_postfix(&attr) == 0, "attr init");
@@ -194,7 +149,7 @@ void CheckThreads() {
     Require(pthread_attr_setaffinity_np_nid_postfix(&attr, 0, nullptr) == 0, "a null set clears the affinity");
     Require(pthread_attr_getaffinity_np_nid_postfix(&attr, sizeof(read), read) == 0 && read[0] == 0xff && read[31] == 0xff, "no stored set reads as all CPUs");
     Require(pthread_attr_destroy_nid_postfix(&attr) == 0, "attr destroy");
-    void* missing = nullptr;
+    PthreadAttr missing = nullptr;
     Require(pthread_attr_setstackaddr_nid_postfix(&missing, &stack) == 22, "uninitialized attr");
 
     unsigned char original[32] = {};

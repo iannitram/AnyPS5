@@ -23,20 +23,6 @@
 
 namespace {
 
-struct GuestQueueAttributes {
-    std::int64_t flags;
-    std::int64_t maximumMessages;
-    std::int64_t messageSize;
-    std::int64_t currentMessages;
-    std::int64_t reserved[4];
-};
-static_assert(sizeof(GuestQueueAttributes) == 64);
-
-struct GuestSignalEvent {
-    int notify;
-    int signal;
-};
-
 constexpr int GuestNoEntry = 2;
 constexpr int GuestBadDescriptor = 9;
 constexpr int GuestExists = 17;

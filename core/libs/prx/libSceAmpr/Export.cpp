@@ -970,11 +970,6 @@ void APS5_VABI _Lock_shared_ptr_spin_lock_nid_postfix(void) {
     while (sharedPtrSpinLock.test_and_set(std::memory_order_acquire)) std::this_thread::yield();
 }
 
-[[noreturn]] void APS5_VABI __cxa_call_unexpected_nid_postfix(void* unwindException) {
-
-    __cxa_call_terminate_nid_postfix(unwindException);
-}
-
 APS5_EXPORT("0hlfW1O4Aa4", sceAmprLocaleconv);
 SonyLconv* APS5_VABI sceAmprLocaleconv(void) {
     return SonyLocaleconv();

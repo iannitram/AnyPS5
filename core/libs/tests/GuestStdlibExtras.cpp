@@ -8,31 +8,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "prx/libc/include/Api.hpp"
 
-namespace {
-struct Division {
-    std::int64_t quotient;
-    std::int64_t remainder;
-};
-}
+
 
 extern "C" {
 extern char* suboptarg_nid_postfix;
-std::int64_t APS5_VABI labs_nid_postfix(std::int64_t);
-long long APS5_VABI llabs_nid_postfix(long long);
-std::int64_t APS5_VABI imaxabs_nid_postfix(std::int64_t);
-Division APS5_VABI imaxdiv_nid_postfix(std::int64_t, std::int64_t);
-long long APS5_VABI strtoq_nid_postfix(const char*, char**, int);
-unsigned long long APS5_VABI strtouq_nid_postfix(const char*, char**, int);
-std::int64_t APS5_VABI wcstoimax_nid_postfix(const char16_t*, char16_t**, int);
-std::uint64_t APS5_VABI wcstoumax_nid_postfix(const char16_t*, char16_t**, int);
-int APS5_VABI toascii_nid_postfix(int);
-void* APS5_VABI reallocarray_nid_postfix(void*, std::size_t, std::size_t);
-void APS5_VABI free_nid_postfix(void*);
-std::int64_t APS5_VABI a64l_nid_postfix(const char*);
-char* APS5_VABI l64a_nid_postfix(std::int64_t);
-int APS5_VABI l64a_r_nid_postfix(std::int64_t, char*, int);
-int APS5_VABI getsubopt_nid_postfix(char**, char* const*, char**);
 }
 
 namespace {
@@ -46,10 +27,10 @@ void Require(bool value, const char* what) {
 
 void CheckIntegers() {
     Require(labs_nid_postfix(-5) == 5 && labs_nid_postfix(INT64_MIN) == INT64_MIN && llabs_nid_postfix(-7) == 7 && imaxabs_nid_postfix(9) == 9, "absolute values");
-    const Division division = imaxdiv_nid_postfix(-7, 2);
-    Require(division.quotient == -3 && division.remainder == -1, "imaxdiv truncates");
-    const Division positive = imaxdiv_nid_postfix(INT64_MAX, -10);
-    Require(positive.quotient == INT64_MAX / -10 && positive.remainder == 7, "imaxdiv with a negative divisor");
+    const std::lldiv_t division = imaxdiv_nid_postfix(-7, 2);
+    Require(division.quot == -3 && division.rem == -1, "imaxdiv truncates");
+    const std::lldiv_t positive = imaxdiv_nid_postfix(INT64_MAX, -10);
+    Require(positive.quot == INT64_MAX / -10 && positive.rem == 7, "imaxdiv with a negative divisor");
     char* end = nullptr;
     const char text[] = "  -0x1fz";
     Require(strtoq_nid_postfix(text, &end, 0) == -31 && end == text + 7, "strtoq");

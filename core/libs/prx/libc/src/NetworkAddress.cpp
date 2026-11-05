@@ -7,25 +7,11 @@
 #include "prx/libc/include/FileStream.hpp"
 #include "prx/libc/include/General.hpp"
 
+
+
+
+
 namespace {
-
-struct GuestInAddress {
-    std::uint32_t address;
-};
-
-struct GuestIn6Address {
-    std::uint8_t bytes[16];
-};
-
-struct GuestEtherAddress {
-    std::uint8_t octet[6];
-};
-
-struct GuestControlMessage {
-    std::uint32_t length;
-    int level;
-    int type;
-};
 
 struct GuestIp6Extension {
     std::uint8_t next;
@@ -123,79 +109,6 @@ bool ValidRouting0(const GuestRoutingHeader0* header, int* addresses) {
 
 extern "C" {
 
-std::uint32_t APS5_VABI htonl_nid_postfix(std::uint32_t value) { return Swap32(value); }
-std::uint32_t APS5_VABI ntohl_nid_postfix(std::uint32_t value) { return Swap32(value); }
-std::uint16_t APS5_VABI htons_nid_postfix(std::uint16_t value) { return __builtin_bswap16(value); }
-std::uint16_t APS5_VABI ntohs_nid_postfix(std::uint16_t value) { return __builtin_bswap16(value); }
-
-int APS5_VABI inet_aton_nid_postfix(const char* text, GuestInAddress* address) {
-    if (text == nullptr) throw std::invalid_argument("inet_aton: null string");
-    std::uint8_t parts[4];
-    std::uint8_t* part = parts;
-    std::uint64_t value = 0;
-    bool digit = false;
-    char c = *text;
-    for (;;) {
-        if (!IsDigit(static_cast<unsigned char>(c))) return 0;
-        value = 0;
-        int base = 10;
-        digit = false;
-        if (c == '0') {
-            c = *++text;
-            if (c == 'x' || c == 'X') {
-                base = 16;
-                c = *++text;
-            } else {
-                base = 8;
-                digit = true;
-            }
-        }
-        for (;;) {
-            if (IsAscii(c) && IsDigit(c)) {
-                if (base == 8 && (c == '8' || c == '9')) return 0;
-                value = value * base + (c - '0');
-                c = *++text;
-                digit = true;
-            } else if (base == 16 && IsAscii(c) && IsHexDigit(c)) {
-                value = (value << 4) | static_cast<std::uint64_t>(c + 10 - (IsLower(c) ? 'a' : 'A'));
-                c = *++text;
-                digit = true;
-            } else {
-                break;
-            }
-        }
-        if (c != '.') break;
-        if (part >= parts + 3 || value > 0xff) return 0;
-        *part++ = static_cast<std::uint8_t>(value);
-        c = *++text;
-    }
-    if (c != '\0' && (!IsAscii(c) || !IsSpace(c))) return 0;
-    if (!digit) return 0;
-    switch (part - parts + 1) {
-    case 2:
-        if (value > 0xffffff) return 0;
-        value |= std::uint32_t{parts[0]} << 24;
-        break;
-    case 3:
-        if (value > 0xffff) return 0;
-        value |= (std::uint32_t{parts[0]} << 24) | (std::uint32_t{parts[1]} << 16);
-        break;
-    case 4:
-        if (value > 0xff) return 0;
-        value |= (std::uint32_t{parts[0]} << 24) | (std::uint32_t{parts[1]} << 16) | (std::uint32_t{parts[2]} << 8);
-        break;
-    default:
-        break;
-    }
-    if (address != nullptr) address->address = Swap32(static_cast<std::uint32_t>(value));
-    return 1;
-}
-
-std::uint32_t APS5_VABI inet_addr_nid_postfix(const char* text) {
-    GuestInAddress address;
-    return inet_aton_nid_postfix(text, &address) ? address.address : AddressNone;
-}
-
 std::uint32_t APS5_VABI inet_network_nid_postfix(const char* text) {
     if (text == nullptr) throw std::invalid_argument("inet_network: null string");
     std::uint32_t parts[4];
@@ -268,13 +181,6 @@ GuestInAddress APS5_VABI inet_makeaddr_nid_postfix(std::uint32_t network, std::u
     else if (network < 16777216) value = (network << 8) | (host & 0x000000ff);
     else value = network | host;
     return {Swap32(value)};
-}
-
-char* APS5_VABI inet_ntoa_nid_postfix(GuestInAddress address) {
-    static char buffer[18];
-    const auto* bytes = reinterpret_cast<const std::uint8_t*>(&address.address);
-    std::snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u", bytes[0], bytes[1], bytes[2], bytes[3]);
-    return buffer;
 }
 
 unsigned APS5_VABI inet_nsap_addr_nid_postfix(const char* text, std::uint8_t* binary, int maximum) {
@@ -354,10 +260,6 @@ char* APS5_VABI ether_ntoa_nid_postfix(const GuestEtherAddress* address) {
     return ether_ntoa_r_nid_postfix(address, text);
 }
 
-FileStream* APS5_VABI fopen_nid_postfix(const char* filename, const char* mode);
-int APS5_VABI fclose_nid_postfix(FileStream* stream);
-char* APS5_VABI fgets_nid_postfix(char* buffer, int size, FileStream* stream);
-int APS5_VABI ether_line_nid_postfix(const char* line, GuestEtherAddress* address, char* hostname);
 
 }
 

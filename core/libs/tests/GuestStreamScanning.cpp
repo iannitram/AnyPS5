@@ -10,13 +10,10 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include "prx/libc/include/Api.hpp"
+
 
 extern "C" {
-int APS5_VABI fscanf_nid_postfix(FileStream*, const char*, ...);
-int APS5_VABI vfscanf_nid_postfix(FileStream*, const char*, void*);
-int APS5_VABI scanf_nid_postfix(const char*, ...);
-int APS5_VABI vscanf_nid_postfix(const char*, void*);
-int APS5_VABI feof_nid_postfix(FileStream*);
 extern FileStream* __stdinp_nid_postfix;
 }
 
@@ -42,7 +39,7 @@ void Require(bool value, const char* what) {
 int APS5_VABI CallVfscanf(FileStream* stream, const char* format, ...) {
     APS5_TEST_VA_LIST args;
     APS5_TEST_VA_START(args, format);
-    const int result = vfscanf_nid_postfix(stream, format, args);
+    const int result = vfscanf_nid_postfix(stream, format, reinterpret_cast<VaList*>(args));
     APS5_TEST_VA_END(args);
     return result;
 }
@@ -50,7 +47,7 @@ int APS5_VABI CallVfscanf(FileStream* stream, const char* format, ...) {
 int APS5_VABI CallVscanf(const char* format, ...) {
     APS5_TEST_VA_LIST args;
     APS5_TEST_VA_START(args, format);
-    const int result = vscanf_nid_postfix(format, args);
+    const int result = vscanf_nid_postfix(format, reinterpret_cast<VaList*>(args));
     APS5_TEST_VA_END(args);
     return result;
 }

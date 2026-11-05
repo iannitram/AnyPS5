@@ -156,15 +156,4 @@ void APS5_VABI perror_nid_postfix(const char* prefix) {
     else std::fprintf(stream, "%s\n", message);
     *__error_nid_postfix() = saved;
 }
-void APS5_VABI psignal_nid_postfix(int signal, const char* prefix) {
-    std::FILE* const stream = stderr;
-    const char* text = signal >= 0 && signal < sys_nsig_nid_postfix ? sys_siglist_nid_postfix[signal] : "Unknown signal";
-    if (prefix != nullptr && *prefix != '\0') {
-        std::fputs(prefix, stream);
-        std::fputs(": ", stream);
-    }
-    std::fputs(text, stream);
-    std::fputs("\n", stream);
-    std::fflush(stream);
-}
 }

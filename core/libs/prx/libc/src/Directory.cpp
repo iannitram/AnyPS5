@@ -22,11 +22,6 @@
 #endif
 
 extern "C" {
-void* APS5_VABI malloc_nid_postfix(std::size_t size);
-void* APS5_VABI realloc_nid_postfix(void* pointer, std::size_t size);
-void APS5_VABI free_nid_postfix(void* pointer);
-int APS5_VABI strcoll_nid_postfix(const char* first, const char* second);
-void APS5_VABI qsort_r_nid_postfix(void* base, std::size_t count, std::size_t size, void* thunk, int (APS5_VABI *compare)(void*, const void*, const void*));
 }
 
 namespace {

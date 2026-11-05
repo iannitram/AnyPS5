@@ -168,7 +168,7 @@ int CountTrailingZeros128(Uint128 value) {
 }
 
 template<typename TValue>
-int Compare(TValue a, TValue b) {
+int CompareValues(TValue a, TValue b) {
     if (a < b) return 0;
     return a > b ? 2 : 1;
 }
@@ -260,10 +260,10 @@ std::uint32_t APS5_VABI stdc_count_ones_ui_nid_postfix(std::uint32_t value) { re
 std::uint32_t APS5_VABI stdc_count_ones_ul_nid_postfix(std::uint64_t value) { return std::popcount(value); }
 std::uint32_t APS5_VABI stdc_count_ones_ull_nid_postfix(std::uint64_t value) { return std::popcount(value); }
 
-int APS5_VABI __cmpdi2_nid_postfix(std::int64_t a, std::int64_t b) { return Compare(a, b); }
-int APS5_VABI __cmpti2_nid_postfix(Int128 a, Int128 b) { return Compare(a, b); }
-int APS5_VABI __ucmpdi2_nid_postfix(std::uint64_t a, std::uint64_t b) { return Compare(a, b); }
-int APS5_VABI __ucmpti2_nid_postfix(Uint128 a, Uint128 b) { return Compare(a, b); }
+int APS5_VABI __cmpdi2_nid_postfix(std::int64_t a, std::int64_t b) { return CompareValues(a, b); }
+int APS5_VABI __cmpti2_nid_postfix(Int128 a, Int128 b) { return CompareValues(a, b); }
+int APS5_VABI __ucmpdi2_nid_postfix(std::uint64_t a, std::uint64_t b) { return CompareValues(a, b); }
+int APS5_VABI __ucmpti2_nid_postfix(Uint128 a, Uint128 b) { return CompareValues(a, b); }
 
 std::int64_t APS5_VABI __negdi2_nid_postfix(std::int64_t value) {
     return static_cast<std::int64_t>(0 - static_cast<std::uint64_t>(value));

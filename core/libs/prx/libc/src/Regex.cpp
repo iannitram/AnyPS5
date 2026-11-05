@@ -56,18 +56,8 @@ using Position = std::int64_t;
 constexpr Position NoPosition = std::numeric_limits<Position>::min();
 constexpr std::size_t WordUsed = std::numeric_limits<std::size_t>::max();
 
-struct GuestRegex {
-    int magic;
-    std::size_t subexpressions;
-    const char* end;
-    void* guts;
-};
 static_assert(sizeof(GuestRegex) == 32);
 
-struct GuestMatch {
-    std::int64_t start;
-    std::int64_t end;
-};
 static_assert(sizeof(GuestMatch) == 16);
 
 struct CollatingName {

@@ -12,15 +12,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-int* APS5_VABI __error_nid_postfix();
-void APS5_VABI qsort_r_nid_postfix(void*, std::size_t, std::size_t, void*, int (APS5_VABI *)(void*, const void*, const void*));
-int APS5_VABI heapsort_nid_postfix(void*, std::size_t, std::size_t, int (APS5_VABI *)(const void*, const void*));
-int APS5_VABI mergesort_nid_postfix(void*, std::size_t, std::size_t, int (APS5_VABI *)(const void*, const void*));
-int APS5_VABI radixsort_nid_postfix(const unsigned char**, int, const unsigned char*, unsigned);
-int APS5_VABI sradixsort_nid_postfix(const unsigned char**, int, const unsigned char*, unsigned);
-}
+
 
 namespace {
 
