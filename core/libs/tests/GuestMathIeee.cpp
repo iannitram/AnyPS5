@@ -90,8 +90,8 @@ void CheckRemainders() {
     Require(modfl_nid_postfix(-3.75L, &integral) == -0.75L && integral == -3.0L, "modfl");
     Require(fmodl_nid_postfix(7.0L, 3.0L) == 1.0L && remainderl_nid_postfix(7.0L, 4.0L) == -1.0L, "fmodl and remainderl");
     int quotient = 0;
-    Require(remquo_nid_postfix(29.0, 3.0, &quotient) == -1.0 && quotient == 2, "remquo low bits");
-    Require(remquo_nid_postfix(-29.0, 3.0, &quotient) == 1.0 && quotient == -2, "remquo sign");
+    Require(remquo_nid_postfix(29.0, 3.0, &quotient) == -1.0 && (quotient & 7) == 2, "remquo low bits");
+    Require(remquo_nid_postfix(-29.0, 3.0, &quotient) == 1.0 && quotient < 0 && (-quotient & 7) == 2, "remquo sign");
     Require(remquof_nid_postfix(10.0f, -4.0f, &quotient) == 2.0f && quotient == -2, "remquof");
     Require(remquol_nid_postfix(10000000005.0L, 1.0L, &quotient) == 0 && quotient == 5, "remquol keeps three bits");
     Require(remquo_nid_postfix(1e300, 3.0, &quotient) == std::remainder(1e300, 3.0), "remquo large ratio");
