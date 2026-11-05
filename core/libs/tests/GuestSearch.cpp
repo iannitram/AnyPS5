@@ -14,7 +14,7 @@ static void Require(bool value, std::source_location location = std::source_loca
 }
 struct Record { int key; char payload[13]; };
 static int calls = 0;
-static int APS5_VABI Compare(const void* key, const void* record) {
+static int APS5_VABI CompareKeyToRecord(const void* key, const void* record) {
     ++calls;
     const int left = *static_cast<const int*>(key);
     const int right = static_cast<const Record*>(record)->key;
@@ -27,7 +27,7 @@ int main() {
     std::memcpy(before.data(), records.data(), sizeof(records));
     for (int key = 0; key <= 10; ++key) {
         calls = 0;
-        const auto* found = static_cast<Record*>(bsearch_nid_postfix(&key, records.data(), records.size(), sizeof(Record), Compare));
+        const auto* found = static_cast<Record*>(bsearch_nid_postfix(&key, records.data(), records.size(), sizeof(Record), CompareKeyToRecord));
         Require(calls <= 3);
         if (key % 2) Require(found && found->key == key && found >= records.data() && found < records.data() + records.size());
         else Require(!found);
@@ -35,12 +35,12 @@ int main() {
     Require(std::memcmp(before.data(), records.data(), sizeof(records)) == 0);
     calls = 0;
     int key = 1;
-    Require(bsearch_nid_postfix(&key, nullptr, 0, sizeof(Record), Compare) == nullptr && calls == 0);
-    Require(bsearch_nid_postfix(&key, records.data(), 1, sizeof(Record), Compare) == records.data());
+    Require(bsearch_nid_postfix(&key, nullptr, 0, sizeof(Record), CompareKeyToRecord) == nullptr && calls == 0);
+    Require(bsearch_nid_postfix(&key, records.data(), 1, sizeof(Record), CompareKeyToRecord) == records.data());
     key = 2;
-    Require(!bsearch_nid_postfix(&key, records.data(), 1, sizeof(Record), Compare));
+    Require(!bsearch_nid_postfix(&key, records.data(), 1, sizeof(Record), CompareKeyToRecord));
     bool rejected = false;
-    try { bsearch_nid_postfix(&key, records.data(), std::numeric_limits<std::size_t>::max(), sizeof(Record), Compare); }
+    try { bsearch_nid_postfix(&key, records.data(), std::numeric_limits<std::size_t>::max(), sizeof(Record), CompareKeyToRecord); }
     catch (const std::overflow_error&) { rejected = true; }
     Require(rejected);
 }

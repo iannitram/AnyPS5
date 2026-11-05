@@ -3,8 +3,8 @@ name: PR overlap
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '15 * * * *'
+  pull_request_target:
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
 
 permissions: {}

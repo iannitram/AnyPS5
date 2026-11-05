@@ -7,13 +7,9 @@
 #include <cstring>
 #include <ctime>
 #include <stdexcept>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-char* APS5_VABI strptime_nid_postfix(const char*, const char*, GuestTm*);
-std::int64_t APS5_VABI timegm_nid_postfix(GuestTm*);
-std::int64_t APS5_VABI timeoff_nid_postfix(GuestTm*, std::int64_t);
-std::int64_t APS5_VABI timelocal_nid_postfix(GuestTm*);
-}
+
 
 namespace {
 

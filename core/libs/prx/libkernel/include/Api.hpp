@@ -6,6 +6,7 @@
 #include "prx/libkernel/Apr/include/AprCommandBuffer.hpp"
 #include "prx/libc/include/specifics/linux/ElfTypes.hpp"
 #include "SceTypes.hpp"
+#include <cstddef>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
@@ -141,6 +142,70 @@ struct SceKernelSystemSwVersion {
     std::uint32_t version;
 };
 
+struct GuestTermios {
+    union {
+        std::uint32_t flags[4];
+        struct {
+            std::uint32_t input;
+            std::uint32_t output;
+            std::uint32_t control;
+            std::uint32_t local;
+        };
+    };
+    union {
+        std::uint8_t controlCharacters[20];
+        unsigned char characters[20];
+    };
+    std::uint32_t inputSpeed;
+    std::uint32_t outputSpeed;
+};
+static_assert(sizeof(GuestTermios) == 44 && alignof(GuestTermios) == 4);
+static_assert(offsetof(GuestTermios, inputSpeed) == 36 && offsetof(GuestTermios, outputSpeed) == 40);
+
+struct GuestQueueAttributes {
+    std::int64_t flags;
+    std::int64_t maximumMessages;
+    std::int64_t messageSize;
+    std::int64_t currentMessages;
+    std::int64_t reserved[4];
+};
+static_assert(sizeof(GuestQueueAttributes) == 64);
+
+struct GuestSignalEvent {
+    int notify;
+    int signal;
+};
+
+struct GuestIpcPermissions {
+    std::uint32_t creatorUser;
+    std::uint32_t creatorGroup;
+    std::uint32_t user;
+    std::uint32_t group;
+    std::uint16_t mode;
+    std::uint16_t sequence;
+    std::int64_t key;
+};
+
+struct GuestSegmentStatus {
+    GuestIpcPermissions permissions;
+    std::size_t size;
+    int lastProcess;
+    int creatorProcess;
+    int attachments;
+    std::int64_t attachTime;
+    std::int64_t detachTime;
+    std::int64_t changeTime;
+};
+static_assert(sizeof(GuestIpcPermissions) == 32 && sizeof(GuestSegmentStatus) == 80);
+
+struct SignalVector {
+    std::uintptr_t handler;
+    int mask;
+    int flags;
+};
+static_assert(sizeof(SignalVector) == 16);
+
+
 extern "C" {
 int APS5_VABI sceKernelCreateEventFlag(KernelEventFlag* ef, const char* name, std::uint32_t attr, std::uint64_t initPattern, const void* param);
 int APS5_VABI sceKernelDeleteEventFlag(KernelEventFlag ef);
@@ -148,6 +213,7 @@ int APS5_VABI sceKernelSetEventFlag(KernelEventFlag ef, std::uint64_t bitPattern
 int APS5_VABI sceKernelCancelEventFlag(KernelEventFlag ef, std::uint64_t setPattern, int* numWaitThreads);
 
 }
+
 
 extern "C" {
 
@@ -455,6 +521,8 @@ int APS5_VABI pthread_mutexattr_getpshared_nid_postfix(const PthreadMutexattr* a
 int APS5_VABI pthread_mutexattr_setpshared_nid_postfix(PthreadMutexattr* attr, int pshared);
 int APS5_VABI pthread_mutexattr_setprotocol_nid_postfix(PthreadMutexattr* attr, int protocol);
 int APS5_VABI pthread_mutexattr_getprotocol_nid_postfix(const PthreadMutexattr* attr, int* protocol);
+int APS5_VABI pthread_mutex_getprioceiling_nid_postfix(const PthreadMutex* mutex, int* ceiling);
+int APS5_VABI pthread_mutex_setprioceiling_nid_postfix(PthreadMutex* mutex, int ceiling, int* previous);
 int APS5_VABI pthread_mutexattr_setprioceiling_nid_postfix(PthreadMutexattr* attr, int prioceiling);
 int APS5_VABI pthread_mutexattr_getprioceiling_nid_postfix(const PthreadMutexattr* attr, int* prioceiling);
 int APS5_VABI pthread_mutexattr_settype_nid_postfix(PthreadMutexattr* attr, int type);
@@ -836,4 +904,37 @@ int APS5_VABI sysKernelGetManufacturingMode_nid_postfix(void);
 int APS5_VABI sysKernelGetIntdevModeForInternalLibc_nid_postfix(void);
 int APS5_VABI sysKernelGetIntdevModeForRcmgr_nid_postfix(void);
 
+
+int APS5_VABI tcgetsid_nid_postfix(int descriptor);
+char* APS5_VABI ctermid_nid_postfix(char* buffer);
+int APS5_VABI ttyname_r_nid_postfix(int descriptor, char* buffer, std::size_t length);
+void APS5_VABI cfmakeraw_nid_postfix(GuestTermios* attributes);
+std::uint32_t APS5_VABI cfgetispeed_nid_postfix(const GuestTermios* attributes);
+char* APS5_VABI ttyname_nid_postfix(int descriptor);
+int APS5_VABI cfsetispeed_nid_postfix(GuestTermios* attributes, std::uint32_t speed);
+int APS5_VABI cfsetospeed_nid_postfix(GuestTermios* attributes, std::uint32_t speed);
+std::uint32_t APS5_VABI cfgetospeed_nid_postfix(const GuestTermios* attributes);
+void* APS5_VABI mq_open_nid_postfix(const char* name, int flags, ...);
+std::int64_t APS5_VABI mq_receive_nid_postfix(void* handle, char* buffer, std::size_t length, unsigned* priority);
+int APS5_VABI mq_getattr_nid_postfix(void* handle, GuestQueueAttributes* attributes);
+int APS5_VABI mq_timedsend_nid_postfix(void* handle, const char* data, std::size_t length, unsigned priority, const KernelTimespec* timeout);
+std::int64_t APS5_VABI mq_timedreceive_nid_postfix(void* handle, char* buffer, std::size_t length, unsigned* priority, const KernelTimespec* timeout);
+int APS5_VABI mq_notify_nid_postfix(void* handle, const GuestSignalEvent* event);
+int APS5_VABI mq_send_nid_postfix(void* handle, const char* data, std::size_t length, unsigned priority);
+int APS5_VABI mq_unlink_nid_postfix(const char* name);
+int APS5_VABI mq_close_nid_postfix(void* handle);
+int APS5_VABI mq_setattr_nid_postfix(void* handle, const GuestQueueAttributes* attributes, GuestQueueAttributes* previous);
+int APS5_VABI shmget_nid_postfix(std::int64_t key, std::size_t size, int flags);
+int APS5_VABI shmctl_nid_postfix(int identifier, int command, GuestSegmentStatus* status);
+int APS5_VABI shmdt_nid_postfix(const void* address);
+void* APS5_VABI shmat_nid_postfix(int identifier, const void* address, int flags);
+std::uintptr_t APS5_VABI sigset_nid_postfix(int signal, std::uintptr_t disposition);
+int APS5_VABI sigignore_nid_postfix(int signal);
+int APS5_VABI sighold_nid_postfix(int signal);
+int APS5_VABI sigvec_nid_postfix(int signal, const SignalVector* vector, SignalVector* previous);
+int APS5_VABI sigrelse_nid_postfix(int signal);
+int APS5_VABI sigpause_nid_postfix(int mask);
+int APS5_VABI sigsetmask_nid_postfix(int mask);
+int APS5_VABI sigblock_nid_postfix(int mask);
+std::uint32_t APS5_VABI ualarm_nid_postfix(std::uint32_t microseconds, std::uint32_t reload);
 }

@@ -2,12 +2,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include "prx/libc/include/Api.hpp"
 
-extern "C" {
-char* APS5_VABI getusershell_nid_postfix(void);
-void APS5_VABI setusershell_nid_postfix(void);
-void APS5_VABI endusershell_nid_postfix(void);
-}
+
 
 namespace {
 

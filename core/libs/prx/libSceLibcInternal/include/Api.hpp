@@ -4,6 +4,7 @@
 #include "prx/libSceLibcInternal/include/Spawn.hpp"
 #include "prx/libkernel/System/include/UserContext.hpp"
 #include "prx/libc/include/FileStream.hpp"
+#include "prx/libc/include/GuestDirectory.hpp"
 #include "SceTypes.hpp"
 #include <cstddef>
 
@@ -22,6 +23,67 @@ struct LibcUtimbuf {
 };
 
 using ThreadDestructorFunction = void (APS5_VABI*)(void*);
+
+
+struct GuestFtsEntry;
+using EntryCompare = int (APS5_VABI *)(const GuestFtsEntry* const*, const GuestFtsEntry* const*);
+
+struct GuestFts {
+    GuestFtsEntry* current;
+    GuestFtsEntry* children;
+    GuestFtsEntry** array;
+    std::uint32_t device;
+    char* path;
+    int rootDescriptor;
+    std::size_t pathLength;
+    std::size_t arrayItems;
+    EntryCompare compare;
+    int options;
+    void* clientPointer;
+};
+static_assert(offsetof(GuestFts, compare) == 64 && sizeof(GuestFts) == 88);
+struct GuestFtsEntry {
+    GuestFtsEntry* cycle;
+    GuestFtsEntry* parent;
+    GuestFtsEntry* link;
+    long long number;
+    void* pointer;
+    char* accessPath;
+    char* path;
+    int error;
+    int symbolicDescriptor;
+    std::size_t pathLength;
+    std::size_t nameLength;
+    std::uint32_t inode;
+    std::uint32_t device;
+    std::uint16_t linkCount;
+    std::int64_t level;
+    int info;
+    unsigned flags;
+    int instruction;
+    FileStat* status;
+    char* name;
+    GuestFts* fts;
+};
+static_assert(offsetof(GuestFtsEntry, level) == 96 && offsetof(GuestFtsEntry, status) == 120 && sizeof(GuestFtsEntry) == 144);
+struct GuestFtw {
+    int base;
+    int level;
+};
+struct GuestGlob {
+    std::size_t pathCount;
+    std::size_t matchCount;
+    std::size_t offsets;
+    int flags;
+    char** paths;
+    int (APS5_VABI *errorFunction)(const char*, int);
+    void (APS5_VABI *closeDirectory)(void*);
+    GuestDirectoryEntry* (APS5_VABI *readDirectory)(void*);
+    void* (APS5_VABI *openDirectory)(const char*);
+    int (APS5_VABI *linkStatus)(const char*, FileStat*);
+    int (APS5_VABI *status)(const char*, FileStat*);
+};
+static_assert(offsetof(GuestGlob, paths) == 32 && sizeof(GuestGlob) == 88);
 
 extern "C" {
 
@@ -122,4 +184,18 @@ int APS5_VABI sceLibcHeapGetAddressRanges();
 int APS5_VABI sceLibcHeapMutexFree();
 
 
+
+GuestFts* APS5_VABI fts_open_nid_postfix(char* const* arguments, int options, int (APS5_VABI *compare)(const GuestFtsEntry* const*, const GuestFtsEntry* const*));
+GuestFtsEntry* APS5_VABI fts_read_nid_postfix(GuestFts* fts);
+GuestFtsEntry* APS5_VABI fts_children_nid_postfix(GuestFts* fts, int options);
+int APS5_VABI fts_set_nid_postfix(GuestFts* fts, GuestFtsEntry* entry, int instruction);
+int APS5_VABI fts_close_nid_postfix(GuestFts* fts);
+void APS5_VABI fts_set_clientptr_nid_postfix(GuestFts* fts, void* pointer);
+void* APS5_VABI fts_get_clientptr_nid_postfix(GuestFts* fts);
+GuestFts* APS5_VABI fts_get_stream_nid_postfix(GuestFtsEntry* entry);
+int APS5_VABI nftw_nid_postfix(const char* path, int (APS5_VABI *callback)(const char*, const FileStat*, int, GuestFtw*), int descriptors, int flags);
+int APS5_VABI ftw_nid_postfix(const char* path, int (APS5_VABI *callback)(const char*, const FileStat*, int), int descriptors);
+int APS5_VABI glob_nid_postfix(const char* pattern, int flags, int (APS5_VABI *errorFunction)(const char*, int), GuestGlob* result);
+void APS5_VABI globfree_nid_postfix(GuestGlob* glob);
+std::int64_t APS5_VABI ftok_nid_postfix(const char* path, int id);
 }

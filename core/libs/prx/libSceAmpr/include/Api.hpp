@@ -157,6 +157,4 @@ int APS5_VABI sceAmprAsctimeS(char* buffer, std::size_t size, const GuestTm* tim
 int APS5_VABI sceAmprFpclassifyd(double value);
 int APS5_VABI sceAmprAmmGetUsageStatsData(AmmUsageStatsData* stats);
 
-[[noreturn]] void APS5_VABI __cxa_call_unexpected_nid_postfix(void* unwindException);
-
 }

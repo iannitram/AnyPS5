@@ -279,9 +279,6 @@ extern FileStream* __stdoutp_nid_postfix;
 
 extern FileStream* __stdinp_nid_postfix;
 extern FileStream* __stdoutp_nid_postfix;
-void APS5_VABI flockfile_nid_postfix(FileStream* stream);
-void APS5_VABI funlockfile_nid_postfix(FileStream* stream);
-std::int32_t APS5_VABI fgetwc_nid_postfix(FileStream* stream);
 
 int APS5_VABI vswprintf_nid_postfix(char16_t* buffer, std::size_t size, const char16_t* format, VaList* args) {
     if (buffer == nullptr || size == 0) { errno = 22; return -1; }

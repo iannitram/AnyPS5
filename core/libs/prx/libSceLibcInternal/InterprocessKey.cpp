@@ -3,9 +3,9 @@
 
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
+#include "prx/libkernel/include/Api.hpp"
 
 extern "C" {
-int APS5_VABI stat_nid_postfix(const char* path, FileStat* status);
 
 std::int64_t APS5_VABI ftok_nid_postfix(const char* path, int id) {
     FileStat status{};

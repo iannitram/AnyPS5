@@ -9,23 +9,17 @@
 #include "prx/libc/include/HostEntropy.hpp"
 
 extern "C" {
-int* APS5_VABI __error_nid_postfix();
-void* APS5_VABI malloc_nid_postfix(std::size_t size);
-void* APS5_VABI calloc_nid_postfix(std::size_t count, std::size_t size);
-void APS5_VABI free_nid_postfix(void* pointer);
 }
+
+
 
 namespace {
 
-using Compare = int (APS5_VABI *)(const void*, const void*);
+using Entry = GuestSearchEntry;
+using Action = GuestSearchAction;
+constexpr Action Find = GuestSearchFind;
+constexpr Action Enter = GuestSearchEnter;
 
-struct Entry {
-    char* key;
-    void* data;
-};
-
-enum Action { Find = 0, Enter = 1 };
-enum Visit { Preorder = 0, Postorder = 1, Endorder = 2, Leaf = 3 };
 
 struct HashTable {
     std::size_t offsetBasis;
@@ -34,19 +28,11 @@ struct HashTable {
     Entry* entries;
 };
 
-struct TreeNode {
-    void* key;
-    TreeNode* left;
-    TreeNode* right;
-    signed char balance;
-};
-
 struct QueueElement {
     QueueElement* next;
     QueueElement* previous;
 };
 
-using WalkAction = void (APS5_VABI *)(const TreeNode*, Visit, int);
 
 constexpr int GuestSearchFailed = 3;
 
@@ -137,16 +123,16 @@ struct Path {
     }
 };
 
-void Walk(const TreeNode* root, WalkAction action, int level) {
+void Walk(const TreeNode* root, Walker action, int level) {
     if (root->left == nullptr && root->right == nullptr) {
-        action(root, Leaf, level);
+        action(root, leaf, level);
         return;
     }
-    action(root, Preorder, level);
+    action(root, preorder, level);
     if (root->left != nullptr) Walk(root->left, action, level + 1);
-    action(root, Postorder, level);
+    action(root, postorder, level);
     if (root->right != nullptr) Walk(root->right, action, level + 1);
-    action(root, Endorder, level);
+    action(root, endorder, level);
 }
 
 }
@@ -164,7 +150,7 @@ void APS5_VABI hdestroy_nid_postfix() {
     globalTable = nullptr;
 }
 
-Entry* APS5_VABI hsearch_nid_postfix(Entry item, Action action) {
+GuestSearchEntry* APS5_VABI hsearch_nid_postfix(GuestSearchEntry item, GuestSearchAction action) {
     if (globalTable == nullptr) {
         globalTable = CreateTable();
         if (globalTable == nullptr) return nullptr;
@@ -416,7 +402,7 @@ void* APS5_VABI tdelete_nid_postfix(const void* key, TreeNode** root, Compare co
     return result;
 }
 
-void APS5_VABI twalk_nid_postfix(const TreeNode* root, WalkAction action) {
+void APS5_VABI twalk_nid_postfix(const TreeNode* root, Walker action) {
     if (root != nullptr && action != nullptr) Walk(root, action, 0);
 }
 

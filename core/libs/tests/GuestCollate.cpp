@@ -56,7 +56,7 @@ const GuestLocale::CollateVtable& Vtable(const GuestLocale::Facet* facet) {
     return *reinterpret_cast<const GuestLocale::CollateVtable*>(facet->vtable);
 }
 
-int Compare(const GuestLocale::CollateFacet* facet, const std::string& left, const std::string& right) {
+int CompareText(const GuestLocale::CollateFacet* facet, const std::string& left, const std::string& right) {
     return Vtable(&facet->base).compare(facet, left.data(), left.data() + left.size(), right.data(), right.data() + right.size());
 }
 
@@ -133,7 +133,7 @@ void CheckWideGetcat(const GuestLocale::Implementation* const* classic, const Gu
     require(CompareWide(wide, u"a\u0101b", u"a\u0102b") == -1);
     const std::u16string embeddedWide(u"a\0b", 3);
     require(CompareWide(wide, embeddedWide, u"a") == 1);
-    require(CompareWide(wide, text, u"abd") == Compare(narrow, "abc", "abd"));
+    require(CompareWide(wide, text, u"abd") == CompareText(narrow, "abc", "abd"));
 
     require(HashWide(wide, u"") == 0xcbf29ce484222325ull);
     require(HashWide(wide, text) == 0xe71fa2190541574bull);
@@ -225,17 +225,17 @@ int main() {
     const auto* collate = reinterpret_cast<const GuestLocale::CollateFacet*>(facet);
     require(facet->references == 0 && collate->collation == nullptr && collate->wideCollation == nullptr);
 
-    require(Compare(collate, "abc", "abd") == -1);
-    require(Compare(collate, "abd", "abc") == 1);
-    require(Compare(collate, "a", "c") == -1);
-    require(Compare(collate, "abc", "abc") == 0);
-    require(Compare(collate, "ab", "abc") == -1);
-    require(Compare(collate, "abc", "ab") == 1);
-    require(Compare(collate, "", "") == 0);
-    require(Compare(collate, "", "a") == -1);
-    require(Compare(collate, "\x80", "a") == 1);
-    require(Compare(collate, std::string("a\0", 2), "a") == 1);
-    require(Compare(collate, std::string("a\0b", 3), std::string("a\0c", 3)) == -1);
+    require(CompareText(collate, "abc", "abd") == -1);
+    require(CompareText(collate, "abd", "abc") == 1);
+    require(CompareText(collate, "a", "c") == -1);
+    require(CompareText(collate, "abc", "abc") == 0);
+    require(CompareText(collate, "ab", "abc") == -1);
+    require(CompareText(collate, "abc", "ab") == 1);
+    require(CompareText(collate, "", "") == 0);
+    require(CompareText(collate, "", "a") == -1);
+    require(CompareText(collate, "\x80", "a") == 1);
+    require(CompareText(collate, std::string("a\0", 2), "a") == 1);
+    require(CompareText(collate, std::string("a\0b", 3), std::string("a\0c", 3)) == -1);
     require(Vtable(facet).compare(collate, nullptr, nullptr, nullptr, nullptr) == 0);
     const char text[] = "abc";
     reject([&] { Vtable(facet).compare(collate, text + 2, text, text, text + 1); });
