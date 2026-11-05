@@ -20,28 +20,9 @@ extern FileStream* __stdinp_nid_postfix;
 
 namespace {
 
-constexpr int GuestOverflow = 84;
-constexpr std::size_t AsctimeSize = 26;
 constexpr std::size_t PageSize = 16384;
 constexpr int TimeUtc = 1;
 constexpr std::size_t MaxPath = 1024;
-
-std::string Year(int year) {
-    int trail = year % 100 + 1900 % 100;
-    int lead = year / 100 + 1900 / 100 + trail / 100;
-    trail %= 100;
-    if (trail < 0 && lead > 0) {
-        trail += 100;
-        --lead;
-    } else if (lead < 0 && trail > 0) {
-        trail -= 100;
-        ++lead;
-    }
-    char text[32];
-    if (lead == 0 && trail < 0) std::snprintf(text, sizeof(text), "-0%02d", -trail);
-    else std::snprintf(text, sizeof(text), "%02d%02d", lead, trail < 0 ? -trail : trail);
-    return text;
-}
 
 }
 
