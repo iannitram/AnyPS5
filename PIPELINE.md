@@ -13,6 +13,21 @@ The Project Manager updates this file when the stage changes and adds a CHANGELO
 
 # Roadmap
 
+Updated: 2026-11-11
+
+features:
+- linux-baseline: Build on SteamOS, run one owned title natively on Linux and record its result (stage 0)
+- upstream-sync: Merge upstream into main while keeping the fork's fixes and tests (stage 0)
+- runtime-fixes: Fork fixes to the relinker, shaders and system libraries found by tests, sanitizers and reports; wider library filling stays held
+- ci-tests: CI workflows and test-suite wiring on the fork
+- contracts: G0 companion skeleton and versioned installation, session and evidence records (stage 1)
+- diagnosis: D1-D3 session timeline, failure classification and sanitized report export (stage 2)
+- test-lab: T1-T3 checkpoint-aware test routes, runner and A/B comparison (stage 3)
+- library: L1-L3 game import, persistent library shell and Play/Stop/Remove (stage 4)
+- passport: C1-C3 compatibility evidence, title passport and update trial with rollback (stage 5)
+- input-studio: I1-I3 per-game input profiles, live calibration and accessible alternatives (stage 6)
+- design-pass: UX1 final design and accessibility pass on the running companion (stage 7)
+
 I approved this product direction on 2026-11-01 (#87). The existing Linux 1.0 baseline remains intact; the expanded Product beta joins five workflows into one companion. All new modules below are planned, not implemented.
 
 ## Delivery order
