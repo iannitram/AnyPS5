@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -7,7 +8,7 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SCRIPT = REPOSITORY / "core/libs/prx/libSceAjm.native/PatchLibAtrac9.cmake"
-CMAKE = sys.argv[1] if __name__ == "__main__" and len(sys.argv) > 1 else "cmake"
+CMAKE = sys.argv[1] if __name__ == "__main__" and len(sys.argv) > 1 else shutil.which("cmake")
 
 UNPACK_GUARD = "block->GradientEndUnit < 0 || block->GradientEndUnit >= 48"
 BIT_READER_PEEK = "\tconst int byteIndex = br->Position / 8;\n\tconst int bitIndex = br->Position % 8;\n\tconst int numBytes = (bitIndex + bits - 1) / 8 + 1;\n\tconst unsigned char* buffer = br->Buffer;\n\n\tint value;\n\tswitch (numBytes) {"
@@ -24,6 +25,7 @@ def write_sources(root, extra_unpack=""):
     (root / "utility.c").write_text("int reverse(void) {\n" + UTILITY_REVERSE + "\n}\nint sign_extend(void) {\n" + UTILITY_SIGN_EXTEND + "\n}\n")
 
 
+@unittest.skipUnless(CMAKE, "CMake is required")
 class PatchLibAtrac9Tests(unittest.TestCase):
     def setUp(self):
         self._directory = tempfile.TemporaryDirectory(prefix="anyps5-atrac9-patch-")
