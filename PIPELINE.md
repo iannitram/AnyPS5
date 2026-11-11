@@ -1,7 +1,8 @@
 Stage: Dev Loop
 Since: 2026-10-26
 Kind: fork (upstream: boykopovar/AnyPS5)
-Spec: SPEC.md   Roadmap: PIPELINE.md#roadmap (fork delta), upstream README and docs/dev/PROGRESS.md / TechnicalDebt.md   Code map: docs/code-map.md
+Spec: SPEC.md   Roadmap: PIPELINE.md   Code map: docs/code-map.md
+Roadmap note: the roadmap is the "Roadmap" section below (fork delta), plus upstream README and docs/dev/PROGRESS.md and TechnicalDebt.md
 Platforms: linux (baseline and Product beta target), windows (existing runtime; companion parity deferred), mac (relinker and portable tooling only)
 Product decision: Approved 2026-11-01 (#87): native game library, compatibility passport/rollback, bounded session diagnosis, repeatable test lab and input/accessibility studio. Implementation #88-#104, all planned; #66 remains first, then contracts, diagnostics and one test route. Final stage #104 is the running-build design pass. The original #61/#62/#65/#66 baseline remains required. No new module or skeleton is built by the planning update.
 Notes: Integration branch `main`. The 2026-10-26 sync branches are merged (e7c0343f5); the last recorded upstream gap was about 2,060 commits on 2026-10-28. #66 (upstream-sync, Hard) stays first for implementation and requires Linux build/test evidence before merge. Nothing is pushed, commented or opened upstream. The closed unmerged tech-debt PRs #56-#59 are rebuilt as #67-#70 (Medium, blocked by #66); their old commits remain under archive tags. Agent rules: AGENTS.fork.md. Game runs need my own dump outside every repo.
