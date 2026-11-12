@@ -1,6 +1,7 @@
 import argparse
 import os
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
@@ -13,7 +14,9 @@ import unwrap_self
 DESCRIPTION = """Audit the imports of an extracted title before it is launched. Unwraps the dump's eboot.bin and the modules
 it ships (sce_module/, sce_modules/ and prx/, Unity's Media/Modules/ and Media/Plugins/, and module files beside
 eboot.bin) into a work directory, converts them with relinker --registry, and runs tools/import_audit.py on the
-registries with the unwrapped modules as --modules. The dump is only read; the source/ and output/ directories of a
+registries with the unwrapped modules as --modules. A module name found in more than one of those places is staged
+once (a standard folder's copy first, then the one beside eboot.bin), because the relinker stops on two inputs with
+one file name. The dump is only read; the source/ and output/ directories of a
 reused --work directory are emptied first. Exit code: that of import_audit.py, or 2
 when unwrapping or conversion fails."""
 
@@ -40,15 +43,40 @@ def modules_of(directory):
     return sorted(path for path in directory.iterdir() if (path.is_file() or path.is_symlink()) and path.suffix.lower() in MODULE_SUFFIXES)
 
 
-def prepare(dump, source, log=print):
+ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
+
+
+def output_key(name, windows):
+    return name.translate(ASCII_LOWER) if windows else name
+
+
+def unique_modules(dump, windows, log):
+    """The modules to stage, by location. The relinker names a converted module after its file name alone and stops on
+    two inputs with one name ("Conflicting guest output filename"; on Windows the names are compared without ASCII
+    case), so a name the dump holds in more than one place is staged once: from a standard folder first, then from
+    beside eboot.bin, then from Unity's folders."""
+    found = {relative: modules_of(dump / relative) for relative in STANDARD_DIRECTORIES + EXTRA_DIRECTORIES if (dump / relative).is_dir()}
+    found["."] = modules_of(dump)
+    taken = {}
+    kept = {}
+    for relative in (*STANDARD_DIRECTORIES, ".", *EXTRA_DIRECTORIES):
+        for module in found.get(relative, ()):
+            key = output_key(module.name, windows)
+            if key in taken:
+                log(f"skipped {Path(relative, module.name).as_posix()}: {taken[key]} has the same name")
+                continue
+            taken[key] = Path(relative, module.name).as_posix()
+            kept.setdefault(relative, []).append(module)
+    return kept
+
+
+def prepare(dump, source, log=print, windows=False):
     stage(dump / "eboot.bin", source / "eboot.elf")
+    kept = unique_modules(dump, windows, log)
     module_directories = []
     extra = []
     for relative in STANDARD_DIRECTORIES + EXTRA_DIRECTORIES:
-        directory = dump / relative
-        if not directory.is_dir():
-            continue
-        modules = modules_of(directory)
+        modules = kept.get(relative)
         if not modules:
             continue
         for module in modules:
@@ -56,7 +84,7 @@ def prepare(dump, source, log=print):
         module_directories.append(source / relative)
         if relative in EXTRA_DIRECTORIES:
             extra.append(relative)
-    beside = modules_of(dump)
+    beside = kept.get(".")
     if beside:
         for module in beside:
             stage(module, source / module.name)
@@ -178,7 +206,7 @@ def main(argv=None):
             print(f"FAIL: cannot create {output}: {error}", file=sys.stderr)
             return 2
         try:
-            module_directories, extra = prepare(dump, source)
+            module_directories, extra = prepare(dump, source, windows=args.windows)
         except (unwrap_self.Refused, OSError) as error:
             print(f"FAIL: unwrapping {dump}: {error}", file=sys.stderr)
             return 2
