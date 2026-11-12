@@ -3633,6 +3633,74 @@ static int RemquoQuotient(std::uint16_t status, bool negative) {
     return negative ? -quotient : quotient;
 }
 
+// remquo for finite x and nonzero finite y, computed from the integer significands alone: no x87 register
+// stack, no host CRT. Returns false for NaN, infinite and zero operands, which keep the fprem1 path.
+// The stored quotient keeps the low three bits of the magnitude with the sign of x/y, as fprem1 and the console's libc do.
+static bool RemquoFinite(double x, double y, double* remainder, int* quotient) {
+    if (!std::isfinite(x) || !std::isfinite(y) || y == 0.0) return false;
+    const bool xNegative = std::signbit(x);
+    const bool negative = xNegative != std::signbit(y);
+    if (x == 0.0) {
+        *remainder = x;
+        *quotient = 0;
+        return true;
+    }
+    constexpr std::uint64_t Hidden = 1ull << 52;
+    auto decode = [](double v, std::uint64_t& significand, int& lsb) {
+        const std::uint64_t bits = std::bit_cast<std::uint64_t>(v);
+        const int biased = static_cast<int>((bits >> 52) & 0x7ff);
+        const std::uint64_t fraction = bits & (Hidden - 1);
+        significand = biased == 0 ? fraction : fraction | Hidden;
+        lsb = (biased == 0 ? 1 : biased) - 1075;
+    };
+    std::uint64_t mx, my;
+    int lx, ly;
+    decode(std::fabs(x), mx, lx);
+    decode(std::fabs(y), my, ly);
+    // |x| / |y| = mx * 2^(lx - ly) / my
+    const int d = lx - ly;
+    if (d >= 0) {
+        // Long division of mx * 2^d by my, one bit per step. q stays modulo 8, which keeps the low three bits.
+        std::uint32_t q = static_cast<std::uint32_t>(mx / my);
+        std::uint64_t rt = mx % my;
+        for (int i = 0; i < d; ++i) {
+            rt <<= 1;
+            const std::uint32_t bit = rt >= my;
+            if (bit) rt -= my;
+            q = 2 * q + bit;
+        }
+        // Round to nearest, ties to even. rt and my are below 2^53, so 2 * rt cannot overflow.
+        const bool up = 2 * rt > my || (2 * rt == my && (q & 1) != 0);
+        // |x| - n * |y| is (rt - my) * 2^ly when rounding up and rt * 2^ly otherwise; both are exact.
+        double magnitude = up ? -std::ldexp(static_cast<double>(my - rt), ly) : std::ldexp(static_cast<double>(rt), ly);
+        if (up) ++q;
+        *remainder = xNegative ? -magnitude : magnitude;
+        q &= 7u;
+        *quotient = negative ? -static_cast<int>(q) : static_cast<int>(q);
+        return true;
+    }
+    // |x| / |y| = mx / (my * 2^k) with k = -d >= 1, so it is below 1 and the rounded quotient is 0 or 1.
+    // It is above one half exactly when 2 * mx > my * 2^k, compared without overflow.
+    const int k = -d;
+    const std::uint64_t t = 2 * mx;
+    bool above = false;
+    if (k < 64) {
+        const std::uint64_t high = t >> k;
+        const std::uint64_t low = t & ((1ull << k) - 1);
+        above = high > my || (high == my && low != 0);
+    }
+    if (!above) {
+        *remainder = x;
+        *quotient = 0;
+        return true;
+    }
+    // The ratio lies in (1/2, 1), so |x| - |y| is exact (Sterbenz).
+    const double difference = std::fabs(x) - std::fabs(y);
+    *remainder = xNegative ? -difference : difference;
+    *quotient = negative ? -1 : 1;
+    return true;
+}
+
 float APS5_VABI remainderf_nid_postfix(float x, float y) {
     std::uint16_t status;
     const long double remainder = PartialRemainder(x, y, &status);
@@ -3844,6 +3912,13 @@ double APS5_VABI remainder_nid_postfix(double x, double y) {
     return static_cast<double>(remainder);
 }
 double APS5_VABI remquo_nid_postfix(double x, double y, int* quo) {
+    double finite;
+    int quotient;
+    if (RemquoFinite(x, y, &finite, &quotient)) {
+        *quo = quotient;
+        SetRemainderDomainError(x, y);
+        return finite;
+    }
     std::uint16_t status;
     const long double remainder = PartialRemainder(x, y, &status);
     *quo = RemquoQuotient(status, std::signbit(x) != std::signbit(y));
@@ -3851,11 +3926,8 @@ double APS5_VABI remquo_nid_postfix(double x, double y, int* quo) {
     return static_cast<double>(remainder);
 }
 float APS5_VABI remquof_nid_postfix(float x, float y, int* quo) {
-    std::uint16_t status;
-    const long double remainder = PartialRemainder(x, y, &status);
-    *quo = RemquoQuotient(status, std::signbit(x) != std::signbit(y));
-    SetRemainderDomainError(x, y);
-    return static_cast<float>(remainder);
+    // A float remainder is a float, so the double result is exact.
+    return static_cast<float>(remquo_nid_postfix(x, y, quo));
 }
 float APS5_VABI _FSinh_nid_postfix(float x, float y) { return ScaledHyperbolic(x, y, true); }
 float APS5_VABI _FCosh_nid_postfix(float x, float y) { return ScaledHyperbolic(x, y, false); }
