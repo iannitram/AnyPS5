@@ -32,7 +32,7 @@ I approved this product direction on 2026-11-01 (#87). The existing Linux 1.0 ba
 
 ## Delivery order
 
-An issue is ready only when every "Blocked by" dependency is resolved. #66 and #88 are closed; #144 (a fresh sync) is the next baseline item. Planning documents may proceed while it is open; the existing fork stays at Dev Loop. No feature implementation or skeleton is claimed by this roadmap update.
+An issue is ready only when every "Blocked by" dependency is resolved. #66 and #88 are closed; #144 (a fresh sync) is the next baseline item. Planning documents may proceed while #144 is open; the existing fork stays at Dev Loop. No feature implementation or skeleton is claimed by this roadmap update.
 
 | Stage | Slice | Issue | Depends on |
 |---|---|---|---|
