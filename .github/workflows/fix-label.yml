@@ -1,8 +1,10 @@
 name: Fix label
 
 on:
+  pull_request_target:
+    types: [opened, edited, reopened]
   schedule:
-    - cron: '45 * * * *'
+    - cron: '45 4 * * *'
   workflow_dispatch:
 
 permissions: {}
@@ -14,6 +16,7 @@ concurrency:
 jobs:
   label:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       issues: read
       pull-requests: write
