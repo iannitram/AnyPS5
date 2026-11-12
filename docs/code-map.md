@@ -2,7 +2,7 @@
 
 - Repo: iannitram/AnyPS5, a fork of boykopovar/AnyPS5 (C++20 / CMake, GPL-2.0-only).
 - Kind: static relinker plus reimplemented PS5 system libraries (no emulation). It converts a PS5 executable into a native Linux ELF, Windows PE or macOS Mach-O that calls native implementations of the system libraries.
-- Integration branch: `main` (merge commits only). Existing-code snapshot: 369f2ac474 (2026-10-28), whose last code change is merge `e7c0343f5` (2026-10-26). The 2026-11-01 product plan (#87) below describes planned fork work, not present code.
+- Integration branch: `main` (merge commits only). Existing-code snapshot: 8c7d9d15b9 (2026-11-12); the last upstream sync is merge `4921718de2` (2026-11-06). The 2026-11-01 product plan (#87) below describes planned fork work, not present code.
 - Upstream: `boykopovar/AnyPS5` (`upstream/main`). This fork does not post to it.
 
 ## Layout
@@ -46,7 +46,7 @@ flowchart LR
 
 ## Where our work is
 
-`git log upstream/main..HEAD` shows about 102 non-merge commits (46 fix, 44 feat, the rest docs, tests and pipeline files) plus many merge commits; `git diff upstream/main...HEAD` is 100 files, +13,647 / -40. Our merge-base with upstream is `18ef6be0c`; upstream was about 2,060 commits (merges included) ahead at this snapshot, so a `sync/upstream-*` branch is normally in flight.
+`git log upstream/main..HEAD` shows 142 non-merge commits plus many merge commits; `git diff upstream/main...HEAD` is 147 files, +13,493 / -185. Our merge-base with upstream is `53ed29249e`; upstream is 6,126 commits (merges included) ahead at this snapshot (#144 tracks the next sync).
 
 | Area touched | Share of changed files |
 |---|---|
@@ -57,7 +57,7 @@ flowchart LR
 | `core/libs/prx/libScePosixForWebKit/` | about 3% |
 | `docs/dev/debt/`, `TechnicalDebt.md` | about 3% |
 
-The remaining files are the fork's own docs (`PIPELINE.md`, `SPEC.md`, `AGENTS.fork.md`, `CHANGELOG.md`, this map). Nothing under `core/relinker`, `core/shader`, `demo` or `tools` differs from upstream in our commits. All of our work is POSIX/libc-layer library behavior and its tests.
+The remaining files are the fork's own docs (`PIPELINE.md`, `SPEC.md`, `AGENTS.fork.md`, `CHANGELOG.md`, this map). Nothing under `core/relinker`, `core/shader` or `demo` differs from upstream in our commits; under `tools` only `tools/companion` and its test are ours (#88). Apart from that, our work is POSIX/libc-layer library behavior and its tests. The share table above predates the 2026-11-06 sync and G0 and is not refreshed here.
 
 ## Product module plan
 
@@ -65,7 +65,7 @@ This is the approved fork delta from #87. Every module below is **planned**; exi
 
 | Module | Proposed owner / existing seam | Status | Issues |
 |---|---|---|---|
-| Session contracts | tools/companion/contracts.py; tools/tests/test_companion_contracts.py | present (G0 contract/scaffold slice) | #89-#104 |
+| Session contracts | tools/companion/contracts.py; tools/tests/test_companion_contracts.py | present (G0 contract/scaffold slice; CLI operations are stubs) | #88, #89-#104 |
 | Diagnostics | tools/companion/{recorder,diagnosis,report}.py; existing FailureReport/VideoOut/tracing | planned | #89-#91 |
 | Test lab | tools/companion/{routes,runner,compare}.py; existing pad_timeline/trace_digest/performance_compare | planned | #92-#94 |
 | Game library | tools/companion/{install,library,service}.py and ui/; existing audit_dump/import_audit/relinker CLI | planned | #95-#97 |
