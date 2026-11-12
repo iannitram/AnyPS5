@@ -73,9 +73,9 @@ class AuditDumpTests(unittest.TestCase):
         locations = (*audit_dump.STANDARD_DIRECTORIES, *audit_dump.EXTRA_DIRECTORIES, ".")
         names = ("plain.prx", "shared.sprx", "user.suprx", "debug.debug_prx", "upper.SUPRX", "upper.DEBUG_PRX")
         staged = []
-        for location in locations:
+        for number, location in enumerate(locations):
             for index, name in enumerate(names):
-                relative = Path(location) / name
+                relative = Path(location) / f"{number}-{name}"
                 self.module(relative, ELF if index % 2 else SELF)
                 staged.append(relative)
             for name in ("backup.suprx.bak", "debug.debug_prx.txt"):
@@ -90,6 +90,51 @@ class AuditDumpTests(unittest.TestCase):
         self.assertEqual(directories, [source / location for location in locations])
         self.assertEqual(extra, [*audit_dump.EXTRA_DIRECTORIES, "."])
         self.assertEqual({path: path.read_bytes() for path in original}, original)
+
+    def test_a_module_name_in_several_locations_is_staged_once_from_the_standard_folder(self):
+        self.module("sce_module/libSceFace.prx")
+        self.module("sce_modules/libSceFace.prx")
+        self.module("libSceFace.prx")
+        self.module("Media/Modules/libSceFace.prx")
+        self.module("Media/Modules/Il2CppUserAssemblies.prx")
+        source = self.root / "source"
+        logged = []
+        directories, extra = audit_dump.prepare(self.dump, source, log=logged.append)
+        copied = {path.relative_to(source).as_posix() for path in source.rglob("*") if path.is_file()}
+        self.assertEqual(copied, {"eboot.elf", "sce_module/libSceFace.prx", "Media/Modules/Il2CppUserAssemblies.prx"})
+        self.assertEqual(directories, [source / "sce_module", source / "Media/Modules"])
+        self.assertEqual(extra, ["Media/Modules"])
+        for skipped in ("sce_modules/libSceFace.prx", "libSceFace.prx", "Media/Modules/libSceFace.prx"):
+            self.assertIn(f"skipped {skipped}: sce_module/libSceFace.prx has the same name", logged)
+
+    def test_a_module_beside_eboot_wins_over_unitys_folders(self):
+        self.module("libfmod.prx")
+        self.module("Media/Plugins/libfmod.prx", ELF)
+        source = self.root / "source"
+        directories, extra = audit_dump.prepare(self.dump, source, log=lambda text: None)
+        self.assertTrue((source / "libfmod.prx").read_bytes().endswith(b"libfmod.prx"))
+        self.assertFalse((source / "Media/Plugins").exists())
+        self.assertEqual((directories, extra), ([source], ["."]))
+
+    def test_names_differing_in_case_are_one_module_only_for_windows(self):
+        self.module("sce_module/libfoo.prx")
+        self.module("Media/Modules/LIBFOO.prx")
+        linux = self.root / "linux"
+        audit_dump.prepare(self.dump, linux, log=lambda text: None)
+        self.assertTrue((linux / "Media/Modules/LIBFOO.prx").is_file())
+        windows = self.root / "windows"
+        directories, extra = audit_dump.prepare(self.dump, windows, log=lambda text: None, windows=True)
+        self.assertFalse((windows / "Media/Modules").exists())
+        self.assertEqual((directories, extra), ([windows / "sce_module"], []))
+
+    def test_main_stages_duplicates_by_the_target_platforms_name_rule(self):
+        self.module("sce_module/libfoo.prx")
+        self.module("Media/Modules/LIBFOO.prx")
+        work = self.root / "work"
+        with mock.patch.object(audit_dump, "convert", return_value=subprocess.CompletedProcess([], 1, "", "stop")) as convert,                 contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(audit_dump.main([str(self.dump), "--relinker", str(self.relinker), "--libs", str(self.root / "libs"), "--work", str(work), "--windows"]), 2)
+        self.assertEqual(convert.call_args.args[3], [])
+        self.assertFalse((work / "source" / "Media/Modules").exists())
 
     def test_invalid_extended_modules_are_not_silently_skipped(self):
         for name in ("bad.suprx", "bad.debug_prx"):
