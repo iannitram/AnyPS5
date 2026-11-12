@@ -28,11 +28,6 @@ struct HashTable {
     Entry* entries;
 };
 
-struct QueueElement {
-    QueueElement* next;
-    QueueElement* previous;
-};
-
 
 constexpr int GuestSearchFailed = 3;
 
@@ -156,28 +151,6 @@ GuestSearchEntry* APS5_VABI hsearch_nid_postfix(GuestSearchEntry item, GuestSear
         if (globalTable == nullptr) return nullptr;
     }
     return SearchTable(globalTable, item, action);
-}
-
-void APS5_VABI insque_nid_postfix(void* element, void* predecessor) {
-    if (element == nullptr) throw std::invalid_argument("insque: null element");
-    auto* inserted = static_cast<QueueElement*>(element);
-    auto* previous = static_cast<QueueElement*>(predecessor);
-    if (previous == nullptr) {
-        inserted->previous = inserted->next = nullptr;
-        return;
-    }
-    QueueElement* next = previous->next;
-    if (next != nullptr) next->previous = inserted;
-    previous->next = inserted;
-    inserted->previous = previous;
-    inserted->next = next;
-}
-
-void APS5_VABI remque_nid_postfix(void* element) {
-    if (element == nullptr) throw std::invalid_argument("remque: null element");
-    auto* removed = static_cast<QueueElement*>(element);
-    if (removed->previous != nullptr) removed->previous->next = removed->next;
-    if (removed->next != nullptr) removed->next->previous = removed->previous;
 }
 
 SearchTreeNode* APS5_VABI tfind_nid_postfix(const void* key, SearchTreeNode* const* root, GuestCompare compare) {

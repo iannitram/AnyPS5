@@ -155,11 +155,11 @@ void CheckThreads() {
     unsigned char original[32] = {};
     Require(pthread_getaffinity_np_nid_postfix(self, 16, original) == 0, "getaffinity");
     cpus[0] = 0x01;
-    Require(pthread_setaffinity_np_nid_postfix(self, sizeof(cpus), cpus) == 0, "setaffinity");
+    Require(pthread_setaffinity_np_nid_postfix(self, 16, cpus) == 0, "setaffinity");
     Require(pthread_getaffinity_np_nid_postfix(self, 16, read) == 0 && read[0] == 0x01, "affinity applied");
-    Require(pthread_setaffinity_np_nid_postfix(self, sizeof(original), original) == 0, "restore affinity");
+    Require(pthread_setaffinity_np_nid_postfix(self, 16, original) == 0, "restore affinity");
     unsigned char none[32] = {};
-    Require(pthread_setaffinity_np_nid_postfix(self, sizeof(none), none) == 11, "an empty set is EDEADLK, as cpuset_testupdate gives");
+    Require(pthread_setaffinity_np_nid_postfix(self, 16, none) == 11, "an empty set is EDEADLK, as cpuset_testupdate gives");
 }
 
 }

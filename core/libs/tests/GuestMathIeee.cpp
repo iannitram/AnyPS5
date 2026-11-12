@@ -95,6 +95,12 @@ void CheckRemainders() {
     Require(remquof_nid_postfix(10.0f, -4.0f, &quotient) == 2.0f && quotient == -2, "remquof");
     Require(remquol_nid_postfix(10000000005.0L, 1.0L, &quotient) == 0 && quotient == 5, "remquol keeps three bits");
     Require(remquo_nid_postfix(1e300, 3.0, &quotient) == std::remainder(1e300, 3.0), "remquo large ratio");
+    Require(remquo_nid_postfix(5.0, 2.0, &quotient) == 1.0 && quotient == 2, "remquo tie rounds to even");
+    Require(remquo_nid_postfix(7.0, 2.0, &quotient) == -1.0 && quotient == 4, "remquo tie rounds up to even");
+    Require(remquo_nid_postfix(-7.0, 2.0, &quotient) == 1.0 && quotient == -4, "remquo negative tie");
+    Require(remquo_nid_postfix(1e300, 7.0, &quotient) == 1.0 && (quotient & 7) == 1, "remquo large ratio low bits");
+    Require(remquo_nid_postfix(0x1.3e225a8p+33, 0x1.4964007p+18, &quotient) == 68135.65625 && (quotient & 7) == 0, "remquo exponent gap of 15");
+    Require(remquo_nid_postfix(5.0 * std::numeric_limits<double>::denorm_min(), 2.0 * std::numeric_limits<double>::denorm_min(), &quotient) == std::numeric_limits<double>::denorm_min() && quotient == 2, "remquo subnormal");
 }
 
 void CheckExact() {
