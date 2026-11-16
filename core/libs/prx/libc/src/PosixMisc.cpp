@@ -21,7 +21,6 @@ extern FileStream* __stdinp_nid_postfix;
 namespace {
 
 constexpr std::size_t PageSize = 16384;
-constexpr int TimeUtc = 1;
 constexpr std::size_t MaxPath = 1024;
 
 }
@@ -39,19 +38,6 @@ char* APS5_VABI ctime_r_nid_postfix(const std::int64_t* timer, char* buffer) {
 
 
 void* APS5_VABI valloc_nid_postfix(std::size_t size) { return memalign_nid_postfix(PageSize, size); }
-
-int APS5_VABI timespec_get_nid_postfix(KernelTimespec* time, int base) {
-    if (base != TimeUtc) return 0;
-    if (time == nullptr) {
-        errno = 14;
-        return 0;
-    }
-    const auto now = std::chrono::system_clock::now().time_since_epoch();
-    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now);
-    time->tv_sec = seconds.count();
-    time->tv_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(now - seconds).count();
-    return base;
-}
 
 std::size_t APS5_VABI confstr_nid_postfix(int name, char* buffer, std::size_t length) {
     static constexpr const char* Unsupported = "unsupported programming environment";

@@ -65,10 +65,6 @@ int Temporary(char* pattern, int suffixLength, bool directory) {
 }
 }
 
-extern "C" int APS5_VABI mkstemp_nid_postfix(char* pattern) {
-    return Temporary(pattern, 0, false);
-}
-
 extern "C" int APS5_VABI mkstemps_nid_postfix(char* pattern, int suffixLength) {
     return Temporary(pattern, suffixLength, false);
 }

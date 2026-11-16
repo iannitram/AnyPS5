@@ -55,21 +55,9 @@ TComplex DecimalLogarithm(TComplex z, TComplex naturalLogarithm) {
     return Make<TComplex, TFloat>(__real__ naturalLogarithm * scale, __imag__ naturalLogarithm * scale);
 }
 
-template<typename TComplex, typename TFloat>
-TComplex Project(TComplex z) {
-    if (!std::isinf(__real__ z) && !std::isinf(__imag__ z)) return z;
-    return Make<TComplex, TFloat>(TFloat(INFINITY), std::copysign(TFloat(0), TFloat(__imag__ z)));
-}
-
 }
 
 #define APS5_COMPLEX_FUNCTIONS(SUFFIX, TFloat, TComplex)                                                         \
-    TFloat APS5_VABI cabs##SUFFIX##_nid_postfix(TComplex z) { return KeepErrno([&] { return std::hypot(__real__ z, __imag__ z); }); } \
-    TFloat APS5_VABI carg##SUFFIX##_nid_postfix(TComplex z) { return KeepErrno([&] { return std::atan2(__imag__ z, __real__ z); }); } \
-    TFloat APS5_VABI creal##SUFFIX##_nid_postfix(TComplex z) { return __real__ z; }                              \
-    TFloat APS5_VABI cimag##SUFFIX##_nid_postfix(TComplex z) { return __imag__ z; }                              \
-    TComplex APS5_VABI conj##SUFFIX##_nid_postfix(TComplex z) { return ~z; }                                     \
-    TComplex APS5_VABI cproj##SUFFIX##_nid_postfix(TComplex z) { return Project<TComplex, TFloat>(z); }          \
     TComplex APS5_VABI cacos##SUFFIX##_nid_postfix(TComplex z) { return KeepErrno([&] { return __builtin_cacos##SUFFIX(z); }); } \
     TComplex APS5_VABI casin##SUFFIX##_nid_postfix(TComplex z) { return KeepErrno([&] { return __builtin_casin##SUFFIX(z); }); } \
     TComplex APS5_VABI catan##SUFFIX##_nid_postfix(TComplex z) { return KeepErrno([&] { return __builtin_catan##SUFFIX(z); }); } \

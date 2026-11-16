@@ -24,6 +24,8 @@ STANDARD_DIRECTORIES = ("sce_module", "sce_modules", "prx")
 EXTRA_DIRECTORIES = ("Media/Modules", "Media/Plugins")
 MODULE_SUFFIXES = import_audit.MODULE_FILE_SUFFIXES
 ELF_MAGIC = b"\x7fELF"
+MODULE_MAGICS = (ELF_MAGIC, unwrap_self.SELF_MAGIC.to_bytes(4, "little"),
+                 unwrap_self.SELF_MAGIC_KERNEL.to_bytes(4, "little"))
 
 
 def stage(source, destination):
@@ -40,7 +42,17 @@ def stage(source, destination):
 
 
 def modules_of(directory):
-    return sorted(path for path in directory.iterdir() if (path.is_file() or path.is_symlink()) and path.suffix.lower() in MODULE_SUFFIXES)
+    modules = []
+    for path in directory.iterdir():
+        if not (path.is_file() or path.is_symlink()):
+            continue
+        if path.suffix.lower() in MODULE_SUFFIXES:
+            modules.append(path)
+        elif path.is_file():
+            with path.open("rb") as file:
+                if file.read(4) in MODULE_MAGICS:
+                    modules.append(path)
+    return sorted(modules)
 
 
 ASCII_LOWER = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
@@ -56,7 +68,7 @@ def unique_modules(dump, windows, log):
     case), so a name the dump holds in more than one place is staged once: from a standard folder first, then from
     beside eboot.bin, then from Unity's folders."""
     found = {relative: modules_of(dump / relative) for relative in STANDARD_DIRECTORIES + EXTRA_DIRECTORIES if (dump / relative).is_dir()}
-    found["."] = modules_of(dump)
+    found["."] = [module for module in modules_of(dump) if not module.samefile(dump / "eboot.bin")]
     taken = {}
     kept = {}
     for relative in (*STANDARD_DIRECTORIES, ".", *EXTRA_DIRECTORIES):
@@ -71,16 +83,21 @@ def unique_modules(dump, windows, log):
 
 
 def prepare(dump, source, log=print, windows=False):
+    for module in modules_of(dump):
+        if source / module.name == source / "eboot.elf" and not module.samefile(dump / "eboot.bin"):
+            raise unwrap_self.Refused(f"{module}: module name collides with the staged executable eboot.elf")
     stage(dump / "eboot.bin", source / "eboot.elf")
     kept = unique_modules(dump, windows, log)
     module_directories = []
     extra = []
+    count = 0
     for relative in STANDARD_DIRECTORIES + EXTRA_DIRECTORIES:
         modules = kept.get(relative)
         if not modules:
             continue
         for module in modules:
             stage(module, source / relative / module.name)
+        count += len(modules)
         module_directories.append(source / relative)
         if relative in EXTRA_DIRECTORIES:
             extra.append(relative)
@@ -88,9 +105,10 @@ def prepare(dump, source, log=print, windows=False):
     if beside:
         for module in beside:
             stage(module, source / module.name)
+        count += len(beside)
         module_directories.append(source)
         extra.append(".")
-    log(f"staged eboot.bin and {sum(len(modules_of(directory)) for directory in module_directories)} modules")
+    log(f"staged eboot.bin and {count} modules")
     return module_directories, extra
 
 
@@ -108,7 +126,7 @@ def comparison_path(path, links=frozenset()):
     for prefix in (*reversed(path.parents), path):
         if not prefix.is_symlink():
             continue
-        identity = prefix.parent.resolve() / prefix.name
+        identity = (prefix.parent.resolve() / prefix.name).parts
         if identity in links:
             raise RuntimeError("symbolic link cycle")
         target = prefix.readlink()
@@ -154,6 +172,16 @@ def main(argv=None):
         parser.error(f"{args.relinker}: no such relinker")
     relinker = Path(args.relinker).resolve()
     dump_path = comparison_path(dump)
+    try:
+        dump_inputs = [dump / "eboot.bin", *modules_of(dump)]
+        dump_directories = []
+        for relative in STANDARD_DIRECTORIES + EXTRA_DIRECTORIES:
+            directory = dump / relative
+            if directory.is_dir():
+                dump_directories.append(directory)
+                dump_inputs.extend((directory, *modules_of(directory)))
+    except (OSError, RuntimeError) as error:
+        parser.error(f"{dump}: cannot enumerate dump inputs before cleanup: {error}")
     if args.json:
         report = Path(args.json)
         try:
@@ -179,14 +207,15 @@ def main(argv=None):
                 parser.error(f"{generated}: cannot check work directory against the input dump: {error}")
             if dump_path.is_relative_to(generated_path) or generated_path.is_relative_to(dump_path):
                 parser.error(f"{generated}: work directory overlaps the input dump")
-            for input_path in (Path(args.relinker), *(Path(library) for library in args.libs)):
+            for input_path in (Path(args.relinker), *(Path(library) for library in args.libs), *dump_inputs):
                 try:
                     resolved = comparison_path(input_path)
                 except (OSError, RuntimeError) as error:
                     parser.error(f"{input_path}: cannot check work directory against input: {error}")
                 supplied = Path(os.path.abspath(input_path))
                 generated_spelling = Path(os.path.abspath(generated))
-                if supplied.is_relative_to(generated_spelling) or resolved.is_relative_to(generated_path):
+                if (supplied.is_relative_to(generated_spelling) or resolved.is_relative_to(generated_path)
+                        or input_path in dump_directories and generated_path.is_relative_to(resolved)):
                     parser.error(f"{generated}: work directory contains input {input_path}")
         for generated in (source, output):
             try:
@@ -228,6 +257,7 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     sys.exit(main())
