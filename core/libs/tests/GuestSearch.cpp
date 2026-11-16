@@ -161,11 +161,11 @@ int main() {
         int present = 3;
         int absent = 4;
         calls = 0;
-        Require(rejectsKeepingErrno([&] { lfind_nid_postfix(&present, table.data(), unmappedCount, sizeof(Record), Compare); }) && calls == 0);
-        Require(rejectsKeepingErrno([&] { lsearch_nid_postfix(&present, table.data(), unmappedCount, sizeof(Record), Compare); }) && calls == 0);
-        Require(lfind_nid_postfix(&present, table.data(), readOnlyCount, sizeof(Record), Compare) == &table[1]);
-        Require(lsearch_nid_postfix(&present, table.data(), readOnlyCount, sizeof(Record), Compare) == &table[1]);
-        Require(rejectsKeepingErrno([&] { lsearch_nid_postfix(&absent, table.data(), readOnlyCount, sizeof(Record), Compare); }));
+        Require(rejectsKeepingErrno([&] { lfind_nid_postfix(&present, table.data(), unmappedCount, sizeof(Record), CompareKeyToRecord); }) && calls == 0);
+        Require(rejectsKeepingErrno([&] { lsearch_nid_postfix(&present, table.data(), unmappedCount, sizeof(Record), CompareKeyToRecord); }) && calls == 0);
+        Require(lfind_nid_postfix(&present, table.data(), readOnlyCount, sizeof(Record), CompareKeyToRecord) == &table[1]);
+        Require(lsearch_nid_postfix(&present, table.data(), readOnlyCount, sizeof(Record), CompareKeyToRecord) == &table[1]);
+        Require(rejectsKeepingErrno([&] { lsearch_nid_postfix(&absent, table.data(), readOnlyCount, sizeof(Record), CompareKeyToRecord); }));
         Require(*readOnlyCount == 3 && std::memcmp(table.data(), saved.data(), sizeof(table)) == 0);
 #ifdef _WIN32
         VirtualFree(page, 0, MEM_RELEASE);
