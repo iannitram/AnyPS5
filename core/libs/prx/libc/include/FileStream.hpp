@@ -457,6 +457,8 @@ public:
     void ClearUnlockedError() {
 #ifdef _WIN32
         std::clearerr(GetHandle());
+#elif defined(clearerr_unlocked)
+        clearerr_unlocked(GetHandle());
 #else
         ::clearerr_unlocked(GetHandle());
 #endif
