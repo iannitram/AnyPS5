@@ -100,15 +100,15 @@ class AuditDumpTests(unittest.TestCase):
         locations = (*audit_dump.STANDARD_DIRECTORIES, *audit_dump.EXTRA_DIRECTORIES, ".")
         source = self.root / "source"
         messages = []
-        for location in locations:
-            self.module(Path(location) / "guest.bin", ELF)
-            self.module(Path(location) / "guest.dat", SELF)
+        for index, location in enumerate(locations):
+            self.module(Path(location) / f"guest{index}.bin", ELF)
+            self.module(Path(location) / f"guest{index}.dat", SELF)
             self.module(Path(location) / "asset.bin", b"ordinary data")
         directories, extra = audit_dump.prepare(self.dump, source, log=messages.append)
-        for location in locations:
+        for index, location in enumerate(locations):
             with self.subTest(location=location):
-                self.assertEqual((source / location / "guest.bin").read_bytes(), ELF)
-                self.assertEqual((source / location / "guest.dat").read_bytes(), ELF + b"guest.dat")
+                self.assertEqual((source / location / f"guest{index}.bin").read_bytes(), ELF)
+                self.assertEqual((source / location / f"guest{index}.dat").read_bytes(), ELF + f"guest{index}.dat".encode())
                 self.assertFalse((source / location / "asset.bin").exists())
         self.assertFalse((source / "eboot.bin").exists())
         self.assertEqual(directories, [source / location for location in locations])

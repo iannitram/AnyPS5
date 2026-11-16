@@ -36,15 +36,13 @@ class ConflictLabelConcurrencyTests(unittest.TestCase):
             "kills every scan of the open pull requests before it finishes",
         )
 
-    def test_only_the_hourly_schedule_and_a_manual_run_still_scan(self):
+    def test_the_fork_scans_on_a_push_to_main_a_pull_request_update_or_a_manual_run(self):
         text = CONFLICT_WORKFLOW.read_text(encoding="utf-8")
         triggers = text.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
-        self.assertIn("  schedule:\n    - cron: '0 * * * *'", triggers)
+        self.assertIn("  push:\n    branches: [main]", triggers)
+        self.assertIn("  pull_request_target:\n    types: [synchronize]", triggers)
         self.assertIn("  workflow_dispatch:", triggers)
-        self.assertNotIn("push:", triggers, "a run created by a push to main replaces the pending one "
-                         "within seconds, and the runner queue waits longer than main goes between pushes")
-        self.assertNotIn("pull_request", triggers, "each pull request event would start a scan of every open pull request")
-
+        self.assertNotIn("schedule:", triggers, "the fork does not scan hourly")
 
 class ConflictLabelPullRequestTests(unittest.TestCase):
     def test_a_newer_push_replaces_only_the_check_of_the_same_pull_request(self):
